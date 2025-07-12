@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 72" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:2">
+  <!-- Card outline -->
+  <path d="M52.5 7H19a3.995 3.995 0 0 0-2.828 1.172A3.995 3.995 0 0 0 15 11v42c0 1.061.421 2.078 1.172 2.828A3.995 3.995 0 0 0 19 57h26a3.995 3.995 0 0 0 2.828-1.172A3.995 3.995 0 0 0 49 53V10.5a3.5 3.5 0 1 1 7 0V26a4 4 0 0 1-4 4h-2.9" 
+        style="fill:none;stroke:#2563EA;stroke-width:2.5"/>
+
+  <!-- House icon -->
+  <path d="M24 22.5V33a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V22.5" style="fill:none;stroke:#2563EA;stroke-width:2.5"/>
+  <path d="M21 24.603 32 16l11 8.603" style="fill:none;stroke:#2563EA;stroke-width:2.5"/>
+
+  <!-- Text block with reduced spacing -->
+  <text x="32" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="5" font-weight="bold" fill="#2563EA">WAARDIAN</text>
+  <text x="32" y="48.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="2.7" font-weight="bold" fill="#2563EA">PROTECTING HOMES</text>
+</svg>
