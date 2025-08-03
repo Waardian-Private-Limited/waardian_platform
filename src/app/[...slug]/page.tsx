@@ -1,17 +1,21 @@
-// pages/admin/[...slug]/page.tsx
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Menu } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Menu, X } from 'lucide-react';
+
 import { checkSession, logout } from '@/lib/superadmincontroller';
+import { useUserStore } from '@/lib/store/userStore';
+
 import SuperadminSidebar from '@/components/superadmin/SuperadminSidebar';
 import SocietyAdminSidebar from '@/components/societyAdmin/SocietyAdminSidebar';
 import SuperadminDashboard from '@/components/superadmin/SuperAdminDashboard';
 import SuperadminSociety from '@/components/superadmin/SuperadminSociety';
 import SocietyAdminDashboard from '@/components/societyAdmin/SocietyAdminDashboard';
+import SuperadminSubscription from '@/components/superadmin/SuperAdminSubscription';
+import HousingStructure from '@/components/societyAdmin/HousingStructure';
 import MembersPage from '@/components/societyAdmin/MembersPage';
-import FeaturesExplore from '@/components/societyAdmin/HousingStructure';
+import BillingPage from '@/components/societyAdmin/BillingPage';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
@@ -23,140 +27,237 @@ export default function DynamicAdminPage() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [user, setUser] = useState<{ role: string; email: string } | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const { user, setUser, clearUser } = useUserStore();
 
   const baseRoute = Array.isArray(slug) ? slug[0]?.toLowerCase() : slug?.toLowerCase();
   const subRoute = Array.isArray(slug) && slug.length > 1 ? slug[1]?.toLowerCase() : null;
 
+  const allowedBaseRoutes = ['superadmin', 'societyadmin'];
+  const validTabs: Record<string, string[]> = {
+    superadmin: ['dashboard', 'societies', 'subscription'],
+    societyadmin: ['dashboard', 'members', 'flats', 'billing', 'settings', 'buildingstructure'],
+  };
+
+  const redirectToLogin = useCallback((reason: string) => {
+    if (!isRedirecting) {
+      console.error('Redirecting to login due to:', reason);
+      setIsRedirecting(true);
+      clearUser();
+      router.replace('/login');
+    }
+  }, [clearUser, router, isRedirecting]);
+
   useEffect(() => {
+    let isMounted = true;
+
+    console.log('Route info:', { baseRoute, subRoute, validTabs, slug });
+
+    if (!baseRoute || !allowedBaseRoutes.includes(baseRoute)) {
+      redirectToLogin(`Invalid baseRoute: ${baseRoute}`);
+      setIsChecking(false);
+      return;
+    }
+
+    if (subRoute && !validTabs[baseRoute]?.includes(subRoute)) {
+      redirectToLogin(`Invalid subRoute: ${subRoute} for baseRoute: ${baseRoute}`);
+      setIsChecking(false);
+      return;
+    }
+
     const verifySession = async () => {
       try {
         const data = await checkSession();
+        console.log('Session data:', data);
+
+        if (!isMounted) return;
+
         if (!data.isAuthenticated || data.role?.toLowerCase() !== baseRoute) {
-          router.push('/login');
-        } else {
-          setUser({ role: data.role, email: data.email || 'admin@example.com' });
-          if (subRoute && ['dashboard', 'members', 'HousingStructure', 'societies'].includes(subRoute)) {
-            setActiveTab(subRoute);
-          }
+          redirectToLogin(
+            `Session invalid: isAuthenticated=${data.isAuthenticated}, role=${data.role}, expected=${baseRoute}`
+          );
+          return;
         }
-      } catch {
-        router.push('/login');
+
+        const userData = data.user || {};
+        const newUser = {
+          id: userData.id || 'user-1',
+          role: data.role,
+          email: userData.email || '',
+          name: userData.name || '',
+          societyId: userData.societyId || '1',
+          societyName: userData.societyName || 'Your Society',
+          avatar: userData.avatar || null,
+        };
+        setUser(newUser);
+        console.log('User set:', newUser);
+
+        if (!newUser.societyId) {
+          redirectToLogin('No societyId found in user data');
+          return;
+        }
+
+        const defaultTab = validTabs[baseRoute][0];
+        setActiveTab(subRoute && validTabs[baseRoute].includes(subRoute) ? subRoute : defaultTab);
+        console.log('Active tab set:', subRoute || defaultTab);
+      } catch (error: any) {
+        if (isMounted) {
+          console.error('Session verification failed:', error.message);
+          redirectToLogin(`Session error: ${error.message}`);
+        }
       } finally {
-        setIsChecking(false);
+        if (isMounted) {
+          setIsChecking(false);
+        }
       }
     };
 
-    if (baseRoute === 'superadmin' || baseRoute === 'societyadmin') {
-      verifySession();
-    } else {
-      router.push('/login');
-      setIsChecking(false);
-    }
-  }, [router, baseRoute, subRoute]);
+    verifySession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [baseRoute, subRoute, setUser, redirectToLogin]);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsSidebarCollapsed(window.innerWidth < 768);
+      setIsSidebarCollapsed(window.innerWidth < 1024);
       setIsMobileSidebarOpen(false);
     };
+
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  if (isChecking) {
+  const handleLogout = async () => {
+    try {
+      await logout();
+      clearUser();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      router.push('/login');
+    }
+  };
+
+  const handleTabChange = (tab: string) => {
+    console.log('Changing tab to:', tab);
+    setActiveTab(tab);
+    setIsMobileSidebarOpen(false);
+    router.push(`/${baseRoute}/${tab}`);
+  };
+
+  if (isChecking || !user) {
+    console.log('Rendering loading state:', { isChecking, user });
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f9fc]">
-        <p className="text-gray-600">Loading...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-600 font-medium">Loading...</p>
+        </div>
       </div>
     );
   }
 
   let SidebarComponent: React.ComponentType<any> = () => null;
   let ContentComponent: React.ComponentType = () => (
-    <div className="p-4 text-red-600">Invalid tab</div>
+    <div className="p-6 text-center text-red-600">
+      <h2 className="text-xl font-semibold mb-2">Invalid Page</h2>
+      <p>The requested page could not be found.</p>
+    </div>
   );
 
   if (baseRoute === 'superadmin') {
     SidebarComponent = SuperadminSidebar;
-    ContentComponent =
-      activeTab === 'dashboard'
-        ? SuperadminDashboard
-        : activeTab === 'societies'
-        ? SuperadminSociety
-        : ContentComponent;
+    ContentComponent = () => {
+      switch (activeTab) {
+        case 'dashboard':
+          return <SuperadminDashboard />;
+        case 'societies':
+          return <SuperadminSociety />;
+        case 'subscription':
+          return <SuperadminSubscription />;
+        default:
+          return <div>Select a tab</div>;
+      }
+    };
   } else if (baseRoute === 'societyadmin') {
     SidebarComponent = SocietyAdminSidebar;
-    ContentComponent =
-      activeTab === 'dashboard'
-        ? SocietyAdminDashboard
-        : activeTab === 'members'
-        ? MembersPage
-        : activeTab === 'HousingStructure'
-        ? FeaturesExplore
-        : ContentComponent;
+    ContentComponent = () => {
+      switch (activeTab) {
+        case 'dashboard':
+          return <SocietyAdminDashboard societyId={Number(user?.societyId) || 0} />;
+        case 'members':
+          return <MembersPage societyId={(user?.societyId || '0').toString()} />;
+        case 'buildingstructure':
+          return <HousingStructure societyId={(user?.societyId || '0').toString()} />;
+        case 'billing':
+          return <BillingPage societyId={(user?.societyId || '0').toString()} />;
+        default:
+          return <div>Select a tab</div>;
+      }
+    };
   }
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.push('/login');
-    } catch {
-      router.push('/login');
-    }
-  };
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen flex flex-col bg-[#f8f9fc] text-gray-900">
-        <Header user={user} handleLogout={handleLogout} />
-
-        <div className="flex flex-1 relative overflow-hidden">
-          {/* Mobile Sidebar Toggle */}
-          <button
-            className="md:hidden p-2 absolute top-4 left-4 z-20 bg-white rounded-md shadow-sm"
-            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            aria-label="Toggle sidebar"
-          >
-            <Menu className="w-6 h-6 text-gray-700" />
-          </button>
-
-          {/* Sidebar */}
-          <aside
-            className={`bg-[#f1f3f9] border-r border-gray-200 ${
-              isSidebarCollapsed ? 'w-16' : 'w-64'
-            } hidden md:block transition-all duration-300 sticky top-0 h-[calc(100vh-4rem)] overflow-y-auto z-10`}
-          >
+      <div className="flex min-h-screen bg-gray-50">
+        <aside
+          className={`hidden lg:block bg-white border-r border-gray-200 shadow-sm transition-all duration-300 ${
+            isSidebarCollapsed ? 'w-16' : 'w-64'
+          } flex-shrink-0`}
+        >
+          <div className="h-screen sticky top-0 overflow-y-auto">
             <SidebarComponent
               activeTab={activeTab}
-              setActiveTab={setActiveTab}
+              setActiveTab={handleTabChange}
               handleLogout={handleLogout}
               isCollapsed={isSidebarCollapsed}
               setIsCollapsed={setIsSidebarCollapsed}
+              user={user}
             />
-          </aside>
+          </div>
+        </aside>
 
-          {/* Mobile Sidebar */}
+        <div className="flex flex-col flex-1 min-w-0">
+          <button
+            className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-white rounded-lg shadow-lg border border-gray-200"
+            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+            aria-label="Toggle sidebar"
+          >
+            {isMobileSidebarOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+          </button>
+
           {isMobileSidebarOpen && (
-            <div className="fixed inset-0 z-30 bg-[#f1f3f9] md:hidden">
-              <SidebarComponent
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                handleLogout={handleLogout}
-                isCollapsed={false}
-                setIsCollapsed={setIsSidebarCollapsed}
+            <>
+              <div
+                className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                onClick={() => setIsMobileSidebarOpen(false)}
               />
-            </div>
+              <aside className="lg:hidden fixed top-0 left-0 bottom-0 w-64 z-50 bg-white shadow-lg overflow-y-auto">
+                <SidebarComponent
+                  activeTab={activeTab}
+                  setActiveTab={handleTabChange}
+                  handleLogout={handleLogout}
+                  isCollapsed={false}
+                  setIsCollapsed={setIsSidebarCollapsed}
+                  user={user}
+                />
+              </aside>
+            </>
           )}
 
-          {/* Main Content */}
-          <main className="flex-1 flex flex-col overflow-y-auto">
-            <div className="flex-1 px-4 py-6 md:px-6">
+          <Header user={user} handleLogout={handleLogout} />
+
+          <main className="flex-1 p-4 lg:p-6 pb-20 overflow-y-auto">
+            <div className="max-w-7xl mx-auto">
               <ContentComponent />
             </div>
-            <Footer />
           </main>
+
+          {baseRoute !== 'superadmin' && <Footer user={user} />}
         </div>
       </div>
     </ErrorBoundary>

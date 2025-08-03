@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Mail, Lock, Smartphone, Key } from 'lucide-react';
 import { login, verifyOtp } from '@/lib/auth';
 import { useRouter } from 'next/navigation';
+import { useUserStore } from '@/lib/store/userStore';
 
 export default function LoginFormTabs() {
   const [tab, setTab] = useState<'password' | 'otp' | 'verify'>('password');
@@ -13,7 +14,9 @@ export default function LoginFormTabs() {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
   const router = useRouter();
+  const setUser = useUserStore((state) => state.setUser);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,54 +24,57 @@ export default function LoginFormTabs() {
     setIsLoading(true);
 
     try {
+      let response;
+
       if (tab === 'password') {
-        const response = await login({ type: 'password', email, password });
-        console.log('Login response:', response);
-        if (response.success) {
-          const targetRoute =
-            response.role === 'superadmin'
-              ? '/superadmin'
-              : response.role === 'societyAdmin'
-              ? '/societyAdmin'
-              : response.role === 'admin'
-              ? '/admin'
-              : '/dashboard';
-          console.log(`Redirecting to: ${targetRoute}`);
-          router.push(targetRoute);
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        } else {
-          setError(response.message || 'Invalid credentials');
-        }
+        if (!email || !password) throw new Error('Please enter both email and password');
+        response = await login({ type: 'password', email, password });
       } else if (tab === 'otp') {
-        const response = await login({ type: 'otp', mobile });
-        console.log('OTP request response:', response);
-        if (response.success) {
-          setTab('verify');
-        } else {
-          setError(response.message || 'Failed to send OTP');
-        }
-      } else if (tab === 'verify') {
-        const response = await verifyOtp(mobile, otp);
-        console.log('OTP verify response:', response);
-        if (response.success) {
-          const targetRoute =
-            response.role === 'superadmin'
-              ? '/superadmin'
-              : response.role === 'societyAdmin'
-              ? '/societyAdmin'
-              : response.role === 'admin'
-              ? '/admin'
-              : '/dashboard';
-          console.log(`Redirecting to: ${targetRoute}`);
-          router.push(targetRoute);
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        } else {
-          setError(response.message || 'Invalid OTP');
-        }
+        if (!mobile) throw new Error('Please enter your mobile number');
+        response = await login({ type: 'otp', mobile });
+      } else {
+        if (!otp) throw new Error('Please enter the OTP');
+        response = await verifyOtp(mobile, otp);
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('An error occurred. Please try again.');
+
+      if (response.success) {
+        if (tab === 'otp') {
+          setTab('verify');
+          setError(response.message || 'OTP sent successfully to your mobile');
+        } else {
+          // Set user in store
+          if (response.user) {
+            const user = {
+              ...response.user,
+              role: response.role || '',
+              name: response.user.name || '' // Ensure name is always a string
+            };
+            setUser(user);
+          }
+
+          // Redirect based on role
+          const roleRoutes: { [key: string]: string } = {
+            superadmin: '/superadmin',
+            societyAdmin: '/societyAdmin',
+            admin: '/admin',
+            default: '/dashboard',
+          };
+          router.push(roleRoutes[response.role || 'default'] || roleRoutes.default);
+        }
+      } else {
+        let parsedMessage: { message?: string; detail?: string } = {};
+        try {
+          parsedMessage = JSON.parse(response.message || '{}');
+        } catch {
+          parsedMessage.message = response.message;
+        }
+
+        const errorMessage: string = parsedMessage.message || 'An error occurred';
+        const errorDetail: string = parsedMessage.detail || response.detail || '';
+        setError(errorDetail ? `${errorMessage}: ${errorDetail}` : errorMessage);
+      }
+    } catch (err: any) {
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -77,29 +83,35 @@ export default function LoginFormTabs() {
   const handleResendOtp = async () => {
     setError('');
     setIsLoading(true);
+
     try {
+      if (!mobile) throw new Error('Mobile number is required');
+
       const response = await login({ type: 'otp', mobile });
-      console.log('Resend OTP response:', response);
+
       if (response.success) {
-        setError('OTP resent successfully');
+        setError(response.message || 'OTP has been resent successfully');
       } else {
-        setError(response.message || 'Failed to resend OTP');
+        const errorMessage = response.message || 'Failed to resend OTP';
+        const errorDetail = response.detail ? `: ${response.detail}` : '';
+        setError(`${errorMessage}${errorDetail}`);
       }
-    } catch (err) {
-      console.error('Resend OTP error:', err);
-      setError('Failed to resend OTP');
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend OTP. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="w-full">
-      <div className="flex justify-center mb-6 space-x-4">
+    <div className="w-full max-w-sm mx-auto px-4">
+      <div className="flex justify-center mb-6 bg-gray-100 rounded-xl p-1">
         <button
           onClick={() => setTab('password')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            tab === 'password' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-800'
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            tab === 'password'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
           }`}
           disabled={isLoading}
         >
@@ -107,8 +119,10 @@ export default function LoginFormTabs() {
         </button>
         <button
           onClick={() => setTab('otp')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-            tab === 'otp' || tab === 'verify' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-800'
+          className={`px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+            tab === 'otp' || tab === 'verify'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
           }`}
           disabled={isLoading}
         >
@@ -116,108 +130,145 @@ export default function LoginFormTabs() {
         </button>
       </div>
 
-      <div className="space-y-4">
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        {tab === 'password' ? (
-          <form className="space-y-4" onSubmit={handleLogin}>
-            <div>
-              <label className="text-sm text-gray-700 mb-1 block">Email</label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 bg-white">
-                <Mail className="w-4 h-4 mr-2 text-gray-500" />
-                <input
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm text-gray-700 mb-1 block">Password</label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 bg-white">
-                <Lock className="w-4 h-4 mr-2 text-gray-500" />
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:bg-blue-400"
+      <div className="space-y-5">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <form className="space-y-5" onSubmit={handleLogin}>
+          {tab === 'password' && (
+            <>
+              <InputWithIcon
+                label="Email"
+                icon={<Mail className="w-5 h-5 text-gray-400" />}
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+              <InputWithIcon
+                label="Password"
+                icon={<Lock className="w-5 h-5 text-gray-400" />}
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
+            </>
+          )}
+
+          {tab === 'otp' && (
+            <InputWithIcon
+              label="Mobile"
+              icon={<Smartphone className="w-5 h-5 text-gray-400" />}
+              type="tel"
+              placeholder="+91 XXXXX-XXXXX"
+              value={mobile}
+              onChange={(e) => setMobile(e.target.value)}
               disabled={isLoading}
-            >
-              {isLoading ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
-        ) : tab === 'otp' ? (
-          <form className="space-y-4" onSubmit={handleLogin}>
-            <div>
-              <label className="text-sm text-gray-700 mb-1 block">Mobile</label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 bg-white">
-                <Smartphone className="w-4 h-4 mr-2 text-gray-500" />
-                <input
-                  type="tel"
-                  placeholder="+91 XXXXX-XXXXX"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:bg-blue-400"
+            />
+          )}
+
+          {tab === 'verify' && (
+            <InputWithIcon
+              label="OTP"
+              icon={<Key className="w-5 h-5 text-gray-400" />}
+              type="text"
+              placeholder="Enter OTP"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
               disabled={isLoading}
-            >
-              {isLoading ? 'Sending...' : 'Send OTP'}
-            </button>
-          </form>
-        ) : (
-          <form className="space-y-4" onSubmit={handleLogin}>
-            <div>
-              <label className="text-sm text-gray-700 mb-1 block">OTP</label>
-              <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2 bg-white">
-                <Key className="w-4 h-4 mr-2 text-gray-500" />
-                <input
-                  type="text"
-                  placeholder="Enter OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="w-full bg-transparent outline-none text-gray-800 placeholder-gray-400"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:bg-blue-400"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Verifying...' : 'Verify OTP'}
-            </button>
+            />
+          )}
+
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:from-blue-400 disabled:to-blue-400 disabled:cursor-not-allowed text-sm shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+            disabled={isLoading}
+          >
+            {tab === 'password'
+              ? isLoading
+                ? 'Logging in...'
+                : 'Login'
+              : tab === 'otp'
+              ? isLoading
+                ? 'Sending...'
+                : 'Send OTP'
+              : isLoading
+              ? 'Verifying...'
+              : 'Verify OTP'}
+          </button>
+
+          {tab === 'verify' && (
             <button
               type="button"
               onClick={handleResendOtp}
-              className="w-full text-blue-600 py-2 rounded-lg font-medium hover:text-blue-700 transition disabled:text-blue-400"
+              className="w-full text-blue-600 py-3 rounded-xl font-medium hover:text-blue-700 hover:bg-blue-50 transition-all duration-200 disabled:text-blue-400 text-sm"
               disabled={isLoading}
             >
               Resend OTP
             </button>
-          </form>
-        )}
+          )}
+        </form>
       </div>
     </div>
   );
 }
+
+type InputProps = {
+  label: string;
+  icon: React.ReactNode;
+  type: string;
+  placeholder: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled: boolean;
+};
+
+function InputWithIcon({
+  label,
+  icon,
+  type,
+  placeholder,
+  value,
+  onChange,
+  disabled,
+}: InputProps) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <div
+        className={`relative flex items-center px-3 py-1 bg-white rounded-lg border transition-all duration-200 ${
+          isFocused
+            ? 'border-blue-500 shadow-lg shadow-blue-500/10'
+            : 'border-gray-200 hover:border-gray-300'
+        } ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
+      >
+        <span
+          className={`mr-2.5 transition-colors duration-200 ${
+            isFocused ? 'text-blue-500' : 'text-gray-400'
+          }`}
+        >
+          {icon}
+        </span>
+        <input
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className="flex-1 bg-transparent text-sm text-gray-900 placeholder-gray-400 outline-none border-none focus:ring-0 focus:outline-none"
+        />
+      </div>
+    </div>
+  );
+}
+

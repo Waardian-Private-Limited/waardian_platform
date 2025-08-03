@@ -1,13 +1,16 @@
 'use client';
 
-import { LogOut, Users, Home, Menu, Building } from 'lucide-react';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+  Home,
+  Users,
+  Building2,
+  CreditCard,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import Image from 'next/image';
 
 interface SocietyAdminSidebarProps {
   activeTab: string;
@@ -15,16 +18,21 @@ interface SocietyAdminSidebarProps {
   handleLogout: () => void;
   isCollapsed: boolean;
   setIsCollapsed: (collapsed: boolean) => void;
+  user: {
+    name: string;
+    email: string;
+    societyName?: string;
+    [key: string]: any;
+  };
 }
 
-const tabMapping: Record<
-  string,
-  { label: string; icon: React.ComponentType<{ className: string }> }
-> = {
-  dashboard: { label: 'Dashboard', icon: Home },
-  members: { label: 'Members', icon: Users },
-  HousingStructure: { label: 'Housing Structure', icon: Building },
-};
+const navigationItems = [
+  { id: 'dashboard', label: 'Dashboard', icon: Home },
+  { id: 'members', label: 'Members', icon: Users },
+  { id: 'buildingstructure', label: 'Building Structure', icon: Building2 },
+  { id: 'billing', label: 'Billing', icon: CreditCard },
+  { id: 'settings', label: 'Settings', icon: Settings },
+];
 
 export default function SocietyAdminSidebar({
   activeTab,
@@ -32,84 +40,94 @@ export default function SocietyAdminSidebar({
   handleLogout,
   isCollapsed,
   setIsCollapsed,
+  user,
 }: SocietyAdminSidebarProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
   return (
-    <aside
-      className={`bg-black text-white flex flex-col justify-between transition-all duration-300 ${
-        isCollapsed ? 'w-16' : 'w-64'
-      } h-full overflow-y-auto shadow-lg`}
-    >
-      <div className="flex flex-col flex-grow">
-        {/* Top Logo */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+    <div className="h-full flex flex-col bg-white">
+      <div className={`p-4 ${isCollapsed ? 'px-2' : ''}`}>
+        <div className="flex items-center justify-between">
           {!isCollapsed && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-3">
               <Image
                 src="/assets/waardian_ai_logo.svg"
-                alt="Logo"
-                width={36}
-                height={36}
-                className="rounded bg-white p-1"
+                alt="Waardian Logo"
+                width={32}
+                height={32}
+                className="rounded-md"
               />
-              <span className="text-white font-semibold text-lg">Waardian</span>
+              <div className="leading-tight">
+                <h2 className="text-sm sm:text-base font-semibold text-gray-900">
+                  {user?.societyName || 'Waardian'}
+                </h2>
+                <p className="text-[11px] text-gray-500">
+                  Powered by <span className="font-medium text-gray-700">Waardian</span>
+                </p>
+              </div>
             </div>
           )}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-2 text-gray-400 hover:bg-gray-800 rounded"
-            aria-label="Toggle Sidebar"
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <Menu className="w-5 h-5" />
+            {isCollapsed ? (
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            ) : (
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            )}
           </button>
         </div>
-
-        {/* Navigation */}
-        <nav className="p-2 space-y-1 flex-1 overflow-auto">
-          <TooltipProvider>
-            {Object.entries(tabMapping).map(([tab, { label, icon: Icon }]) => (
-              <Tooltip key={tab} delayDuration={100}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveTab(tab)}
-                    className={`w-full flex items-center p-3 rounded-lg text-sm transition ${
-                      activeTab === tab
-                        ? 'bg-white text-black font-semibold'
-                        : 'text-white hover:bg-gray-800'
-                    } ${isCollapsed ? 'justify-center' : ''}`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {!isCollapsed && <span className="ml-3">{label}</span>}
-                  </button>
-                </TooltipTrigger>
-                {isCollapsed && (
-                  <TooltipContent side="right">{label}</TooltipContent>
-                )}
-              </Tooltip>
-            ))}
-          </TooltipProvider>
-        </nav>
       </div>
 
-      {/* Logout */}
-      <TooltipProvider>
-        <div className="p-2 border-t border-gray-800">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={handleLogout}
-                className={`w-full flex items-center p-3 text-sm text-white hover:bg-red-600 rounded-lg transition ${
-                  isCollapsed ? 'justify-center' : ''
-                }`}
-                aria-label="Logout"
-              >
-                <LogOut className="w-5 h-5" />
-                {!isCollapsed && <span className="ml-3">Logout</span>}
-              </button>
-            </TooltipTrigger>
-            {isCollapsed && <TooltipContent side="right">Logout</TooltipContent>}
-          </Tooltip>
+      <nav className="flex-1 p-3 space-y-1">
+        {navigationItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
+                isActive
+                  ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50'
+              } ${isCollapsed ? 'justify-center px-2' : ''}`}
+              title={isCollapsed ? item.label : undefined}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+              {!isCollapsed && (
+                <span className="ml-3 font-medium">{item.label}</span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {!isCollapsed && user && (
+        <div className="p-4 border-t border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+              <Users className="w-5 h-5 text-gray-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {user.name || 'Admin'}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {user.email || 'N/A'}
+              </p>
+            </div>
+          </div>
         </div>
-      </TooltipProvider>
-    </aside>
+      )}
+    </div>
   );
 }

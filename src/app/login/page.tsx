@@ -4,32 +4,60 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import LoginFormTabs from '@/components/auth/LoginForm';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { checkSession as verifySession } from '@/lib/superadmincontroller';
+import { useUserStore } from '@/lib/store/userStore';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+
+  const setUser = useUserStore((state) => state.setUser);
 
   useEffect(() => {
-    // Check if user is already logged in
-    const checkSession = async () => {
+    const checkUserSession = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/v1/auth/session', {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        const data = await response.json();
-        if (data.isAuthenticated) {
-          router.push(data.role === 'admin' ? '/admin' : '/dashboard');
+        const data = await verifySession();
+
+        if (data?.isAuthenticated && data?.role && data?.user) {
+          setUser({
+            id: data.user.id,
+            email: data.user.email,
+            role: data.role,
+            societyId: data.user.societyId,
+            name: data.user.name || '',
+          });
+
+          const roleRedirects = {
+            superadmin: '/admin/superadmin/dashboard',
+            societyadmin: '/societyadmin/dashboard',
+            member: '/dashboard'
+          };
+
+          const redirectPath = roleRedirects[data.role.toLowerCase() as keyof typeof roleRedirects] || '/login';
+          router.replace(redirectPath);
+          return;
         }
       } catch (error) {
         console.error('Session check failed:', error);
+      } finally {
+        setIsCheckingSession(false);
       }
     };
-    checkSession();
-  }, [router]);
+
+    checkUserSession();
+  }, [router, setUser]);
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="flex flex-col items-center space-y-3 text-white">
+          <div className="h-10 w-10 border-b-2 border-white rounded-full animate-spin" />
+          <p className="text-sm">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="relative min-h-screen bg-black flex flex-col items-center justify-center px-4 py-10 overflow-hidden">
@@ -39,6 +67,7 @@ export default function LoginPage() {
         transition={{ duration: 0.6 }}
         className="relative z-10 w-full max-w-5xl bg-white rounded-2xl shadow-2xl grid grid-cols-1 md:grid-cols-2 overflow-hidden"
       >
+        {/* Left Panel */}
         <div className="px-6 py-8 sm:p-12 flex flex-col justify-center">
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4">
             Welcome to Waardian
@@ -56,6 +85,7 @@ export default function LoginPage() {
           />
         </div>
 
+        {/* Right Panel */}
         <div className="px-6 py-8 sm:p-12 border-t md:border-t-0 md:border-l border-gray-100 flex flex-col">
           <div className="flex items-center justify-center gap-3 mb-8">
             <Image src="/assets/waardian_ai_logo.svg" alt="Logo" width={40} height={40} className="w-10 h-10" />
@@ -67,7 +97,7 @@ export default function LoginPage() {
 
       <footer className="relative z-10 mt-8 text-center text-xs text-gray-400 space-x-4">
         <a href="/about" className="hover:text-white">About Us</a>
-        <a href="/terms" className="hover:text-white">Terms & Conditions</a>
+        <a href="https://www.waardian.com/terms" className="hover:text-white">Terms & Conditions</a>
         <span className="block mt-2 text-gray-500">
           © {new Date().getFullYear()} Waardian. All rights reserved.
         </span>

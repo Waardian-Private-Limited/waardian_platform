@@ -125,8 +125,8 @@ export default function MemberOnboarding() {
               lastName: response.memberData.last_name || '',
               email: response.memberData.email || '',
               phoneNumber: response.memberData.phone_number || '',
-              flatType: '', // Not repopulated
-              squareFeet: 0, // Not repopulated
+              flatType: '',
+              squareFeet: 0,
               password: '',
               confirmPassword: '',
             });
@@ -204,7 +204,8 @@ export default function MemberOnboarding() {
         password: formData.password,
       };
 
-      if (!data.isTenant) {
+      // Only include flatType and squareFeet if member type is 'owner'
+      if (data.memberData.relationship === 'owner') {
         payload.flatType = formData.flatType;
         payload.squareFeet = formData.squareFeet;
       }
@@ -240,20 +241,20 @@ export default function MemberOnboarding() {
     return (
       <div className="text-center p-8 bg-white rounded-lg shadow-lg">
         <svg
-            className="text-red-500 mb-4 mx-auto"
-            width={40}
-            height={40}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            >
-            <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-            </svg>
+          className="text-red-500 mb-4 mx-auto"
+          width={40}
+          height={40}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
         <h2 className="text-2xl font-semibold text-gray-900 mb-2">Invalid Token</h2>
         <p className="text-gray-600">{errorMessage}</p>
         <button
@@ -268,7 +269,35 @@ export default function MemberOnboarding() {
 
   if (!data) return null;
 
-  const { memberData, isTenant, flatNumber, wingName, floorNumber, flatId } = data;
+  const { memberData, isTenant, flatNumber, wingName, floorNumber } = data;
+  const showFlatDetails = memberData.relationship === 'owner';
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow-xl rounded-xl p-8 max-w-md mx-auto text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Download Our App</h2>
+          <p className="text-gray-600 mb-6">Manage your account easily with our mobile app.</p>
+          <div className="flex justify-center items-center gap-4">
+            <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
+              <img
+                src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                alt="Download on the App Store"
+                className="h-12"
+              />
+            </a>
+            <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
+              <img
+                src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+                alt="Get it on Google Play"
+                className="h-12"
+              />
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen py-4 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -364,7 +393,7 @@ export default function MemberOnboarding() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Flat</label>
                   <p className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100">{flatNumber || 'N/A'}</p>
                 </div>
-                {!isTenant && (
+                {showFlatDetails && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Flat Type</label>
@@ -628,7 +657,7 @@ export default function MemberOnboarding() {
             <div className="bg-gray-50 flex justify-end space-x-4">
               <button
                 type="submit"
-                disabled={loading || !isValid || !checkPasswordsMatch() || (!isTenant && (!watch('flatType') || watch('squareFeet') <= 0))}
+                disabled={loading || !isValid || !checkPasswordsMatch() || (showFlatDetails && (!watch('flatType') || watch('squareFeet') <= 0))}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
               >
                 <span>Complete Onboarding</span>
@@ -651,29 +680,6 @@ export default function MemberOnboarding() {
             </div>
           </form>
         </div>
-
-        {isSubmitted && (
-          <div className="mt-6 bg-white shadow-xl rounded-xl p-8 max-w-md mx-auto text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Download Our App</h2>
-            <p className="text-gray-600 mb-6">Manage your account easily with our mobile app.</p>
-            <div className="flex justify-center items-center gap-4">
-              <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
-                <img
-                  src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
-                  alt="Download on the App Store"
-                  className="h-12"
-                />
-              </a>
-              <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
-                <img
-                  src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
-                  alt="Get it on Google Play"
-                  className="h-12"
-                />
-              </a>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

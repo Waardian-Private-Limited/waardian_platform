@@ -142,72 +142,133 @@ const Societies = ({
   onEdit,
   onDelete,
 }: {
-  societies: { id: number; name: string; address: string; createdAt: string; subscription_opted_id: number; status: string }[];
+  societies: {
+    id: number;
+    name: string;
+    address: string;
+    address_line1?: string;
+    address_line2?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    pincode?: string;
+    contact_number?: string;
+    email?: string;
+    registration_number?: string;
+    registration_date?: string;
+    type?: string;
+    sampleFlatNumber?: string;
+    createdAt: string;
+    subscription_opted_id: number;
+    status: string;
+  }[];
   onAdd: () => void;
-  onEdit: (society: { id: number; name: string; address: string; subscription_opted_id: number; status: string }) => void;
+  onEdit: (society: any) => void;
   onDelete: (id: number) => void;
-}) => (
-  <div className="bg-white rounded-lg shadow-sm p-4">
-    <div className="flex justify-between items-center mb-4">
-      <h3 className="text-xl font-semibold text-gray-900">Society Management</h3>
-      <button
-        onClick={onAdd}
-        className="bg-blue-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
-      >
-        Add Society
-      </button>
-    </div>
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="text-gray-600 border-b">
-            <th className="p-3">ID</th>
-            <th className="p-3">Name</th>
-            <th className="p-3">Address</th>
-            <th className="p-3">Subscription ID</th>
-            <th className="p-3">Created At</th>
-            <th className="p-3">Status</th>
-            <th className="p-3">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {societies.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="p-3 text-center text-gray-600">
-                No societies found
-              </td>
+}) => {
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-xl font-semibold text-gray-900">Society Management</h3>
+        <button
+          onClick={onAdd}
+          className="bg-blue-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
+        >
+          Add Society
+        </button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-gray-600 border-b">
+              <th className="p-3">ID</th>
+              <th className="p-3">Name</th>
+              <th className="p-3">Address</th>
+              <th className="p-3">Status</th>
+              <th className="p-3">Created At</th>
+              <th className="p-3">Actions</th>
             </tr>
-          ) : (
-            societies.map((society) => (
-              <tr key={society.id} className="border-b hover:bg-gray-50 transition">
-                <td className="p-3">{society.id}</td>
-                <td className="p-3">{society.name}</td>
-                <td className="p-3">{society.address}</td>
-                <td className="p-3">{society.subscription_opted_id}</td>
-                <td className="p-3">{new Date(society.createdAt).toLocaleDateString()}</td>
-                <td className="p-3">{society.status}</td>
-                <td className="p-3">
-                  <button
-                    onClick={() => onEdit(society)}
-                    className="text-blue-600 hover:text-blue-800 mr-3"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => onDelete(society.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    Delete
-                  </button>
+          </thead>
+          <tbody>
+            {societies.length === 0 ? (
+
+              <tr>
+                <td colSpan={6} className="p-3 text-center text-gray-600">
+                  No societies found
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              societies.map((society) => (
+                <>
+                  {/* Main Row */}
+                  <tr
+                    key={society.id}
+                    className="border-b hover:bg-gray-50 transition"
+                  >
+                    <td className="p-3">{society.id}</td>
+                    <td className="p-3 font-medium">{society.name}</td>
+                    <td className="p-3">{society.address}</td>
+                    <td className="p-3">{society.status}</td>
+                    <td className="p-3">
+                      {new Date(society.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="p-3 space-x-3">
+                      <button
+                        onClick={() =>
+                          setExpandedRow(expandedRow === society.id ? null : society.id)
+                        }
+                        className="text-gray-700 hover:text-gray-900 underline"
+                      >
+                        {expandedRow === society.id ? 'Hide Details' : 'View Details'}
+                      </button>
+                      <button
+                        onClick={() => onEdit(society)}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => onDelete(society.id)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Expanded Row */}
+                  {expandedRow === society.id && (
+                    <tr className="bg-gray-50">
+                      <td colSpan={6} className="p-4">
+                        <div className="grid grid-cols-2 gap-3 text-sm text-gray-700">
+                          <p><strong>Address Line 1:</strong> {society.address_line1 || '-'}</p>
+                          <p><strong>Address Line 2:</strong> {society.address_line2 || '-'}</p>
+                          <p><strong>City:</strong> {society.city || '-'}</p>
+                          <p><strong>State:</strong> {society.state || '-'}</p>
+                          <p><strong>Country:</strong> {society.country || '-'}</p>
+                          <p><strong>Pincode:</strong> {society.pincode || '-'}</p>
+                          <p><strong>Contact Number:</strong> {society.contact_number || '-'}</p>
+                          <p><strong>Email:</strong> {society.email || '-'}</p>
+                          <p><strong>Registration No:</strong> {society.registration_number || '-'}</p>
+                          <p><strong>Registration Date:</strong> {society.registration_date ? new Date(society.registration_date).toLocaleDateString() : '-'}</p>
+                          <p><strong>Type:</strong> {society.type || '-'}</p>
+                          <p><strong>Sample Flat:</strong> {society.sampleFlatNumber || '-'}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function SuperadminSociety() {
   console.log('SuperadminSociety rendered');
@@ -226,14 +287,16 @@ export default function SuperadminSociety() {
 
   useEffect(() => {
     console.log('SuperadminSociety useEffect triggered');
-    fetchSocieties().then((data) => {
-      console.log('Fetched societies:', data);
-      setSocieties(data);
-      console.log('Updated societies state:', data);
-    }).catch((err) => {
-      console.error('Failed to fetch societies:', err);
-      setError('Failed to load societies');
-    });
+    fetchSocieties()
+      .then((data) => {
+        console.log('Fetched societies:', data);
+        setSocieties(data);
+        console.log('Updated societies state:', data);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch societies:', err);
+        setError('Failed to load societies');
+      });
   }, []);
 
   const handleAddSociety = () => {
@@ -266,7 +329,11 @@ export default function SuperadminSociety() {
       if (formData.id) {
         await updateSociety(formData.id, data);
         setSocieties(
-          societies.map((s) => (s.id === formData.id ? { ...s, ...data, subscription_opted_id: s.subscription_opted_id } : s))
+          societies.map((s) =>
+            s.id === formData.id
+              ? { ...s, ...data, subscription_opted_id: s.subscription_opted_id }
+              : s
+          )
         );
       } else {
         const response = await createSociety(data);

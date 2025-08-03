@@ -14,9 +14,57 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'SmartSecure - Modern Gated Community Management Platform',
-  description: 'SmartSecure is a comprehensive platform for managing gated residential communities. Features include visitor management, staff attendance, maintenance billing, and more.',
-  keywords: 'gated community management, visitor management system, society management software, residential security, maintenance billing',
+  title: 'Waardian – Revolutionizing Smart Living',
+  description:
+    'Waardian is an all-in-one society management platform designed for gated communities. Streamline visitor management, staff tracking, rent collection, maintenance billing, and more – all from one powerful dashboard.',
+  keywords:
+    'Waardian, society management software, gated community management, visitor management system, rent collection app, residential security, maintenance billing, smart apartment living, PG & tenant management, staff attendance tracking',
+  metadataBase: new URL('https://waardian.com'),
+  authors: [{ name: 'Waardian Team' }],
+  creator: 'Waardian',
+  publisher: 'Waardian',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  icons: {
+    icon: [{ url: '/favicon.ico' }],
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://waardian.com',
+    title: 'Waardian – Revolutionizing Smart Living',
+    description: 'All-in-one society management platform for gated communities',
+    siteName: 'Waardian',
+    images: [{
+      url: '/assets/waardian_ai_logo.svg',
+      width: 603,
+      height: 574,
+      alt: 'Waardian Logo',
+    }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Waardian – Revolutionizing Smart Living',
+    description: 'All-in-one society management platform for gated communities',
+    images: ['/assets/waardian_ai_logo.svg'],
+    creator: '@waardian',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({

@@ -3,17 +3,17 @@ import { apiClient } from './apiClient';
 export interface SocietyMember {
   id: number;
   name: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   flat_number: string;
-  phone_number: string;
-  role: string;
+  phoneNumber: string;
+  userType: string;
   status: string;
   createdAt: string;
-  wing_id: string;
-  floor_id: string;
-  flat_id: string;
+  wingId: string;
+  floorId: string;
+  flatId: string;
 }
 
 export interface Flat {
@@ -92,7 +92,7 @@ export const getSocietyMembers = async (params: {
 };
 
 export const addSocietyMember = async (member: Omit<SocietyMember, 'id' | 'createdAt'>): Promise<ApiResponse<SocietyMember>> => {
-  const response = await apiClient('/api/societyadmin/members', {
+  const response = await apiClient('/society-admin/members/add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: (member),
@@ -102,7 +102,7 @@ export const addSocietyMember = async (member: Omit<SocietyMember, 'id' | 'creat
 };
 
 export const updateSocietyMember = async (id: number, member: Omit<SocietyMember, 'id' | 'createdAt'>): Promise<ApiResponse<SocietyMember>> => {
-  const response = await apiClient(`/api/societyadmin/members/${id}`, {
+  const response = await apiClient(`/society-admin/members/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: (member),
@@ -188,16 +188,16 @@ export async function getSpecificMembers(wingId: string, floorId: string, flatId
     id: member.id,
     name: `${member.first_name} ${member.last_name}`,
     email: member.email,
-    first_name:member.first_name,
-    last_name:member.last_name,
+    firstName:member.first_name,
+    lastName:member.last_name,
     flat_number: member.flat_number,
-    phone_number: member.phone_number,
-    role: member.member_type || 'member',
+    phoneNumber: member.phone_number,
+    userType: member.member_type || 'member',
     status: member.status,
     createdAt: member.created_at,
-    wing_id: member.wing_id.toString(),
-    floor_id: member.floor_id.toString(),
-    flat_id: member.flat_id.toString(),
+    wingId: member.wing_id,
+    floorId: member.floor_id,
+    flatId: member.flat_id,
   }));
   return members;
 }

@@ -17,6 +17,8 @@ interface SuperadminSidebarProps {
 const tabMapping: Record<string, { label: string; icon: React.ComponentType<{ className: string }> }> = {
   dashboard: { label: 'Dashboard', icon: Home },
   societies: { label: 'Societies', icon: Building },
+  subscription: { label: 'Subscription', icon: Building },
+
 };
 
 export default function SuperadminSidebar({
@@ -37,7 +39,7 @@ export default function SuperadminSidebar({
       <div>
         <div className="flex items-center justify-between p-4">
           <div className={`${isCollapsed ? 'hidden' : 'block'}`}>
-            <Image src="/logo.svg" alt="Superadmin Logo" width={120} height={40} className="mx-auto" />
+            <Image src="/assets/waardian_ai_logo.svg" alt="Superadmin Logo" width={40} height={40} className="mx-auto" />
           </div>
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
