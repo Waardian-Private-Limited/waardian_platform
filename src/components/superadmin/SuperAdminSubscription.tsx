@@ -21,31 +21,31 @@ interface PlanData {
 
 const subscriptionApi = {
   getPlans: async () => {
-    const response = await axios.get(`${API_URL}/api/v1/subscription/plans`, {
+    const response = await axios.get(`${API_URL}/subscription/plans`, {
       withCredentials: true
     });
     return response.data;
   },
   createPlan: async (planData: PlanData) => {
-    const response = await axios.post(`${API_URL}/api/v1/subscription/plans`, planData, {
+    const response = await axios.post(`${API_URL}/subscription/plans`, planData, {
       withCredentials: true
     });
     return response.data;
   },
   updatePlan: async (id: number, planData: PlanData) => {
-    const response = await axios.put(`${API_URL}/api/v1/subscription/plans/${id}`, planData, {
+    const response = await axios.put(`${API_URL}/subscription/plans/${id}`, planData, {
       withCredentials: true
     });
     return response.data;
   },
   deletePlan: async (id: number) => {
-    const response = await axios.delete(`${API_URL}/api/v1/subscription/plans/${id}`, {
+    const response = await axios.delete(`${API_URL}/subscription/plans/${id}`, {
       withCredentials: true
     });
     return response.data;
   },
   togglePlanStatus: async (id: number, active: boolean) => {
-    const response = await axios.patch(`${API_URL}/api/v1/subscription/plans/${id}/toggle`, { active }, {
+    const response = await axios.patch(`${API_URL}/subscription/plans/${id}/toggle`, { active }, {
       withCredentials: true
     });
     return response.data;
@@ -256,6 +256,7 @@ export default function SuperAdminSubscription() {
   const fetchSubscriptionPlans = async () => {
     try {
       const data = await subscriptionApi.getPlans();
+      console.log('API Response:', data);
       setSubscriptions(data);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 
