@@ -18,7 +18,7 @@ interface PlanData {
   modules: string[];
   trial_days?: number;
 }
-
+// API service for subscription plans
 const subscriptionApi = {
   getPlans: async () => {
     const response = await axios.get(`${API_URL}/subscription/plans`, {
