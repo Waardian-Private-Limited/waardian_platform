@@ -52,7 +52,7 @@ export default function DynamicAdminPage() {
   useEffect(() => {
     let isMounted = true;
 
-    console.log('Route info:', { baseRoute, subRoute, validTabs, slug });
+    // console.log('Route info:', { baseRoute, subRoute, validTabs, slug });
 
     if (!baseRoute || !allowedBaseRoutes.includes(baseRoute)) {
       redirectToLogin(`Invalid baseRoute: ${baseRoute}`);
@@ -69,7 +69,7 @@ export default function DynamicAdminPage() {
     const verifySession = async () => {
       try {
         const data = await checkSession();
-        console.log('Session data:', data);
+        // console.log('Session data:', data);
 
         if (!isMounted) return;
 
@@ -91,7 +91,7 @@ export default function DynamicAdminPage() {
           avatar: userData.avatar || null,
         };
         setUser(newUser);
-        console.log('User set:', newUser);
+        // console.log('User set:', newUser);
 
         if (!newUser.societyId) {
           redirectToLogin('No societyId found in user data');
@@ -100,7 +100,7 @@ export default function DynamicAdminPage() {
 
         const defaultTab = validTabs[baseRoute][0];
         setActiveTab(subRoute && validTabs[baseRoute].includes(subRoute) ? subRoute : defaultTab);
-        console.log('Active tab set:', subRoute || defaultTab);
+        // console.log('Active tab set:', subRoute || defaultTab);
       } catch (error: any) {
         if (isMounted) {
           console.error('Session verification failed:', error.message);
@@ -143,14 +143,14 @@ export default function DynamicAdminPage() {
   };
 
   const handleTabChange = (tab: string) => {
-    console.log('Changing tab to:', tab);
+    // console.log('Changing tab to:', tab);
     setActiveTab(tab);
     setIsMobileSidebarOpen(false);
     router.push(`/${baseRoute}/${tab}`);
   };
 
   if (isChecking || !user) {
-    console.log('Rendering loading state:', { isChecking, user });
+    // console.log('Rendering loading state:', { isChecking, user });
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center space-y-4">

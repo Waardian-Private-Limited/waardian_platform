@@ -29,10 +29,24 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: [{ url: '/favicon.ico' }],
-    shortcut: '/favicon.ico',
-    apple: '/apple-icon.png',
-  },
+  icon: [
+    { url: '/favicon.ico' },
+  ],
+  shortcut: [
+    { url: '/favicon.ico' },
+  ],
+  apple: [
+    { url: '/apple-icon.png' },
+  ],
+  other: [
+    {
+      rel: 'mask-icon',
+      url: '/safari-pinned-tab.svg',
+      color: '#000000',
+    },
+  ],
+},
+
   openGraph: {
     type: 'website',
     locale: 'en_US',

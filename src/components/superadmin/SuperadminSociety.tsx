@@ -271,7 +271,7 @@ const Societies = ({
 };
 
 export default function SuperadminSociety() {
-  console.log('SuperadminSociety rendered');
+  // console.log('SuperadminSociety rendered');
   const [societies, setSocieties] = useState<
     { id: number; name: string; address: string; createdAt: string; subscription_opted_id: number; status: string }[]
   >([]);
@@ -286,12 +286,12 @@ export default function SuperadminSociety() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    console.log('SuperadminSociety useEffect triggered');
+    // console.log('SuperadminSociety useEffect triggered');
     fetchSocieties()
       .then((data) => {
-        console.log('Fetched societies:', data);
+        // console.log('Fetched societies:', data);
         setSocieties(data);
-        console.log('Updated societies state:', data);
+        // console.log('Updated societies state:', data);
       })
       .catch((err) => {
         console.error('Failed to fetch societies:', err);

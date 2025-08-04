@@ -131,7 +131,7 @@ const BillingPage = ({ societyId }: Props) => {
       setPlans(plansData.plans || []);
     } catch (err: any) {
       if (retryCount > 0) {
-        console.log(`Retrying fetchData, attempts left: ${retryCount}`);
+        // console.log(`Retrying fetchData, attempts left: ${retryCount}`);
         setTimeout(() => fetchData(retryCount - 1), 1000);
       } else {
         console.error('Failed to fetch data:', err.message);
@@ -176,7 +176,7 @@ const BillingPage = ({ societyId }: Props) => {
   const downloadInvoice = useCallback((recordId: string) => {
     if (isProcessing) return; // Prevent concurrent actions
     setIsProcessing(recordId);
-    console.log(`Downloading invoice for subscription ${recordId}`);
+    // console.log(`Downloading invoice for subscription ${recordId}`);
     toast('Invoice download not yet implemented', {
       icon: 'ℹ️',
     });

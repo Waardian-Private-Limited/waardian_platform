@@ -114,10 +114,10 @@ export default function MemberOnboarding() {
 
   useEffect(() => {
     if (token) {
-      console.log('Validating token:', token);
+      // console.log('Validating token:', token);
       validateUserOnboardingToken(token as string)
         .then((response) => {
-          console.log('Token validation response:', response);
+          // console.log('Token validation response:', response);
           if (response.userId && response.memberData) {
             setData(response);
             reset({
@@ -161,21 +161,21 @@ export default function MemberOnboarding() {
   };
 
   const onSubmit = async (formData: OnboardingFormData) => {
-    console.log('Form submitted with data:', formData);
+    // console.log('Form submitted with data:', formData);
     if (!isValid) {
-      console.log('Form validation failed:', errors);
+      // console.log('Form validation failed:', errors);
       toast.error('Please fix the form errors (e.g., required fields)', { autoClose: 3000 });
       return;
     }
 
     if (!checkPasswordsMatch()) {
-      console.log('Password mismatch');
+      // console.log('Password mismatch');
       toast.error('Passwords do not match', { autoClose: 3000 });
       return;
     }
 
     if (!data?.memberData.flat_id || !data?.memberData.relationship) {
-      console.log('Missing flatId or memberType:', { flatId: data?.flatId, memberType: data?.memberData.relationship });
+      // console.log('Missing flatId or memberType:', { flatId: data?.flatId, memberType: data?.memberData.relationship });
       toast.error('Missing flat ID or member type information', { autoClose: 5000 });
       return;
     }
@@ -210,15 +210,15 @@ export default function MemberOnboarding() {
         payload.squareFeet = formData.squareFeet;
       }
 
-      console.log('Sending API request with payload:', payload);
+      // console.log('Sending API request with payload:', payload);
       const response = await completeUserOnboarding(payload);
-      console.log('API response:', response);
+      // console.log('API response:', response);
 
       if (response.success || response.message === 'Member onboarding completed successfully') {
         toast.success('Onboarding completed successfully!', { autoClose: 3000 });
         setIsSubmitted(true);
       } else {
-        console.log('API error response:', response);
+        // console.log('API error response:', response);
         toast.error(response.message || 'Error completing onboarding', { autoClose: 5000 });
       }
     } catch (error: any) {
@@ -281,16 +281,16 @@ export default function MemberOnboarding() {
           <div className="flex justify-center items-center gap-4">
             <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
               <img
-                src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg"
+                src="/assets/AppleAppStore.svg"
                 alt="Download on the App Store"
-                className="h-12"
+                className="h-120"
               />
             </a>
             <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
               <img
-                src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+                src="/assets/GooglePlayStore.svg"
                 alt="Get it on Google Play"
-                className="h-12"
+                className="h-120"
               />
             </a>
           </div>

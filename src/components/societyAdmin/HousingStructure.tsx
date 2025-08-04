@@ -22,9 +22,9 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
     let isMounted = true;
     (async () => {
       try {
-        console.log('Fetching wings for societyId:', societyId);
+        // console.log('Fetching wings for societyId:', societyId);
         const data = await getWings();
-        console.log('Fetched wings:', data);
+        // console.log('Fetched wings:', data);
         if (isMounted) {
           setWings(data);
           setLoading(false);
@@ -50,7 +50,7 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
       newSet.add(wingId);
       try {
         const floors = await getFloors(wingId);
-        console.log('Setting floors for wing:', wingId, floors);
+        // console.log('Setting floors for wing:', wingId, floors);
         setWings((prev) =>
           prev.map((w) => (w.id === wingId ? { ...w, floors } : w))
         );
@@ -63,7 +63,7 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
   };
 
   const toggleExpandFloor = async (wingId: string, floorId: string) => {
-    console.log('toggleExpandFloor called with:', { societyId, wingId, floorId });
+    // console.log('toggleExpandFloor called with:', { societyId, wingId, floorId });
     const newSet = new Set(expandedFloors);
     if (newSet.has(floorId)) {
       newSet.delete(floorId);
@@ -71,7 +71,7 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
       newSet.add(floorId);
       try {
         const flats = await getFlats(wingId, floorId);
-        console.log('Setting flats for floor:', floorId, flats);
+        // console.log('Setting flats for floor:', floorId, flats);
         setWings((prev) =>
           prev.map((w) =>
             w.id === wingId && w.floors
@@ -93,7 +93,7 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
   };
 
   const toggleExpandFlat = async (wingId: string, floorId: string, flatId: string) => {
-    console.log('toggleExpandFlat called with:', { societyId, wingId, floorId, flatId });
+    // console.log('toggleExpandFlat called with:', { societyId, wingId, floorId, flatId });
     const newSet = new Set(expandedFlats);
     if (newSet.has(flatId)) {
       newSet.delete(flatId);
@@ -101,7 +101,7 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
       newSet.add(flatId);
       try {
         const members = await getSpecificMembers(wingId, floorId, flatId);
-        console.log('Setting members for flat:', flatId, members);
+        // console.log('Setting members for flat:', flatId, members);
         setWings((prev) =>
           prev.map((w) =>
             w.id === wingId && w.floors
@@ -133,9 +133,9 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
     setLoading(true);
     setError(null);
     try {
-      console.log('Fetching wings for societyId:', societyId);
+      // console.log('Fetching wings for societyId:', societyId);
       const data = await getWings();
-      console.log('Fetched wings:', data);
+      // console.log('Fetched wings:', data);
       setWings(data);
       setExpandedWings(new Set());
       setExpandedFloors(new Set());

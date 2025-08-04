@@ -27,6 +27,7 @@ interface SubscriptionPlan {
   numberOfMonths: number;
   modules: string[];
   isTrial: boolean;
+  trial_days: number;
   discountPrice: number;
 }
 
@@ -123,7 +124,7 @@ const SocietyOnboarding = () => {
     wings: [{ wingName: '', numberOfFloors: '', numberOfFlats: '' }],
   });
 
-  // Enhanced validation functions
+  // Validation functions
   const validateEmail = useCallback((email: string) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email), []);
   const validatePhone = useCallback((phone: string) => /^[6-9][0-9]{9}$/.test(phone), []);
   const validatePassword = useCallback((password: string) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password), []);
@@ -183,10 +184,6 @@ const SocietyOnboarding = () => {
     },
     [validateSocietyForm, selectedPlan]
   );
-
-  useEffect(() => {
-    setErrors((prev) => ({ ...prev, ...validateSocietyForm() }));
-  }, [societyForm, validateSocietyForm]);
 
   const fetchPincodeData = useCallback(async (pincode: string) => {
     if (!validatePincode(pincode)) {
@@ -267,10 +264,21 @@ const SocietyOnboarding = () => {
       });
 
     getSubscriptions()
-      .then((data: { plans: SubscriptionPlan[] }) => {
-        if (data.plans && Array.isArray(data.plans) && data.plans.length > 0) {
-          setSubscriptionPlans(data.plans);
-          setSelectedPlan(data.plans[0]);
+      .then((value: { plans: any; paymentCycles: any }) => {
+        if (value.plans && Array.isArray(value.plans) && value.plans.length > 0) {
+          const plans = value.plans.map((plan) => ({
+            id: plan.id,
+            name: plan.name,
+            description: plan.description,
+            pricePerFlat: parseFloat(plan.price_per_flat),
+            numberOfMonths: plan.numberOfMonths,
+            modules: plan.modules,
+            isTrial: !!plan.is_trial,
+            discountPrice: parseFloat(plan.discount_price),
+            trial_days: plan.trial_days,
+          }));
+          setSubscriptionPlans(plans);
+          setSelectedPlan(plans[0]);
         } else {
           setErrorMessage('Failed to load subscription plans. Please try again later.');
         }
@@ -319,7 +327,7 @@ const SocietyOnboarding = () => {
       setSocietyForm((prev) => ({ ...prev, totalWings: validTotalWings, wings: newWings }));
       setErrors((prev) => ({
         ...prev,
-        totalWings: validTotalWings >= 1 ? '' : 'At least 1 wing required',
+        totalWings: '',
         wings: newWings.map(() => ({ wingName: '', numberOfFloors: '', numberOfFlats: '' })),
       }));
     },
@@ -396,194 +404,193 @@ const SocietyOnboarding = () => {
     }
   }, [promoCode, societyForm.societyEmail, selectedPlan, calculateSubscriptionAmount]);
 
-const initiateRazorpayPayment = useCallback( 
-  async (order: {
-    id: string;
-    amount: number;
-    currency: string;
-    subscriptionId?: string;
-    discountPrice: number;
-    societyId: number;
-  }) => {
-    // Add more detailed logging
-    console.log('Initiating payment with order:', JSON.stringify(order, null, 2));
-    setDiscountPrice(order.discountPrice || 0);
+  const initiateRazorpayPayment = useCallback(
+    async (order: {
+      id: string;
+      amount: number;
+      currency: string;
+      subscriptionId?: string;
+      discountPrice: number;
+      societyId: number;
+    }) => {
+      // console.log('Initiating payment with order:', JSON.stringify(order, null, 2));
+      setDiscountPrice(order.discountPrice || 0);
 
-    const isSubscription = paymentType === 'recurring';
-    console.log('Payment type:', paymentType);
-    console.log('Is subscription payment:', isSubscription);
+      const isSubscription = paymentType === 'recurring';
+      // console.log('Payment type:', paymentType);
+      // console.log('Is subscription payment:', isSubscription);
 
-    const options: any = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-      amount: order.amount,
-      currency: order.currency,
-      name: 'Waardian',
-      description: `Subscription for ${societyForm.societyName} (${paymentType})`,
-      handler: async (response: any) => {
-        console.log('Payment handler response:', response);
-        
-        const transaction: Transaction = {
-          paymentId: response.razorpay_payment_id,
-          orderId: response.razorpay_order_id || '',
-          subscriptionId: response.razorpay_subscription_id || '',
-          amount: order.amount / 100,
-          status: 'captured',
-          createdAt: new Date().toISOString(),
-        };
-        console.log('Created transaction:', transaction);
-        setTransactions((prev) => [...prev, transaction]);
+      const options: any = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Waardian',
+        description: `Subscription for ${societyForm.societyName} (${paymentType})`,
+        handler: async (response: any) => {
+          // console.log('Payment handler response:', response);
 
-        const paymentData = {
-          razorpay_payment_id: response.razorpay_payment_id,
-          razorpay_order_id: response.razorpay_order_id,
-          razorpay_signature: response.razorpay_signature,
-          subscription_id: response.razorpay_subscription_id,
-          societyName: societyForm.societyName,
-          address: {
-            line1: societyForm.addressLine1,
-            line2: societyForm.addressLine2,
-            city: societyForm.city,
-            state: societyForm.state,
-            country: societyForm.country,
-            pincode: societyForm.pincode,
-          },
-          societyType: societyForm.societyType,
-          registrationNumber: societyForm.registrationNumber,
-          registrationDate: societyForm.registrationDate,
-          panNumber: societyForm.panNumber || '',
-          contactNumber: societyForm.societyContact || '',
-          email: societyForm.societyEmail,
-          password: societyForm.password,
-          sampleFlatNumber: `${societyForm.wings[0]?.wingName || 'A'}-101`,
-          wings: societyForm.wings.map((wing) => ({
-            name: wing.wingName,
-            floors: wing.numberOfFloors,
-            flatsPerFloor: wing.numberOfFlats,
-          })),
-          subscription: {
-            planId: selectedPlan!.id,
-            amount: subscriptionAmount,
-            pricePerFlat: selectedPlan!.pricePerFlat,
-            totalFlats: calculateTotalFlats(),
-            modules: selectedPlan!.modules,
-            billingMonths: isSubscription ? selectedPlan!.numberOfMonths : 1,
-            promoCode: promoCode,
-            paymentType,
-          },
-          token: token as string,
-        };
-        console.log('Payment data prepared:', paymentData);
+          const transaction: Transaction = {
+            paymentId: response.razorpay_payment_id,
+            orderId: response.razorpay_order_id || '',
+            subscriptionId: response.razorpay_subscription_id || '',
+            amount: order.amount / 100,
+            status: 'captured',
+            createdAt: new Date().toISOString(),
+          };
+          // console.log('Created transaction:', transaction);
+          setTransactions((prev) => [...prev, transaction]);
 
-        try {
-          if (certificateFile) {
-            console.log('Processing certificate file...');
-            const reader = new FileReader();
-            reader.readAsDataURL(certificateFile);
-            reader.onload = async () => {
-              console.log('Certificate file read successfully');
-              const base64File = reader.result?.toString().split(',')[1];
-              await completeOnboarding({ ...paymentData, certificateFile: base64File });
-              console.log('Onboarding completed with certificate');
+          const paymentData = {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature,
+            subscription_id: response.razorpay_subscription_id,
+            societyName: societyForm.societyName,
+            address: {
+              line1: societyForm.addressLine1,
+              line2: societyForm.addressLine2,
+              city: societyForm.city,
+              state: societyForm.state,
+              country: societyForm.country,
+              pincode: societyForm.pincode,
+            },
+            societyType: societyForm.societyType,
+            registrationNumber: societyForm.registrationNumber,
+            registrationDate: societyForm.registrationDate,
+            panNumber: societyForm.panNumber || '',
+            contactNumber: societyForm.societyContact || '',
+            email: societyForm.societyEmail,
+            password: societyForm.password,
+            sampleFlatNumber: `${societyForm.wings[0]?.wingName || 'A'}-101`,
+            wings: societyForm.wings.map((wing) => ({
+              name: wing.wingName,
+              floors: wing.numberOfFloors,
+              flatsPerFloor: wing.numberOfFlats,
+            })),
+            subscription: {
+              planId: selectedPlan!.id,
+              amount: subscriptionAmount,
+              pricePerFlat: selectedPlan!.pricePerFlat,
+              totalFlats: calculateTotalFlats(),
+              modules: selectedPlan!.modules,
+              billingMonths: isSubscription ? selectedPlan!.numberOfMonths : 1,
+              promoCode: promoCode,
+              paymentType,
+            },
+            token: token as string,
+          };
+          // console.log('Payment data prepared:', paymentData);
+
+          try {
+            if (certificateFile) {
+              // console.log('Processing certificate file...');
+              const reader = new FileReader();
+              reader.readAsDataURL(certificateFile);
+              reader.onload = async () => {
+                // console.log('Certificate file read successfully');
+                const base64File = reader.result?.toString().split(',')[1];
+                await completeOnboarding({ ...paymentData, certificateFile: base64File });
+                // console.log('Onboarding completed with certificate');
+                toast.success('Onboarding completed successfully!');
+                router.push('/login');
+              };
+              reader.onerror = (error) => {
+                console.error('Certificate file read error:', error);
+                setErrorMessage('Failed to read certificate file. Please try again.');
+                setIsSubmitting(false);
+                toast.error('Failed to read certificate file');
+              };
+            } else {
+              // console.log('Completing onboarding without certificate');
+              await completeOnboarding(paymentData);
+              // console.log('Onboarding completed successfully');
               toast.success('Onboarding completed successfully!');
               router.push('/login');
-            };
-            reader.onerror = (error) => {
-              console.error('Certificate file read error:', error);
-              setErrorMessage('Failed to read certificate file. Please try again.');
-              setIsSubmitting(false);
-              toast.error('Failed to read certificate file');
-            };
-          } else {
-            console.log('Completing onboarding without certificate');
-            await completeOnboarding(paymentData);
-            console.log('Onboarding completed successfully');
-            toast.success('Onboarding completed successfully!');
-            router.push('/login');
+            }
+
+            localStorage.setItem(
+              'transactions',
+              JSON.stringify([...transactions, transaction])
+            );
+            // console.log('Transaction saved to localStorage');
+          } catch (error: any) {
+            console.error('Onboarding error:', error);
+            setErrorMessage(error.message || 'Payment verification failed. Please try again.');
+            setIsSubmitting(false);
+            toast.error(error.message || 'Payment verification failed');
+            setTransactions((prev) =>
+              prev.map((t) =>
+                t.paymentId === transaction.paymentId ? { ...t, status: 'failed' } : t
+              )
+            );
           }
-
-          localStorage.setItem(
-            'transactions',
-            JSON.stringify([...transactions, transaction])
-          );
-          console.log('Transaction saved to localStorage');
-        } catch (error: any) {
-          console.error('Onboarding error:', error);
-          setErrorMessage(error.message || 'Payment verification failed. Please try again.');
-          setIsSubmitting(false);
-          toast.error(error.message || 'Payment verification failed');
-          setTransactions((prev) =>
-            prev.map((t) =>
-              t.paymentId === transaction.paymentId ? { ...t, status: 'failed' } : t
-            )
-          );
-        }
-      },
-      modal: {
-        ondismiss: () => {
-          console.log('Payment modal dismissed');
-          setIsSubmitting(false);
-          setErrorMessage('Payment cancelled. Please try again.');
-          toast.error('Payment cancelled');
         },
-      },
-      prefill: {
-        email: societyForm.societyEmail,
-        contact: societyForm.societyContact || '',
-      },
-      notes: {
-        society_id: order.societyId,
-        payment_type: paymentType,
-      },
-      theme: {
-        color: '#2563EB',
-      },
-    };
-
-    if (isSubscription) {
-      options.subscription_id = order.id;
-      console.log('Added subscription_id to options:', order.id);
-    } else {
-      options.order_id = order.id;
-      console.log('Added order_id to options:', order.id);
-    }
-
-    console.log('Final Razorpay options:', JSON.stringify(options, null, 2));
-
-    const rzp = new (window as any).Razorpay(options);
-    rzp.on('payment.failed', (response: any) => {
-      console.error('Payment failed:', response);
-      setIsSubmitting(false);
-      setErrorMessage(response.error.description || 'Payment failed. Please try again.');
-      toast.error(response.error.description || 'Payment failed');
-
-      setTransactions((prev) => [
-        ...prev,
-        {
-          paymentId: response.error.metadata.payment_id,
-          orderId: response.error.metadata.order_id,
-          amount: order.amount / 100,
-          status: 'failed',
-          createdAt: new Date().toISOString(),
+        modal: {
+          ondismiss: () => {
+            // console.log('Payment modal dismissed');
+            setIsSubmitting(false);
+            setErrorMessage('Payment cancelled. Please try again.');
+            toast.error('Payment cancelled');
+          },
         },
-      ]);
-    });
+        prefill: {
+          email: societyForm.societyEmail,
+          contact: societyForm.societyContact || '',
+        },
+        notes: {
+          society_id: order.societyId,
+          payment_type: paymentType,
+        },
+        theme: {
+          color: '#2563EB',
+        },
+      };
 
-    console.log('Opening Razorpay payment modal');
-    rzp.open();
-  },
-  [
-    societyForm,
-    selectedPlan,
-    subscriptionAmount,
-    promoCode,
-    certificateFile,
-    token,
-    calculateTotalFlats,
-    paymentType,
-    transactions,
-    router,
-  ]
-);
+      if (isSubscription) {
+        options.subscription_id = order.id;
+        // console.log('Added subscription_id to options:', order.id);
+      } else {
+        options.order_id = order.id;
+        // console.log('Added order_id to options:', order.id);
+      }
+
+      // console.log('Final Razorpay options:', JSON.stringify(options, null, 2));
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', (response: any) => {
+        console.error('Payment failed:', response);
+        setIsSubmitting(false);
+        setErrorMessage(response.error.description || 'Payment failed. Please try again.');
+        toast.error(response.error.description || 'Payment failed');
+
+        setTransactions((prev) => [
+          ...prev,
+          {
+            paymentId: response.error.metadata.payment_id,
+            orderId: response.error.metadata.order_id,
+            amount: order.amount / 100,
+            status: 'failed',
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      });
+
+      // console.log('Opening Razorpay payment modal');
+      rzp.open();
+    },
+    [
+      societyForm,
+      selectedPlan,
+      subscriptionAmount,
+      promoCode,
+      certificateFile,
+      token,
+      calculateTotalFlats,
+      paymentType,
+      transactions,
+      router,
+    ]
+  );
 
   const handleSubmit = useCallback(async () => {
     const societyErrors = validateSocietyForm();
@@ -645,7 +652,7 @@ const initiateRazorpayPayment = useCallback(
         return;
       }
 
-      console.log('order', order);
+      // console.log('order', order);
 
       await initiateRazorpayPayment(order);
     } catch (error: any) {
@@ -1063,8 +1070,7 @@ const initiateRazorpayPayment = useCallback(
                 <button
                   type="button"
                   onClick={nextStep}
-                  disabled={isStepInvalid(1) || !!certificateError}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-all flex items-center"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all flex items-center"
                 >
                   Next <ArrowRight className="w-5 h-5 ml-2" />
                 </button>
@@ -1113,7 +1119,7 @@ const initiateRazorpayPayment = useCallback(
                       <Info className="h-4 w-4 text-gray-400" />
                       <span className="absolute left-6 top-0 scale-0 transition-all rounded bg-gray-800 p-2 text-xs text-white group-hover:scale-100">
                         Single payment for the selected period
-                      </span> 
+                      </span>
                     </div>
                   </label>
                 </div>
@@ -1147,10 +1153,10 @@ const initiateRazorpayPayment = useCallback(
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h3>
                     <p className="text-gray-600 mb-4">{plan.description}</p>
                     <div className="text-xl font-bold text-blue-600">
-                      ₹{plan.pricePerFlat.toLocaleString()}
+                      ₹{plan.pricePerFlat.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       {plan.discountPrice > 0 && (
                         <span className="text-sm text-gray-500 line-through ml-2">
-                          ₹{plan.discountPrice.toLocaleString()}
+                          ₹{plan.discountPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       )}
                       <span className="text-sm text-gray-600"> per Flat</span>
@@ -1159,6 +1165,9 @@ const initiateRazorpayPayment = useCallback(
                       <span className="text-sm text-green-600">
                         (Save {((plan.discountPrice - plan.pricePerFlat) / plan.discountPrice * 100).toFixed(0)}%)
                       </span>
+                    )}
+                    {plan.isTrial && (
+                      <div className="mt-2 text-sm text-blue-600 font-medium">{plan.trial_days} Days trial period</div>
                     )}
                     <div className="mt-4">
                       <h5 className="font-medium text-gray-900 mb-2">Included Modules:</h5>
@@ -1171,9 +1180,6 @@ const initiateRazorpayPayment = useCallback(
                         ))}
                       </ul>
                     </div>
-                    {plan.isTrial && (
-                      <div className="mt-2 text-sm text-blue-600 font-medium">Trial Plan - No recurring charges</div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -1243,7 +1249,7 @@ const initiateRazorpayPayment = useCallback(
                   <div className="border-t-2 border-blue-200 pt-4">
                     <div className="flex justify-between items-center mb-1">
                       <div className="text-gray-600">Original Cost:</div>
-                      <div className="font-medium text-gray-900">₹{subscriptionAmount.toLocaleString()}</div>
+                      <div className="font-medium text-gray-900">₹{subscriptionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </div>
                     {discountPrice > 0 && (
                       <div className="flex justify-between items-center text-green-600">
@@ -1260,18 +1266,18 @@ const initiateRazorpayPayment = useCallback(
                           Your Savings ({((selectedPlan.discountPrice - selectedPlan.pricePerFlat) / selectedPlan.discountPrice * 100).toFixed(0)}%)
                         </div>
                         <div className="font-medium">
-                          ₹{(calculateTotalFlats() * (selectedPlan.discountPrice - selectedPlan.pricePerFlat)).toLocaleString()}
+                          ₹{(calculateTotalFlats() * (selectedPlan.discountPrice - selectedPlan.pricePerFlat)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                       </div>
                     )}
                     <div className="flex justify-between items-center text-lg font-bold text-blue-700 mt-3 pt-3 border-t-2 border-blue-200">
                       <div>Total Due:</div>
-                      <div className="text-2xl">₹{subscriptionAmount.toLocaleString()}</div>
+                      <div className="text-2xl">₹{subscriptionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     </div>
                     {discountPrice > 0 && (
                       <div className="mt-3 p-3 bg-green-50 rounded-lg text-green-700 text-sm flex items-center">
                         <CheckCircle className="h-5 w-5 mr-2" />
-                        You're saving ₹{((selectedPlan.discountPrice * calculateTotalFlats()) - subscriptionAmount).toLocaleString()} with this plan!
+                        You're saving ₹{((selectedPlan.discountPrice * calculateTotalFlats()) - subscriptionAmount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} with this plan!
                       </div>
                     )}
                   </div>
@@ -1293,7 +1299,7 @@ const initiateRazorpayPayment = useCallback(
                           <span className={`font-medium ${transaction.status === 'captured' ? 'text-green-600' : 'text-red-600'}`}>
                             {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                           </span>
-                          <p className="text-gray-600">₹{transaction.amount.toLocaleString()}</p>
+                          <p className="text-gray-600">₹{transaction.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                         </div>
                       </div>
                     ))}

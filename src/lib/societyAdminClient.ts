@@ -87,7 +87,7 @@ export const getSocietyMembers = async (params: {
       filter: params.filter || 'primary',
     },
   });
-  console.log('getSocietyMembers response:', response);
+  // console.log('getSocietyMembers response:', response);
   return response;
 };
 
@@ -97,7 +97,7 @@ export const addSocietyMember = async (member: Omit<SocietyMember, 'id' | 'creat
     headers: { 'Content-Type': 'application/json' },
     body: (member),
   });
-  console.log('addSocietyMember response:', response);
+  // console.log('addSocietyMember response:', response);
   return response;
 };
 
@@ -107,7 +107,7 @@ export const updateSocietyMember = async (id: number, member: Omit<SocietyMember
     headers: { 'Content-Type': 'application/json' },
     body: (member),
   });
-  console.log('updateSocietyMember response:', response);
+  // console.log('updateSocietyMember response:', response);
   return response;
 };
 
@@ -117,7 +117,7 @@ export const updateMemberStatus = async (id: number, status: string): Promise<Ap
     headers: { 'Content-Type': 'application/json' },
     body: { status },
   });
-  console.log('updateMemberStatus response:', response);
+  // console.log('updateMemberStatus response:', response);
   return response;
 };
 
@@ -126,7 +126,7 @@ export const deleteSocietyMember = async (id: number): Promise<ApiResponse<Socie
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
   });
-  console.log('deleteSocietyMember response:', response);
+  // console.log('deleteSocietyMember response:', response);
   return response;
 };
 
@@ -135,7 +135,7 @@ export async function getWings(): Promise<Wing[]> {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   });
-  console.log('getWings response:', response);
+  // console.log('getWings response:', response);
   if (!response.success) {
     throw new Error(response.message || 'Failed to fetch wings');
   }
@@ -154,7 +154,7 @@ export async function getFloors(wingId: string): Promise<Floor[]> {
     headers: { 'Content-Type': 'application/json' },
     params: { wingId },
   });
-  console.log('getFloors response:', response);
+  // console.log('getFloors response:', response);
   if (!response.success) {
     throw new Error(response.message || 'Failed to fetch floors');
   }
@@ -167,7 +167,7 @@ export async function getFlats(wingId: string, floorId: string): Promise<Flat[]>
     headers: { 'Content-Type': 'application/json' },
     params: { wingId, floorId },
   });
-  console.log('getFlats response:', response);
+  // console.log('getFlats response:', response);
   if (!response.success) {
     throw new Error(response.message || 'Failed to fetch flats');
   }
@@ -180,7 +180,7 @@ export async function getSpecificMembers(wingId: string, floorId: string, flatId
     headers: { 'Content-Type': 'application/json' },
     params: { wingId, floorId, flatId },
   });
-  console.log('getMembers response:', response);
+  // console.log('getMembers response:', response);
   if (!response.success) {
     throw new Error(response.message || 'Failed to fetch members');
   }

@@ -51,10 +51,10 @@ export async function fetchSocieties() {
     const response = await apiClient('/superadmin/societies', {
       method: 'GET',
     });
-    console.log('Fetched societies response:', response);
+    // console.log('Fetched societies response:', response);
     // Handle both direct array and { societies: [] } response
     const societies = Array.isArray(response) ? response : response.societies || [];
-    console.log('Processed societies:', societies);
+    // console.log('Processed societies:', societies);
     return societies;
   } catch (error) {
     console.error('Error fetching societies:', error);

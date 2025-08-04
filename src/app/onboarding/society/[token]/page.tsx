@@ -3,6 +3,6 @@
 import SocietyOnboarding from '@/components/public/SocietyOnboarding';
 
 export default function SocietyOnboardingPage() {
-  console.log('SocietyOnboardingPage rendered');
+  // console.log('SocietyOnboardingPage rendered');
   return <SocietyOnboarding />;
 }

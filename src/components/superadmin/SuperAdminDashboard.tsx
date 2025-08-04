@@ -8,9 +8,9 @@ export default function SuperadminDashboard() {
 
   const handleLogout = async () => {
     try {
-      console.log('Initiating logout');
+      // console.log('Initiating logout');
       await logout();
-      console.log('Logout successful, redirecting to /login');
+      // console.log('Logout successful, redirecting to /login');
       router.push('/login');
     } catch (error) {
       console.error('Logout failed:', error);

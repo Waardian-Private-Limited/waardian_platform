@@ -61,14 +61,14 @@ type OnboardingFormData = {
 async function validateStaffOnboardingToken(token: string): Promise<StaffData> {
   try {
     const response = await apiClient(`/staffonboarding/validate/${token}`);
-    console.log('Staff onboarding data:', response);
+    // console.log('Staff onboarding data:', response);
     const data = response.data ? response.data : (await response.json()).data;
     if (data.salaryInfo?.salary) {
       data.salaryInfo.salary = data.salaryInfo.salary;
     }
     data.allowAppAccess = !!data.allowAppAccess;
     data.flexibleTiming = !!data.flexibleTiming;
-    console.log('Parsed staff onboarding data:', data);
+    // console.log('Parsed staff onboarding data:', data);
     return data;
   } catch (error) {
     console.error('Token validation failed:', error);
@@ -86,7 +86,7 @@ async function uploadFile(token: string, file: File, context: string = 'staffDoc
     body: formData,
   });
 
-  console.log('response', response);
+  // console.log('response', response);
 
   const result = response; // No `.json()` needed
   if (result.status !== 'success') {
@@ -112,11 +112,13 @@ async function completeStaffOnboarding(payload: {
     },
   });
 
-  const result = await response;
-  if (!response.ok) throw new Error(result.message || 'Error completing onboarding');
-  return result;
-}
+  // ✅ Correct success check based on your actual response structure
+  if (response.status !== 'success') {
+    throw new Error(response.message || 'Error completing onboarding');
+  }
 
+  return response;
+}
 
 export default function StaffOnboarding() {
   const { token } = useParams();
@@ -242,58 +244,53 @@ export default function StaffOnboarding() {
   };
 
   const onSubmit = async (formData: OnboardingFormData) => {
-    if (!isValid) {
-      toast.error('Please fix the form errors', { autoClose: 3000 });
-      return;
-    }
+  if (!isValid) {
+    toast.error('Please fix the form errors', { autoClose: 3000 });
+    return;
+  }
 
-    if (!checkPasswordsMatch()) {
-      toast.error('Passwords do not match', { autoClose: 3000 });
-      return;
-    }
+  if (!checkPasswordsMatch()) {
+    toast.error('Passwords do not match', { autoClose: 3000 });
+    return;
+  }
 
-    setLoading(true);
-    try {
-      // Upload files one at a time and keep track of filenames
-      const documentUrls: { url: string; name: string }[] = [];
-      console.log('file',selectedFiles);
-      for (const file of selectedFiles) {
-        console.log('uploading filesss');
-        try {
-          const result = await uploadFile(token as string, file);
-          console.log('result',result);
-          documentUrls.push(result);
-        } catch (error: any) {
-          toast.error(`Failed to upload ${file.name}: ${error.message}`, { autoClose: 5000 });
-          throw error; // Stop if any file fails
-        }
+  if (selectedFiles.length === 0) {
+    toast.error('Please upload at least one document', { autoClose: 3000 });
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const documentUrls: { url: string; name: string }[] = [];
+
+    for (const file of selectedFiles) {
+      try {
+        const result = await uploadFile(token as string, file);
+        documentUrls.push(result);
+      } catch (error: any) {
+        toast.error(`Failed to upload ${file.name}: ${error.message}`, { autoClose: 5000 });
+        throw error; // Stop the submission
       }
-
-      const payload = {
-        token: token as String,
-        password: formData.password,
-        documentUrls,
-      };
-
-      console.log('sending payload',payload);
-
-      const response = await completeStaffOnboarding({
-        ...payload,
-        token: token as string
-      });
-      if (response.message === 'Staff onboarding completed successfully') {
-        toast.success('Onboarding completed successfully!', { autoClose: 3000 });
-        setIsSubmitted(true);
-      } else {
-        toast.error(response.message || 'Error completing onboarding', { autoClose: 5000 });
-      }
-    } catch (error: any) {
-      console.error('Onboarding error:', error);
-      toast.error(error.message || 'Error processing request. Please try again.', { autoClose: 5000 });
-    } finally {
-      setLoading(false);
     }
-  };
+
+    const payload = {
+      token: token as string,
+      password: formData.password,
+      documentUrls,
+    };
+
+    const result = await completeStaffOnboarding(payload);
+
+    toast.success(result.message || 'Onboarding completed successfully!', { autoClose: 3000 });
+    setIsSubmitted(true);
+
+  } catch (error: any) {
+    console.error('Onboarding error:', error);
+    toast.error(error.message || 'Error processing request. Please try again.', { autoClose: 5000 });
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (loading) {
     return (
