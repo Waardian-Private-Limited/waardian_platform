@@ -1,12 +1,12 @@
 import crypto from 'crypto';
 
-const SECRET_KEY = process.env.NEXT_PUBLIC_ENCRYPT_KEY || '0123456789abcdef0123456789abcdef'; // 32-byte
+const SECRET_KEY = process.env.NEXT_PUBLIC_ENCRYPT_KEY;
 const IV_LENGTH = 16;
 
 export function encryptPayload(data: object): string {
   try {
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(SECRET_KEY), iv);
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(SECRET_KEY || ''), iv);
 
     let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
     encrypted += cipher.final('hex');
@@ -41,7 +41,7 @@ export function decryptPayload(encryptedData: any): object | null {
     // Decrypt the data
     const decipher = crypto.createDecipheriv(
       'aes-256-cbc', 
-      Buffer.from(SECRET_KEY), 
+      Buffer.from(SECRET_KEY || ''),
       Buffer.from(iv, 'hex')
     );
 
