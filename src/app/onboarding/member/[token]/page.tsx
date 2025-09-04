@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -114,10 +113,8 @@ export default function MemberOnboarding() {
 
   useEffect(() => {
     if (token) {
-      // console.log('Validating token:', token);
       validateUserOnboardingToken(token as string)
         .then((response) => {
-          // console.log('Token validation response:', response);
           if (response.userId && response.memberData) {
             setData(response);
             reset({
@@ -125,8 +122,8 @@ export default function MemberOnboarding() {
               lastName: response.memberData.last_name || '',
               email: response.memberData.email || '',
               phoneNumber: response.memberData.phone_number || '',
-              flatType: '',
-              squareFeet: 0,
+              flatType: response.memberData.flat_type || '',
+              squareFeet: response.memberData.square_feet || 0,
               password: '',
               confirmPassword: '',
             });
@@ -161,25 +158,18 @@ export default function MemberOnboarding() {
   };
 
   const onSubmit = async (formData: OnboardingFormData) => {
-    // console.log('Form submitted with data:', formData);
     if (!isValid) {
-      // console.log('Form validation failed:', errors);
       toast.error('Please fix the form errors (e.g., required fields)', { autoClose: 3000 });
       return;
     }
-
     if (!checkPasswordsMatch()) {
-      // console.log('Password mismatch');
       toast.error('Passwords do not match', { autoClose: 3000 });
       return;
     }
-
     if (!data?.memberData.flat_id || !data?.memberData.relationship) {
-      // console.log('Missing flatId or memberType:', { flatId: data?.flatId, memberType: data?.memberData.relationship });
       toast.error('Missing flat ID or member type information', { autoClose: 5000 });
       return;
     }
-
     setLoading(true);
     try {
       const payload: {
@@ -203,22 +193,15 @@ export default function MemberOnboarding() {
         memberType: data.memberData.relationship,
         password: formData.password,
       };
-
-      // Only include flatType and squareFeet if member type is 'owner'
       if (data.memberData.relationship === 'owner') {
         payload.flatType = formData.flatType;
         payload.squareFeet = formData.squareFeet;
       }
-
-      // console.log('Sending API request with payload:', payload);
       const response = await completeUserOnboarding(payload);
-      // console.log('API response:', response);
-
       if (response.success || response.message === 'Member onboarding completed successfully') {
         toast.success('Onboarding completed successfully!', { autoClose: 3000 });
         setIsSubmitted(true);
       } else {
-        // console.log('API error response:', response);
         toast.error(response.message || 'Error completing onboarding', { autoClose: 5000 });
       }
     } catch (error: any) {
@@ -279,14 +262,14 @@ export default function MemberOnboarding() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Download Our App</h2>
           <p className="text-gray-600 mb-6">Manage your account easily with our mobile app.</p>
           <div className="flex justify-center items-center gap-4">
-            <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
+            <a href="https://apps.apple.com/in/app/waardian/id6749545666" target="_blank" rel="noopener noreferrer">
               <img
                 src="/assets/AppleAppStore.svg"
                 alt="Download on the App Store"
                 className="h-120"
               />
             </a>
-            <a href="https://waardian.app.link/download" target="_blank" rel="noopener noreferrer">
+            <a href="https://play.google.com/store/apps/details?id=com.waardian.app&hl=en" target="_blank" rel="noopener noreferrer">
               <img
                 src="/assets/GooglePlayStore.svg"
                 alt="Get it on Google Play"
@@ -309,7 +292,6 @@ export default function MemberOnboarding() {
               Please review and update your details as needed, then set your password to complete onboarding. Contact your administrator if any other information needs correction.
             </p>
           </div>
-
           <form onSubmit={handleSubmit(onSubmit)} className="px-6 py-6 space-y-8">
             {/* Personal Information */}
             <div className="space-y-6">
@@ -364,7 +346,6 @@ export default function MemberOnboarding() {
                 </div>
               </div>
             </div>
-
             {/* Member Type */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-700 flex items-center">
@@ -373,7 +354,6 @@ export default function MemberOnboarding() {
               </h3>
               <p className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100">{memberData.relationship || 'N/A'}</p>
             </div>
-
             {/* Location Information */}
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-700 flex items-center">
@@ -397,37 +377,16 @@ export default function MemberOnboarding() {
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Flat Type</label>
-                      <select
-                        {...register('flatType', { required: 'Flat Type is required' })}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="" disabled>Select Flat Type</option>
-                        <option value="1RK">1RK</option>
-                        <option value="1BHK">1BHK</option>
-                        <option value="2BHK">2BHK</option>
-                        <option value="3BHK">3BHK</option>
-                        <option value="4BHK">4BHK</option>
-                      </select>
-                      {errors.flatType && <p className="text-red-500 text-sm">{errors.flatType.message}</p>}
+                      <p className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100">{memberData.flat_type || 'N/A'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Square Feet</label>
-                      <input
-                        type="number"
-                        {...register('squareFeet', {
-                          required: 'Square Feet is required',
-                          min: { value: 1, message: 'Square Feet must be greater than 0' },
-                          valueAsNumber: true,
-                        })}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      {errors.squareFeet && <p className="text-red-500 text-sm">{errors.squareFeet.message}</p>}
+                      <p className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100">{memberData.square_feet || 'N/A'}</p>
                     </div>
                   </>
                 )}
               </div>
             </div>
-
             {/* Tenant-Specific Fields */}
             {isTenant && (
               <>
@@ -487,7 +446,6 @@ export default function MemberOnboarding() {
                     </div>
                   </div>
                 </div>
-
                 <div className="space-y-6">
                   <h3 className="text-lg font-medium text-gray-700 flex items-center">
                     <IndianRupee className="mr-2 text-blue-600" />
@@ -528,22 +486,13 @@ export default function MemberOnboarding() {
                     )}
                   </div>
                 </div>
-
                 <div className="space-y-6">
                   <h3 className="text-lg font-medium text-gray-700 flex items-center">
                     <Banknote className="mr-2 text-blue-600" />
                     Payment Collection Details
                   </h3>
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fee Payer
-                        <span className="text-gray-500 text-xs ml-1">(Who is responsible for paying fees)</span>
-                      </label>
-                      <p className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100">
-                        {memberData.fee_payer || 'N/A'}
-                      </p>
-                    </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Payment Methods Allowed
@@ -562,16 +511,9 @@ export default function MemberOnboarding() {
                         <p className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100">{memberData.gstin}</p>
                       </div>
                     )}
-                    {memberData.collect_via_app && (
-                      <div className="col-span-1 sm:col-span-2">
-                        <div className="text-sm text-blue-700 bg-blue-50 p-3 rounded-lg border border-blue-100">
-                          <strong>Note:</strong> This member is required to make payments through the Waardian app. Offline or manual payment modes may not be supported.
-                        </div>
-                      </div>
-                    )}
+                    
                   </div>
                 </div>
-
                 {memberData.bank_details && (
                   <div className="space-y-6">
                     <h3 className="text-lg font-medium text-gray-700 flex items-center">
@@ -602,7 +544,6 @@ export default function MemberOnboarding() {
                 )}
               </>
             )}
-
             {/* Password Fields */}
             <div className="space-y-6">
               <h3 className="text-lg font-medium text-gray-700 flex items-center">
@@ -653,11 +594,10 @@ export default function MemberOnboarding() {
                 </div>
               </div>
             </div>
-
             <div className="bg-gray-50 flex justify-end space-x-4">
               <button
                 type="submit"
-                disabled={loading || !isValid || !checkPasswordsMatch() || (showFlatDetails && (!watch('flatType') || watch('squareFeet') <= 0))}
+                disabled={loading || !isValid || !checkPasswordsMatch()}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors"
               >
                 <span>Complete Onboarding</span>

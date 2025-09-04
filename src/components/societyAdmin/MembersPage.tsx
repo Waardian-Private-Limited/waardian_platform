@@ -182,40 +182,40 @@ const MembersPage = ({ societyId }: Props) => {
   };
 
   const fetchModalFloors = async (wingId: string) => {
-  try {
-    if (!wingId) {
-      setModalFloors([]);
-      setModalFlats([]);
-      setModalFloor('');
-      setModalFlat('');
+    try {
+      if (!wingId) {
+        setModalFloors([]);
+        setModalFlats([]);
+        setModalFloor('');
+        setModalFlat('');
+        return [];
+      }
+      const floorsData = await getFloors(wingId);
+      setModalFloors(floorsData);
+      return floorsData;
+    } catch (err) {
+      toast.error('Failed to load floors');
+      console.error('Error fetching floors:', err);
       return [];
     }
-    const floorsData = await getFloors(wingId);
-    setModalFloors(floorsData);
-    return floorsData; // Make sure to return the data
-  } catch (err) {
-    toast.error('Failed to load floors');
-    console.error('Error fetching floors:', err);
-    return [];
-  }
-};
+  };
 
-const fetchModalFlats = async (wingId: string, floorId: string) => {
-  try {
-    if (!wingId || !floorId) {
-      setModalFlats([]);
-      setModalFlat('');
+  const fetchModalFlats = async (wingId: string, floorId: string) => {
+    try {
+      if (!wingId || !floorId) {
+        setModalFlats([]);
+        setModalFlat('');
+        return [];
+      }
+      const flatsData = await getFlats(wingId, floorId);
+      setModalFlats(flatsData);
+      return flatsData;
+    } catch (err) {
+      toast.error('Failed to load flats');
+      console.error('Error fetching flats:', err);
       return [];
     }
-    const flatsData = await getFlats(wingId, floorId);
-    setModalFlats(flatsData);
-    return flatsData;
-  } catch (err) {
-    toast.error('Failed to load flats');
-    console.error('Error fetching flats:', err);
-    return [];
-  }
-};
+  };
 
   useEffect(() => {
     fetchWings();
@@ -244,48 +244,38 @@ const fetchModalFlats = async (wingId: string, floorId: string) => {
   }, [filters, currentPage, sortField, sortOrder, debouncedFetchData]);
 
   useEffect(() => {
-  if (isModalOpen && editingMember) {
-    setModalLoading(true);
-    
-    const loadMemberData = async () => {
-      try {
-        // Set wing first
-        const wingId = String(editingMember.wing_id);
-        setModalWing(wingId);
-        
-        // Fetch and set floors for this wing
-        if (wingId) {
-          const floors = await fetchModalFloors(wingId);
-          
-          // Set floor after floors are loaded
-          const floorId = String(editingMember.floor_id);
-          setModalFloor(floorId);
-          
-          // Fetch and set flats for this floor
-          if (floorId && floors.some(f => String(f.floor_id) === floorId)) {
-            await fetchModalFlats(wingId, floorId);
-            setModalFlat(String(editingMember.flat_id));
+    if (isModalOpen && editingMember) {
+      setModalLoading(true);
+      const loadMemberData = async () => {
+        try {
+          const wingId = String(editingMember.wing_id);
+          setModalWing(wingId);
+          if (wingId) {
+            const floors = await fetchModalFloors(wingId);
+            const floorId = String(editingMember.floor_id);
+            setModalFloor(floorId);
+            if (floorId && floors.some(f => String(f.floor_id) === floorId)) {
+              await fetchModalFlats(wingId, floorId);
+              setModalFlat(String(editingMember.flat_id));
+            }
           }
+        } catch (error) {
+          console.error('Error loading member data:', error);
+        } finally {
+          setModalLoading(false);
         }
-      } catch (error) {
-        console.error('Error loading member data:', error);
-      } finally {
-        setModalLoading(false);
-      }
-    };
-
-    loadMemberData();
-  } else if (isModalOpen) {
-    // Reset for new member
-    setModalWing('');
-    setModalFloor('');
-    setModalFlat('');
-    setModalFloors([]);
-    setModalFlats([]);
-    setFormErrors({});
-    setModalLoading(false);
-  }
-}, [isModalOpen, editingMember]);
+      };
+      loadMemberData();
+    } else if (isModalOpen) {
+      setModalWing('');
+      setModalFloor('');
+      setModalFlat('');
+      setModalFloors([]);
+      setModalFlats([]);
+      setFormErrors({});
+      setModalLoading(false);
+    }
+  }, [isModalOpen, editingMember]);
 
   const handleFilterChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -472,8 +462,17 @@ const fetchModalFlats = async (wingId: string, floorId: string) => {
           fetchData();
         }
       }
-    } catch (error) {
-      toast.error('Failed to save member');
+    } catch (error: any) {
+      // Handle specific error for flat already having an owner
+      if (error.message.includes('A flat can only have one owner')) {
+        setFormErrors(prev => ({
+          ...prev,
+          flat: 'This flat already has an owner. Please select a different flat.',
+        }));
+        toast.error('This flat already has an owner. Please select a different flat.');
+      } else {
+        toast.error(error.message || 'Failed to save member');
+      }
       console.error('Failed to save member:', error);
     } finally {
       setIsProcessing(false);
@@ -724,7 +723,7 @@ const fetchModalFlats = async (wingId: string, floorId: string) => {
                           <div className={`w-1.5 h-1.5 rounded-full mr-1 ${
                             member.userType === 'societyAdmin' ? 'bg-blue-500' : 'bg-gray-400'
                           }`}></div>
-                          {member.userType === 'societyAdmin' ? 'societyAdmin' : 'member'}
+                          {member.userType === 'societyAdmin' ? 'Society Admin' : 'Member'}
                         </span>
                       </td>
                       <td className="px-3 py-2">
@@ -945,7 +944,7 @@ const fetchModalFlats = async (wingId: string, floorId: string) => {
                             <option value="">Select Flat</option>
                             {modalFlats.map((flat) => (
                               <option key={flat.flat_id} value={flat.flat_id}>
-                                {flat.flat_number} {/* Changed from flat.flat_id to flat.flat_number */}
+                                {flat.flat_number}
                               </option>
                             ))}
                           </select>
