@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient, checkAccounts as apiCheckAccounts, loginWithAccount as apiLoginWithAccount, Account, CheckAccountsResponse, OtpVerificationResponse } from './apiClient';
 import { encryptPayload, decryptPayload } from './crypto';
 
 interface User {
@@ -66,24 +66,38 @@ export async function login({
   }
 }
 
-export async function verifyOtp(mobile: string, otp: string): Promise<AuthResponse> {
-  const encrypted = encryptPayload({ mobile, otp });
+export async function verifyOtp(mobile: string, otp: string, accountId?: string): Promise<OtpVerificationResponse> {
+  const encrypted = encryptPayload({ mobile, otp, accountId });
 
   try {
     const encryptedResponse = await apiClient('/auth/verify-web-otp', {
       method: 'POST',
       body: { data: encrypted },
     });
-    return tryDecrypt(encryptedResponse);
+    
+    try {
+      return decryptPayload(encryptedResponse) as OtpVerificationResponse;
+    } catch (decryptError) {
+      console.error('🔐 Failed to decrypt OTP verification response:', decryptError);
+      return {
+        success: false,
+        message: 'Decryption failed',
+        error: 'Could not decrypt the server response',
+      };
+    }
   } catch (error: any) {
     if (error.response?.data) {
-      return tryDecrypt(error.response.data);
+      try {
+        return decryptPayload(error.response.data) as OtpVerificationResponse;
+      } catch (decryptError) {
+        console.error('🔐 Failed to decrypt error response:', decryptError);
+      }
     }
 
     return {
       success: false,
       message: error.message || 'OTP verification failed',
-      detail: 'An unexpected error occurred during OTP verification',
+      error: 'An unexpected error occurred during OTP verification',
     };
   }
 }
@@ -120,6 +134,79 @@ export async function logout(): Promise<AuthResponse> {
       success: false,
       message: error.message || 'Logout failed',
       detail: 'An unexpected error occurred during logout',
+    };
+  }
+}
+
+// Check accounts for multi-account login
+export async function checkAccounts(email?: string, phone?: string): Promise<CheckAccountsResponse> {
+  const encrypted = encryptPayload({ email, phone });
+  
+  try {
+    const encryptedResponse = await apiClient('/auth/check-web-accounts', {
+      method: 'POST',
+      body: { data: encrypted },
+    });
+    
+    try {
+      return decryptPayload(encryptedResponse) as CheckAccountsResponse;
+    } catch (decryptError) {
+      console.error('🔐 Failed to decrypt check accounts response:', decryptError);
+      return {
+        message: 'Decryption failed',
+        error: 'Could not decrypt the server response',
+      };
+    }
+  } catch (error: any) {
+    return {
+      message: 'Failed to check accounts',
+      error: error.message || 'An unexpected error occurred',
+    };
+  }
+}
+
+// Login with selected account
+export async function loginWithAccount(accountId: string, password: string): Promise<AuthResponse> {
+  const encrypted = encryptPayload({ accountId, password });
+
+  try {
+    const encryptedResponse = await apiClient('/auth/weblogin', {
+      method: 'POST',
+      body: { data: encrypted },
+    });
+    return tryDecrypt(encryptedResponse);
+  } catch (error: any) {
+    if (error.response?.data) {
+      return tryDecrypt(error.response.data);
+    }
+
+    return {
+      success: false,
+      message: error.message || 'Login failed',
+      detail: 'An unexpected error occurred during login',
+    };
+  }
+}
+
+// Send OTP for selected account
+export async function sendWebOtp(accountId: string): Promise<AuthResponse> {
+  const encrypted = encryptPayload({ accountId });
+
+  try {
+    const encryptedResponse = await apiClient('/auth/send-web-otp', {
+      method: 'POST',
+      body: { data: encrypted },
+    });
+    return tryDecrypt(encryptedResponse);
+  } catch (error: any) {
+    if (error.response?.data) {
+      return tryDecrypt(error.response.data);
+    }
+
+    return {
+      success: false,
+      message: error.message || 'Failed to send OTP',
+      detail: 'An unexpected error occurred while sending OTP',
     };
   }
 }

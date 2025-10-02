@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CreditCard, Download, Calendar, Users, Package, CheckCircle, AlertCircle, XCircle, Clock, TrendingUp, Zap, Loader2, RotateCcw, Ban, Share2, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { apiClient } from '@/lib/apiClient';
+import { getPaymentProvider, createPaymentOrder } from '@/lib/paymentProviderService';
 
 interface SubscriptionRecord {
   id: string;
@@ -321,9 +322,15 @@ const BillingPage = ({ societyId }: Props) => {
 
       console.log('initiatePayment payload:', payload);
 
+      // Get payment provider information
+      const providerInfo = await getPaymentProvider();
+      
       const orderdata = await apiClient('/payment/renew-subscription', {
         method: 'POST',
-        body: payload,
+        body: {
+          ...payload,
+          provider: providerInfo.provider,
+        },
         withAuth: true,
       });
 
@@ -339,7 +346,7 @@ const BillingPage = ({ societyId }: Props) => {
       }
 
       const options: any = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: providerInfo.razorpayKeyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency || 'INR',
         name: 'Waardian',

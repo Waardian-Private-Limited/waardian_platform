@@ -23,6 +23,15 @@ export interface Flat {
   members?: SocietyMember[];
 }
 
+export interface FlatWithLocation {
+  flat_id: string;
+  flat_number: string;
+  wing_id: string;
+  floor_id: string;
+  wing_name: string;
+  floor_number: number;
+}
+
 export interface Floor {
   floor_id: string;
   floor_number: number;
@@ -172,6 +181,17 @@ export async function getFlats(wingId: string, floorId: string): Promise<Flat[]>
     throw new Error(response.message || 'Failed to fetch flats');
   }
   return response.data ?? [];
+}
+
+export async function getAllFlats(): Promise<FlatWithLocation[]> {
+  const response: ApiResponse<FlatWithLocation[]> = await apiClient('/billing/all-flats', {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.success) {
+    throw new Error(response.message || 'Failed to fetch all flats');
+  }
+  return response.data ?? []; 
 }
 
 export async function getSpecificMembers(wingId: string, floorId: string, flatId: string): Promise<SocietyMember[]> {

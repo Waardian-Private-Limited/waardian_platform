@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Home, Building, Menu } from 'lucide-react';
+import { LogOut, Home, Building, Menu, ChevronDown, ChevronRight, Megaphone, Package, MapPin } from 'lucide-react';
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEffect, useState } from 'react';
@@ -14,11 +14,18 @@ interface SuperadminSidebarProps {
   setIsCollapsed: (collapsed: boolean) => void;
 }
 
-const tabMapping: Record<string, { label: string; icon: React.ComponentType<{ className: string }> }> = {
+const tabMapping: Record<string, { label: string; icon: React.ComponentType<{ className: string }>; children?: Record<string, { label: string; icon: React.ComponentType<{ className: string }> }> }> = {
   dashboard: { label: 'Dashboard', icon: Home },
   societies: { label: 'Societies', icon: Building },
   subscription: { label: 'Subscription', icon: Building },
-
+  'ad-management': { 
+    label: 'Ad Management', 
+    icon: Megaphone,
+    children: {
+      'ad-packages': { label: 'Ad Packages', icon: Package },
+      'placement-management': { label: 'Placement Management', icon: MapPin }
+    }
+  },
 };
 
 export default function SuperadminSidebar({
@@ -28,6 +35,7 @@ export default function SuperadminSidebar({
   isCollapsed,
   setIsCollapsed,
 }: SuperadminSidebarProps) {
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
   return (
     <aside
       className={`bg-white shadow-sm flex flex-col justify-between h-full transition-all duration-300 ${
@@ -51,22 +59,62 @@ export default function SuperadminSidebar({
         </div>
         <nav className="space-y-2 px-2">
           <TooltipProvider>
-            {Object.entries(tabMapping).map(([tab, { label, icon: Icon }]) => (
-              <Tooltip key={tab}>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => setActiveTab(tab)}
-                    className={`w-full flex items-center p-3 rounded-lg text-sm font-medium transition-all ${
-                      activeTab === tab ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                    aria-current={activeTab === tab ? 'page' : undefined}
-                  >
-                    <Icon className="w-5 h-5 min-w-[1.25rem]" />
-                    {!isCollapsed && <span className="ml-2">{label}</span>}
-                  </button>
-                </TooltipTrigger>
-                {isCollapsed && <TooltipContent side="right">{label}</TooltipContent>}
-              </Tooltip>
+            {Object.entries(tabMapping).map(([tab, { label, icon: Icon, children }]) => (
+              <div key={tab}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        if (children) {
+                          setExpandedMenus(prev => ({ ...prev, [tab]: !prev[tab] }));
+                        } else {
+                          setActiveTab(tab);
+                        }
+                      }}
+                      className={`w-full flex items-center p-3 rounded-lg text-sm font-medium transition-all ${
+                        activeTab === tab || (children && Object.keys(children).some(child => activeTab === child))
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                      aria-current={activeTab === tab ? 'page' : undefined}
+                    >
+                      <Icon className="w-5 h-5 min-w-[1.25rem]" />
+                      {!isCollapsed && (
+                        <>
+                          <span className="ml-2 flex-1 text-left">{label}</span>
+                          {children && (
+                            expandedMenus[tab] ? 
+                              <ChevronDown className="w-4 h-4" /> : 
+                              <ChevronRight className="w-4 h-4" />
+                          )}
+                        </>
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  {isCollapsed && <TooltipContent side="right">{label}</TooltipContent>}
+                </Tooltip>
+                
+                {children && expandedMenus[tab] && !isCollapsed && (
+                  <div className="ml-4 mt-2 space-y-1">
+                    {Object.entries(children).map(([childTab, { label: childLabel, icon: ChildIcon }]) => (
+                      <Tooltip key={childTab}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => setActiveTab(childTab)}
+                            className={`w-full flex items-center p-2 rounded-lg text-sm font-medium transition-all ${
+                              activeTab === childTab ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-50'
+                            }`}
+                            aria-current={activeTab === childTab ? 'page' : undefined}
+                          >
+                            <ChildIcon className="w-4 h-4 min-w-[1rem]" />
+                            <span className="ml-2">{childLabel}</span>
+                          </button>
+                        </TooltipTrigger>
+                      </Tooltip>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </TooltipProvider>
         </nav>

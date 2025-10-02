@@ -13,9 +13,23 @@ import SuperadminDashboard from '@/components/superadmin/SuperAdminDashboard';
 import SuperadminSociety from '@/components/superadmin/SuperadminSociety';
 import SocietyAdminDashboard from '@/components/societyAdmin/SocietyAdminDashboard';
 import SuperadminSubscription from '@/components/superadmin/SuperAdminSubscription';
+import AdPackages from '@/components/superadmin/AdPackages';
+import PlacementManagement from '@/components/superadmin/PlacementManagement';
 import HousingStructure from '@/components/societyAdmin/HousingStructure';
 import MembersPage from '@/components/societyAdmin/MembersPage';
 import BillingPage from '@/components/societyAdmin/BillingPage';
+import InvoicesDashboard from '@/components/societyAdmin/InvoicesDashboard';
+import InvoicesPenaltiesPage from '@/components/societyAdmin/InvoicesPenaltiesPage';
+import VisitorManagement from '@/components/societyAdmin/VisitorManagement';
+import PaymentGatewayPage from '@/components/societyAdmin/PaymentGateway';
+import ExpenseDashboard from '@/components/societyAdmin/ExpenseDashboard';
+import ExpenseManagement from '@/components/societyAdmin/ExpenseManagement';
+import LedgerDashboard from '@/components/societyAdmin/LedgerDashboard';
+import LedgerManagement from '@/components/societyAdmin/LedgerManagement';
+import VotingDashboard from '@/components/societyAdmin/VotingDashboard';
+import AmenityManagement from '@/components/societyAdmin/AmenityManagement';
+import NoticeDashboard from '@/components/societyAdmin/NoticeDashboard';
+import NoticeManagement from '@/components/societyAdmin/NoticeManagement';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
@@ -36,8 +50,8 @@ export default function DynamicAdminPage() {
 
   const allowedBaseRoutes = ['superadmin', 'societyadmin'];
   const validTabs: Record<string, string[]> = {
-    superadmin: ['dashboard', 'societies', 'subscription'],
-    societyadmin: ['dashboard', 'members', 'flats', 'billing', 'settings', 'buildingstructure'],
+    superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management'],
+    societyadmin: ['dashboard', 'members', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'polls', 'notices-dashboard', 'notices-management'],
   };
 
   const redirectToLogin = useCallback((reason: string) => {
@@ -179,6 +193,10 @@ export default function DynamicAdminPage() {
           return <SuperadminSociety />;
         case 'subscription':
           return <SuperadminSubscription />;
+        case 'ad-packages':
+          return <AdPackages />;
+        case 'placement-management':
+          return <PlacementManagement />;
         default:
           return <div>Select a tab</div>;
       }
@@ -195,6 +213,35 @@ export default function DynamicAdminPage() {
           return <HousingStructure societyId={(user?.societyId || '0').toString()} />;
         case 'billing':
           return <BillingPage societyId={(user?.societyId || '0').toString()} />;
+        case 'subscription':
+          return <BillingPage societyId={(user?.societyId || '0').toString()} />;
+        case 'invoices-dashboard':
+          return <InvoicesDashboard societyId={(user?.societyId || '0').toString()} />;
+        case 'invoices-penalties':
+          return <InvoicesPenaltiesPage societyId={(user?.societyId || '0').toString()} />;
+        case 'visitor-management':
+          return <VisitorManagement/>;
+        case 'payment-gateway':
+          return <PaymentGatewayPage/>;
+        case 'expense-dashboard':
+          return <ExpenseDashboard societyId={(user?.societyId || '0').toString()} />;
+        case 'expense-management':
+          return <ExpenseManagement 
+            societyId={(user?.societyId || '0').toString()} 
+            user={user ? { id: user.id, name: user.name, email: user.email } : undefined}
+          />;
+        case 'ledger-dashboard':
+          return <LedgerDashboard societyId={(user?.societyId || '0').toString()} />;
+        case 'ledger-management':
+          return <LedgerManagement societyId={(user?.societyId || '0').toString()} />;
+        case 'amenity-management':
+          return <AmenityManagement societyId={(user?.societyId || '0').toString()} />;
+        case 'polls':
+          return <VotingDashboard societyId={(user?.societyId || '0').toString()} />;
+        case 'notices-dashboard':
+          return <NoticeDashboard societyId={(user?.societyId || '0').toString()} />;
+        case 'notices-management':
+          return <NoticeManagement societyId={(user?.societyId || '0').toString()} user={user} />;
         default:
           return <div>Select a tab</div>;
       }

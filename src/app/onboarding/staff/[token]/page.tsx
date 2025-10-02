@@ -113,7 +113,7 @@ async function completeStaffOnboarding(payload: {
   });
 
   // ✅ Correct success check based on your actual response structure
-  if (response.status !== 'success') {
+  if (response.success !== true) {
     throw new Error(response.message || 'Error completing onboarding');
   }
 
@@ -331,6 +331,33 @@ export default function StaffOnboarding() {
   }
 
   if (!staffData) return null;
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-4 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow-xl rounded-xl p-8 max-w-md mx-auto text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Download Our App</h2>
+          <p className="text-gray-600 mb-6">Manage your account easily with our mobile app.</p>
+          <div className="flex justify-center items-center gap-4">
+            <a href="https://apps.apple.com/in/app/waardian/id6749545666" target="_blank" rel="noopener noreferrer">
+              <img
+                src="/assets/AppleAppStore.svg"
+                alt="Download on the App Store"
+                className="h-120"
+              />
+            </a>
+            <a href="https://play.google.com/store/apps/details?id=com.waardian.app&hl=en" target="_blank" rel="noopener noreferrer">
+              <img
+                src="/assets/GooglePlayStore.svg"
+                alt="Get it on Google Play"
+                className="h-120"
+              />
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const passwordValidations = validatePassword(watch('password'));
 
@@ -570,18 +597,7 @@ export default function StaffOnboarding() {
           </form>
         </div>
 
-        {isSubmitted && (
-          <div className="mt-6 bg-white shadow-xl rounded-xl p-8 max-w-md mx-auto text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Onboarding Complete</h2>
-            <p className="text-gray-600 mb-6">Your account setup is complete. You can now log in.</p>
-            <button
-              onClick={() => router.push('/login')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Go to Login
-            </button>
-          </div>
-        )}
+
       </div>
     </div>
   );

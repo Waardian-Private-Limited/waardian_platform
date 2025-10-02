@@ -10,6 +10,7 @@ import {
   createRazorpayOrder,
   completeOnboarding,
 } from '@/lib/onboardingClient';
+import { getPaymentProvider } from '@/lib/paymentProviderService';
 import { toast } from 'react-hot-toast';
 
 interface FlatType {
@@ -101,6 +102,7 @@ const SocietyOnboarding = () => {
     registrationNumber: '',
     registrationDate: '',
     panNumber: '',
+    gstNumber: '',
     societyContact: '',
     societyEmail: '',
     password: '',
@@ -121,6 +123,7 @@ const SocietyOnboarding = () => {
     registrationNumber: '',
     registrationDate: '',
     panNumber: '',
+    gstNumber: '',
     societyContact: '',
     societyEmail: '',
     password: '',
@@ -138,6 +141,7 @@ const SocietyOnboarding = () => {
   );
   const validatePincode = useCallback((pincode: string) => /^[1-9][0-9]{5}$/.test(pincode), []);
   const validatePanNumber = useCallback((pan: string) => !pan || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan), []);
+  const validateGstNumber = useCallback((gst: string) => !gst || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gst), []);
   const validateRegistrationNumber = useCallback((reg: string) => /^[A-Z0-9-]{1,20}$/.test(reg), []);
   const validateSocietyName = useCallback((name: string) => /^[A-Za-z0-9\s\-,.&]{3,100}$/.test(name), []);
   const validateAddress = useCallback((address: string) => /^[A-Za-z0-9\s\-,.#\/]{5,200}$/.test(address), []);
@@ -240,6 +244,14 @@ const SocietyOnboarding = () => {
         ...prev,
         pincode: numericValue ? (validatePincode(numericValue) ? '' : 'Invalid 6-digit PIN code') : 'PIN code is required',
       }));
+      
+      // Auto-fetch pincode data when valid 6-digit pincode is entered
+      if (numericValue && validatePincode(numericValue)) {
+        // Use setTimeout to avoid dependency issues
+        setTimeout(() => {
+          fetchPincodeData(numericValue);
+        }, 100);
+      }
     },
     [validatePincode]
   );
@@ -289,6 +301,18 @@ const SocietyOnboarding = () => {
       }));
     },
     [validatePanNumber]
+  );
+
+  const handleGstNumberChange = useCallback(
+    (value: string) => {
+      const upperValue = value.toUpperCase();
+      setSocietyForm((prev) => ({ ...prev, gstNumber: upperValue }));
+      setErrors((prev) => ({
+        ...prev,
+        gstNumber: validateGstNumber(upperValue) ? '' : 'Invalid GST number (e.g., 22AAAAA0000A1Z5)',
+      }));
+    },
+    [validateGstNumber]
   );
 
   const handleSocietyContactChange = useCallback(
@@ -357,15 +381,14 @@ const SocietyOnboarding = () => {
 
   const handleWingNameChange = useCallback(
     (wingIndex: number, value: string) => {
-      const upperValue = value.toUpperCase();
       const newWings = [...societyForm.wings];
-      newWings[wingIndex].wingName = upperValue;
+      newWings[wingIndex].wingName = value;
       setSocietyForm((prev) => ({ ...prev, wings: newWings }));
       setErrors((prev) => {
         const newErrors = [...prev.wings];
         newErrors[wingIndex] = {
           ...newErrors[wingIndex],
-          wingName: upperValue ? (/^[A-Za-z0-9]{1,10}$/.test(upperValue) ? '' : 'Invalid wing name (1-10 chars, letters, numbers)') : 'Wing name is required',
+          wingName: value ? '' : 'Wing name is required',
         };
         return { ...prev, wings: newErrors };
       });
@@ -471,7 +494,7 @@ const SocietyOnboarding = () => {
         ? validateAddress(societyForm.addressLine2)
           ? ''
           : 'Invalid address (5-200 chars, letters, numbers, spaces, -,.,#,/)'
-        : '',
+        : 'Address Line 2 is required',
       city: societyForm.city ? (validateCityState(societyForm.city) ? '' : 'Invalid city (2-50 chars, letters, spaces)') : 'City is required',
       state: societyForm.state ? (validateCityState(societyForm.state) ? '' : 'Invalid state (2-50 chars, letters, spaces)') : 'State is required',
       country: societyForm.country
@@ -492,11 +515,12 @@ const SocietyOnboarding = () => {
           : 'Invalid date (must be between 1900 and today)'
         : 'Registration date is required',
       panNumber: validatePanNumber(societyForm.panNumber) ? '' : 'Invalid PAN number (e.g., ABCDE1234F)',
+      gstNumber: validateGstNumber(societyForm.gstNumber) ? '' : 'Invalid GST number (e.g., 22AAAAA0000A1Z5)',
       societyContact: societyForm.societyContact
         ? validatePhone(societyForm.societyContact)
           ? ''
           : 'Invalid 10-digit Indian mobile number'
-        : '',
+        : 'Contact number is required',
       societyEmail: societyForm.societyEmail ? (validateEmail(societyForm.societyEmail) ? '' : 'Valid email required') : 'Email is required',
       password: societyForm.password
         ? validatePassword(societyForm.password)
@@ -514,7 +538,7 @@ const SocietyOnboarding = () => {
           : 'Total wings must be between 1 and 50'
         : 'Total wings is required',
       wings: societyForm.wings.map((wing) => ({
-        wingName: wing.wingName ? (/^[A-Za-z0-9]{1,10}$/.test(wing.wingName) ? '' : 'Invalid wing name (1-10 chars, letters, numbers)') : 'Wing name is required',
+        wingName: wing.wingName ? '' : 'Wing name is required',
         numberOfFloors: wing.numberOfFloors
           ? validateNumberOfFloors(wing.numberOfFloors)
             ? ''
@@ -695,7 +719,7 @@ const SocietyOnboarding = () => {
         return;
       }
       const totalFlats = calculateTotalFlats();
-      const amount = totalFlats * plan.pricePerFlat * (paymentType === 'recurring' ? plan.numberOfMonths : 1);
+      const amount = totalFlats * plan.pricePerFlat;
       setSubscriptionAmount(amount);
       setDiscountPrice(plan.discountPrice || 0);
     },
@@ -711,6 +735,13 @@ const SocietyOnboarding = () => {
       calculateSubscriptionAmount(selectedPlan);
     }
   }, [selectedPlan, calculateSubscriptionAmount]);
+
+  // Real-time amount calculation when wings or payment type changes
+  useEffect(() => {
+    if (selectedPlan) {
+      calculateSubscriptionAmount(selectedPlan);
+    }
+  }, [societyForm.wings, paymentType, selectedPlan, calculateSubscriptionAmount]);
 
   const updateWings = useCallback(
     (totalWings: number) => {
@@ -852,9 +883,12 @@ const SocietyOnboarding = () => {
       societyId: number;
     }) => {
       setDiscountPrice(order.discountPrice || 0);
+      // Get payment provider information
+      const providerInfo = await getPaymentProvider();
+      
       const isSubscription = paymentType === 'recurring';
       const options: any = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: providerInfo.razorpayKeyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
         name: 'Waardian',
@@ -1046,6 +1080,7 @@ const SocietyOnboarding = () => {
         registrationNumber: societyForm.registrationNumber,
         registrationDate: societyForm.registrationDate,
         panNumber: societyForm.panNumber || '',
+        gstNumber: societyForm.gstNumber || '',
         contactNumber: societyForm.societyContact || '',
         email: societyForm.societyEmail,
         password: societyForm.password,
@@ -1226,7 +1261,7 @@ const SocietyOnboarding = () => {
                     {errors.registrationDate && <p className="text-red-500 text-xs mt-1">{errors.registrationDate}</p>}
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-1">Society PAN Number (Optional)</label>
+                    <label className="block text-gray-700 text-sm font-medium mb-1">Society PAN Number</label>
                     <input
                       type="text"
                       value={societyForm.panNumber}
@@ -1236,6 +1271,18 @@ const SocietyOnboarding = () => {
                       aria-invalid={!!errors.panNumber}
                     />
                     {errors.panNumber && <p className="text-red-500 text-xs mt-1">{errors.panNumber}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-sm font-medium mb-1">Society GST Number</label>
+                    <input
+                      type="text"
+                      value={societyForm.gstNumber}
+                      onChange={(e) => handleGstNumberChange(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
+                      placeholder="Enter GST number (e.g., 22AAAAA0000A1Z5)"
+                      aria-invalid={!!errors.gstNumber}
+                    />
+                    {errors.gstNumber && <p className="text-red-500 text-xs mt-1">{errors.gstNumber}</p>}
                   </div>
                   <div>
                     <label className="block text-gray-700 text-sm font-medium mb-1">Address Line 1 *</label>
@@ -1256,31 +1303,28 @@ const SocietyOnboarding = () => {
                       value={societyForm.addressLine2}
                       onChange={(e) => handleAddressLine2Change(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
-                      placeholder="Enter address line 2 (optional)"
+                      placeholder="Enter address line 2"
                       aria-invalid={!!errors.addressLine2}
                     />
                     {errors.addressLine2 && <p className="text-red-500 text-xs mt-1">{errors.addressLine2}</p>}
                   </div>
                   <div>
                     <label className="block text-gray-700 text-sm font-medium mb-1">PIN Code *</label>
-                    <div className="flex">
+                    <div className="relative">
                       <input
                         type="text"
                         value={societyForm.pincode}
                         onChange={(e) => handlePincodeChange(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
-                        placeholder="Enter 6-digit PIN code"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400 pr-10"
+                        placeholder="Enter 6-digit PIN code (auto-fetch)"
                         aria-invalid={!!errors.pincode}
                         maxLength={6}
                       />
-                      <button
-                        type="button"
-                        onClick={() => fetchPincodeData(societyForm.pincode)}
-                        disabled={isFetchingPincode || !societyForm.pincode}
-                        className="px-4 rounded-r-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
-                      >
-                        {isFetchingPincode ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Fetch'}
-                      </button>
+                      {isFetchingPincode && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                        </div>
+                      )}
                     </div>
                     {errors.pincode && <p className="text-red-500 text-xs mt-1">{errors.pincode}</p>}
                   </div>
@@ -1321,7 +1365,7 @@ const SocietyOnboarding = () => {
                     {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country}</p>}
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-1">Society Registration Certificate (Optional)</label>
+                    <label className="block text-gray-700 text-sm font-medium mb-1">Society Registration Certificate</label>
                     <div className="flex items-center space-x-2">
                       <input
                         type="file"
@@ -1342,13 +1386,13 @@ const SocietyOnboarding = () => {
                     {certificateError && <p className="text-red-500 text-xs mt-1">{certificateError}</p>}
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-1">Contact Number (Optional)</label>
+                    <label className="block text-gray-700 text-sm font-medium mb-1">Contact Number</label>
                     <input
                       type="text"
                       value={societyForm.societyContact}
                       onChange={(e) => handleSocietyContactChange(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
-                      placeholder="Enter 10-digit number (optional)"
+                      placeholder="Enter 10-digit number"
                       aria-invalid={!!errors.societyContact}
                       maxLength={10}
                     />
@@ -1449,7 +1493,6 @@ const SocietyOnboarding = () => {
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
                               placeholder="Enter wing name (e.g., A)"
                               aria-invalid={!!errors.wings[wingIndex]?.wingName}
-                              maxLength={10}
                             />
                             {errors.wings[wingIndex]?.wingName && (
                               <p className="text-red-500 text-xs mt-1">{errors.wings[wingIndex].wingName}</p>
@@ -1473,7 +1516,10 @@ const SocietyOnboarding = () => {
                         </div>
                         <div className="mt-4">
                           <div className="flex items-center justify-between mb-2">
-                            <h5 className="text-sm font-medium text-gray-700">Flat Types (Per Floor) *</h5>
+                            <div>
+                              <h5 className="text-sm font-medium text-gray-700">Flat Types (Per Floor) *</h5>
+                              <p className="text-xs text-gray-500 mt-1">Define different types of flats on each floor with their count and square footage</p>
+                            </div>
                             <button
                               type="button"
                               onClick={() => addFlatType(wingIndex)}
