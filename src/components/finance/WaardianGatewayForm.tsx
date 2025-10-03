@@ -40,7 +40,7 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
     ifsc: '',
     email: '',
     phone: '',
-    panNumber: '',
+    // panNumber removed
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -122,7 +122,6 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
     if (!formData.ifsc) newErrors.ifsc = 'IFSC code is required';
     if (!formData.email) newErrors.email = 'Email is required';
     if (!formData.phone) newErrors.phone = 'Phone number is required';
-    if (!formData.panNumber) newErrors.panNumber = 'PAN number is required';
     
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -134,12 +133,6 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
     const phoneRegex = /^[6-9]\d{9}$/;
     if (formData.phone && !phoneRegex.test(formData.phone)) {
       newErrors.phone = 'Please enter a valid 10-digit phone number';
-    }
-    
-    // PAN validation
-    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-    if (formData.panNumber && !panRegex.test(formData.panNumber)) {
-      newErrors.panNumber = 'Please enter a valid PAN number (e.g., ABCDE1234F)';
     }
     
     // IFSC validation
@@ -170,7 +163,7 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
           phone: formData.phone,
           account_number: formData.accountNumber, 
           ifsc: formData.ifsc,
-          pan_number: formData.panNumber, 
+          // pan_number removed
           account_type: 'society',
           business_category: formData.accountCategory, 
           business_sub_category: formData.subCategory, 
@@ -574,28 +567,8 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
                 />
                 {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
               </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="panNumber" className="text-sm font-medium text-gray-700">
-                  PAN Number *
-                </label>
-                <input
-                  type="text"
-                  id="panNumber"
-                  name="panNumber"
-                  value={formData.panNumber}
-                  onChange={handleInputChange}
-                  placeholder="ABCDE1234F"
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    errors.panNumber ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
-                {errors.panNumber && <p className="text-sm text-red-600">{errors.panNumber}</p>}
-              </div>
             </div>
           </div>
-
-
 
           {/* Important Notes */}
           <div className="space-y-4">
@@ -606,18 +579,6 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
                   <h4 className="text-sm font-medium text-yellow-900">Document Upload Notice</h4>
                   <p className="text-sm text-yellow-700 mt-1">
                     If upload is required, we will notify you as per provider requirement for KYC.
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-blue-900">Verification Notice</h4>
-                  <p className="text-sm text-blue-700 mt-1">
-                    Make sure your details are correct. Please verify before submitting.
                   </p>
                 </div>
               </div>
