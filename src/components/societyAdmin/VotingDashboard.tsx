@@ -61,6 +61,10 @@ interface Poll {
   createdByName: string;
   createdAt: string;
   resultVisibility: string;
+  // New fields to support result reveal and anonymity
+  resultRevealTime?: string | null;
+  isAnonymous?: boolean;
+  canViewResults?: boolean;
 }
 
 interface VotingDashboardProps {
@@ -81,6 +85,11 @@ export default function VotingDashboard({ societyId }: VotingDashboardProps) {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState('30d');
+// Pagination state
+const [page, setPage] = useState(1);
+const [pageSize, setPageSize] = useState(10);
+const [totalPages, setTotalPages] = useState(1);
+const [totalCount, setTotalCount] = useState(0);
 
   // Fetch polls data from API
   const fetchPolls = async () => {
@@ -88,7 +97,12 @@ export default function VotingDashboard({ societyId }: VotingDashboardProps) {
     try {
       const response = await apiClient('/poll', {
         method: 'GET',
-        withAuth: true
+        withAuth: true,
+        params: {
+          page: String(page),
+          limit: String(pageSize),
+          status: statusFilter
+        }
       });
       
       if (response.status === 'success') {
@@ -103,45 +117,67 @@ export default function VotingDashboard({ societyId }: VotingDashboardProps) {
           }
         };
 
+        const pagination = response.data?.pagination || {};
+        setTotalPages(pagination.totalPages || 1);
+        setTotalCount(pagination.total || 0);
+
         // Transform backend data to match frontend interface
-        const transformedPolls = response.data.polls.map((poll: any) => {
+        const transformedPolls = (response.data?.polls || []).map((poll: any) => {
           const audienceWings = safeJsonParse(poll.audience_wings, []);
-          const totalEligible = Array.isArray(audienceWings) ? audienceWings.length : 0;
+          const totalEligible = Array.isArray(audienceWings) ? audienceWings.length : (poll.total_eligible || 0);
           
+          // Compute status based on voting window if backend didn't provide computed_status
+          const now = Date.now();
+          const start = new Date(poll.start_date).getTime();
+          const end = new Date(poll.end_date).getTime();
+          const computedStatus = poll.computed_status || (poll.status === 'cancelled' ? 'cancelled' : (now < start ? 'scheduled' : (now <= end ? 'active' : 'completed')));
+
+          const settingsJson = typeof poll.settings_json === 'object' ? poll.settings_json : safeJsonParse(poll.settings_json, {});
+          const isAnonymous = !!(settingsJson?.anonymous || settingsJson?.isAnonymous);
+
+          const options = Array.isArray(poll.options) ? poll.options.map((option: any, index: number) => ({
+            id: String(option.id ?? index),
+            title: option.title,
+            votes: Number(option.votes || 0),
+            percentage: Number(option.percentage || 0)
+          })) : [];
+
           return {
-             id: poll.id,
-             title: poll.title,
-             description: poll.description,
-             status: poll.status,
-             startDate: poll.start_date,
-             endDate: poll.end_date,
-             totalVotes: poll.total_votes || 0,
-             totalEligible,
-             audience: {
-               type: poll.audience_type || 'All Residents',
-               totalEligible
-             },
-             options: poll.options.map((option: any, index: number) => ({
-                id: option.id || index.toString(),
-                title: option.title,
-                votes: 0, // Will be calculated from votes
-                percentage: 0 // Will be calculated from votes
-              })),
-              createdBy: poll.created_by,
-              createdByName: poll.created_by_name,
-              createdAt: poll.created_at,
-              resultVisibility: poll.result_visibility || 'none'
-            };
-          });
+            id: poll.id,
+            title: poll.title,
+            description: poll.description,
+            status: computedStatus,
+            startDate: poll.start_date,
+            endDate: poll.end_date,
+            totalVotes: Number(poll.total_votes || 0),
+            totalEligible,
+            audience: {
+              type: poll.audience_type || 'All Residents',
+              totalEligible
+            },
+            options,
+            createdBy: poll.created_by,
+            createdByName: poll.created_by_name,
+            createdAt: poll.created_at,
+            resultVisibility: poll.result_visibility || 'none',
+            resultRevealTime: poll.result_reveal_time || null,
+            isAnonymous,
+            canViewResults: !!poll.can_view_results
+          } as Poll;
+        });
         
         setPolls(transformedPolls);
       } else {
         console.error('Failed to fetch polls:', response.message);
         setPolls([]);
+        setTotalPages(1);
+        setTotalCount(0);
       }
     } catch (error: any) {
       console.error('Error fetching polls:', error);
       setPolls([]);
+      setTotalPages(1);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -149,7 +185,7 @@ export default function VotingDashboard({ societyId }: VotingDashboardProps) {
 
   useEffect(() => {
     fetchPolls();
-  }, [societyId]);
+  }, [societyId, statusFilter, page, pageSize]);
 
   // Fetch analytics data
   const fetchAnalyticsData = async () => {
@@ -164,7 +200,7 @@ export default function VotingDashboard({ societyId }: VotingDashboardProps) {
         withAuth: true
       });
       
-      if (response.success) {
+      if (response.status === 'success') {
         setAnalyticsData(response.data.analytics);
       } else {
         throw new Error(response.message || 'Failed to fetch analytics data');
@@ -409,20 +445,26 @@ export default function VotingDashboard({ societyId }: VotingDashboardProps) {
                   {poll.status !== 'scheduled' && poll.options.length > 0 && (
                     <div className="space-y-2">
                       <h4 className="text-sm font-medium text-gray-700">Results Preview:</h4>
-                      {poll.options.slice(0, 2).map((option) => (
-                        <div key={option.id} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">{option.title}</span>
-                          <div className="flex items-center gap-2">
-                            <div className="w-20 bg-gray-200 rounded-full h-1.5">
-                              <div 
-                                className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
-                                style={{ width: `${option.percentage}%` }}
-                              ></div>
+                      {poll.canViewResults ? (
+                        poll.options.slice(0, 2).map((option) => (
+                          <div key={option.id} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">{option.title}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                                <div 
+                                  className="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                                  style={{ width: `${option.percentage}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-gray-500 w-12 text-right">{option.percentage.toFixed(1)}%</span>
                             </div>
-                            <span className="text-gray-500 w-12 text-right">{option.percentage.toFixed(1)}%</span>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      ) : (
+                        <p className="text-xs text-gray-500">
+                          Results are hidden until {poll.resultRevealTime ? new Date(poll.resultRevealTime).toLocaleString() : new Date(poll.endDate).toLocaleString()}
+                        </p>
+                      )}
                       {poll.options.length > 2 && (
                         <p className="text-xs text-gray-500">+{poll.options.length - 2} more options</p>
                       )}
@@ -453,6 +495,42 @@ export default function VotingDashboard({ societyId }: VotingDashboardProps) {
           </div>
         ))}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between bg-white rounded-lg shadow p-4 mt-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">Rows per page</span>
+            <select
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+            </select>
+          </div>
+          <div className="text-sm text-gray-600">
+            Page {page} of {totalPages} • {totalCount} total
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(prev => Math.max(1, prev - 1))}
+              disabled={page === 1}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={page >= totalPages}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {filteredPolls.length === 0 && (
         <div className="text-center py-12">
@@ -1014,36 +1092,47 @@ const PollDetailsModal: React.FC<PollDetailsModalProps> = ({ poll, onClose }) =>
               {/* Results Summary */}
               <div className="bg-white border border-gray-200 rounded-lg p-6">
                 <h4 className="text-lg font-medium text-gray-900 mb-4">Voting Results</h4>
-                <div className="space-y-4">
-                  {poll.options.map((option, index) => (
-                    <div key={option.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className="font-medium text-gray-900">{option.title}</h5>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-600">{option.votes} votes</span>
-                          <span className="text-lg font-bold text-blue-600">{option.percentage.toFixed(1)}%</span>
+                {poll.canViewResults ? (
+                  <div className="space-y-4">
+                    {poll.options.map((option, index) => (
+                      <div key={option.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h5 className="font-medium text-gray-900">{option.title}</h5>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-600">{option.votes} votes</span>
+                            <span className="text-lg font-bold text-blue-600">{option.percentage.toFixed(1)}%</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
-                        <div 
-                          className={`h-3 rounded-full transition-all duration-500 ${
-                            index === 0 ? 'bg-blue-500' :
-                            index === 1 ? 'bg-green-500' :
-                            index === 2 ? 'bg-purple-500' :
-                            'bg-orange-500'
-                          }`}
-                          style={{ width: `${option.percentage}%` }}
-                        ></div>
-                      </div>
-                      {option.votes === winningOption.votes && option.votes > 0 && (
-                        <div className="mt-2 flex items-center text-sm text-green-600">
-                          <TrendingUp className="w-4 h-4 mr-1" />
-                          Leading option
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className={`h-3 rounded-full transition-all duration-500 ${
+                              index === 0 ? 'bg-blue-500' :
+                              index === 1 ? 'bg-green-500' :
+                              index === 2 ? 'bg-purple-500' :
+                              'bg-orange-500'
+                            }`}
+                            style={{ width: `${option.percentage}%` }}
+                          ></div>
                         </div>
-                      )}
+                        {option.votes === winningOption.votes && option.votes > 0 && (
+                          <div className="mt-2 flex items-center text-sm text-green-600">
+                            <TrendingUp className="w-4 h-4 mr-1" />
+                            Leading option
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                      <span className="text-sm text-yellow-800">
+                        Results are hidden until {poll.resultRevealTime ? new Date(poll.resultRevealTime).toLocaleString() : new Date(poll.endDate).toLocaleString()}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Visual Chart Placeholder */}

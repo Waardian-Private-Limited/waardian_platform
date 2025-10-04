@@ -331,75 +331,77 @@ export default function SocietyAdminSidebar({
                 </button>
                 {!isCollapsed && isExpanded && item.children && (
                   <div className="ml-4 space-y-1">
-                    {item.children.map((child) => {
-                      const ChildIcon = child.icon;
-                      const isChildActive = activeTab === child.id;
-                      const isChildCategory = child.isCategory;
-                      const isChildExpanded = expandedCategories.includes(child.id);
+                    {item.children
+                      .filter((child) => child.id !== 'tasks' && child.id !== 'complaints')
+                      .map((child) => {
+                        const ChildIcon = child.icon;
+                        const isChildActive = activeTab === child.id;
+                        const isChildCategory = child.isCategory;
+                        const isChildExpanded = expandedCategories.includes(child.id);
 
-                      if (isChildCategory) {
-                        return (
-                          <div key={child.id} className="space-y-1">
-                            <button
-                              onClick={() => toggleCategory(child.id)}
-                              className="w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 text-gray-600 hover:bg-gray-50"
-                            >
-                              <ChildIcon className="w-4 h-4 text-gray-400" />
-                              <span className="ml-3 text-sm font-medium">{child.label}</span>
-                              <div className="ml-auto">
-                                {isChildExpanded ? (
-                                  <ChevronUp className="w-4 h-4 text-gray-400" />
-                                ) : (
-                                  <ChevronDown className="w-4 h-4 text-gray-400" />
-                                )}
-                              </div>
-                            </button>
-                            {isChildExpanded && child.children && (
-                              <div className="ml-4 space-y-1">
-                                {child.children.map((subChild) => {
-                                  const SubChildIcon = subChild.icon;
-                                  const isSubChildActive = activeTab === subChild.id;
+                        if (isChildCategory) {
+                          return (
+                            <div key={child.id} className="space-y-1">
+                              <button
+                                onClick={() => toggleCategory(child.id)}
+                                className="w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 text-gray-600 hover:bg-gray-50"
+                              >
+                                <ChildIcon className="w-4 h-4 text-gray-400" />
+                                <span className="ml-3 text-sm font-medium">{child.label}</span>
+                                <div className="ml-auto">
+                                  {isChildExpanded ? (
+                                    <ChevronUp className="w-4 h-4 text-gray-400" />
+                                  ) : (
+                                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                                  )}
+                                </div>
+                              </button>
+                              {isChildExpanded && child.children && (
+                                <div className="ml-4 space-y-1">
+                                  {child.children.map((subChild) => {
+                                    const SubChildIcon = subChild.icon;
+                                    const isSubChildActive = activeTab === subChild.id;
 
-                                  return (
-                                    <button
-                                      key={subChild.id}
-                                      onClick={() => setActiveTab(subChild.href?.split('/').pop() || subChild.id)}
-                                      className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
-                                        isSubChildActive
-                                          ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-                                          : 'text-gray-600 hover:bg-gray-50'
-                                      }`}
-                                    >
-                                      <SubChildIcon
-                                        className={`w-4 h-4 ${
-                                          isSubChildActive ? 'text-blue-600' : 'text-gray-400'
+                                    return (
+                                      <button
+                                        key={subChild.id}
+                                        onClick={() => setActiveTab(subChild.href?.split('/').pop() || subChild.id)}
+                                        className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
+                                          isSubChildActive
+                                            ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-50'
                                         }`}
-                                      />
-                                      <span className="ml-3 text-sm font-medium">{subChild.label}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
+                                      >
+                                        <SubChildIcon
+                                          className={`w-4 h-4 ${
+                                            isSubChildActive ? 'text-blue-600' : 'text-gray-400'
+                                          }`}
+                                        />
+                                        <span className="ml-3 text-sm font-medium">{subChild.label}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
 
-                      return (
-                        <button
-                          key={child.id}
-                          onClick={() => setActiveTab(child.href?.split('/').pop() || child.id)}
-                          className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
-                            isChildActive
-                              ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          <ChildIcon className={`w-4 h-4 ${isChildActive ? 'text-blue-600' : 'text-gray-400'}`} />
-                          <span className="ml-3 text-sm font-medium">{child.label}</span>
-                        </button>
-                      );
-                    })}
+                        return (
+                          <button
+                            key={child.id}
+                            onClick={() => setActiveTab(child.href?.split('/').pop() || child.id)}
+                            className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
+                              isChildActive
+                                ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <ChildIcon className={`w-4 h-4 ${isChildActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                            <span className="ml-3 text-sm font-medium">{child.label}</span>
+                          </button>
+                        );
+                      })}
                   </div>
                 )}
               </div>

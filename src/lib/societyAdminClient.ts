@@ -232,3 +232,35 @@ export const importMembers = async (file: File): Promise<ApiResponse<void>> => {
   
   return response;
 };
+
+
+export interface MembersDashboardStats {
+  totalUsers: number;
+  newUsers: number;
+  activeUsers: number;
+  pendingApprovals: number;
+  trends?: {
+    totalUsers: number;
+    newUsers: number;
+    activeUsers: number;
+    pendingApprovals: number;
+  };
+}
+
+export async function getMembersDashboardStats(societyId: string | number): Promise<ApiResponse<MembersDashboardStats>> {
+  const response = await apiClient('/society-admin/members/dashboard-stats', {
+    method: 'GET',
+    withAuth: true,
+    params: { societyId: societyId.toString() },
+  });
+  return response;
+}
+
+// New: Promote a member to Society Admin
+export async function makeMemberSocietyAdmin(userId: number): Promise<ApiResponse<any>> {
+  const response = await apiClient(`/members/${userId}/make-admin`, {
+    method: 'POST',
+    withAuth: true,
+  });
+  return response;
+}

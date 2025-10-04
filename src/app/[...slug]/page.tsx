@@ -33,6 +33,7 @@ import NoticeManagement from '@/components/societyAdmin/NoticeManagement';
 import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
+import StaffDashboard from '@/components/societyAdmin/StaffDashboard';
 
 export default function DynamicAdminPage() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export default function DynamicAdminPage() {
   const allowedBaseRoutes = ['superadmin', 'societyadmin'];
   const validTabs: Record<string, string[]> = {
     superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management'],
-    societyadmin: ['dashboard', 'members', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'polls', 'notices-dashboard', 'notices-management'],
+    societyadmin: ['dashboard', 'members', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'polls', 'notices-dashboard', 'notices-management', 'staff'],
   };
 
   const redirectToLogin = useCallback((reason: string) => {
@@ -242,6 +243,8 @@ export default function DynamicAdminPage() {
           return <NoticeDashboard societyId={(user?.societyId || '0').toString()} />;
         case 'notices-management':
           return <NoticeManagement societyId={(user?.societyId || '0').toString()} user={user} />;
+        case 'staff':
+          return <StaffDashboard societyId={(user?.societyId || '0').toString()} user={user} />;
         default:
           return <div>Select a tab</div>;
       }

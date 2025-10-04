@@ -1179,7 +1179,7 @@ const InvoicesDashboard: React.FC<InvoicesDashboardProps> = ({ societyId }) => {
                   <div className="space-y-4">
                     <h4 className="text-md font-medium text-gray-700">Status Distribution</h4>
                     <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
+                      <RechartsPieChart>
                         <Pie
                           data={[
                             { name: 'Paid', value: monthlyTrendData.reduce((sum, month) => sum + month.paid, 0), fill: '#10B981' },
@@ -1209,7 +1209,7 @@ const InvoicesDashboard: React.FC<InvoicesDashboardProps> = ({ societyId }) => {
                             <span style={{ color: entry.color, fontWeight: 500 }}>{value}</span>
                           )}
                         />
-                      </PieChart>
+                      </RechartsPieChart>
                     </ResponsiveContainer>
                     
                     {/* Status Summary Cards */}
