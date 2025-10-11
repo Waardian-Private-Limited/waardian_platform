@@ -601,3 +601,72 @@ export async function exportNoticesExcel(email: string): Promise<any> {
     throw new Error(error.message || 'Failed to export notices to Excel');
   }
 }
+
+// Subscriptions API
+export interface SubscriptionRecord {
+  id: number;
+  society_id: number;
+  plan_id: number | null;
+  payment_cycle: string;
+  amount: string;
+  discount: string;
+  total_flats: number;
+  modules: string | string[];
+  billing_months: number | null;
+  razorpay_subscription_id?: string | null;
+  status: string;
+  created_at?: string; // snake_case variant
+  updated_at?: string; // snake_case variant
+  createdAt?: string;  // camelCase variant
+  updatedAt?: string;  // camelCase variant
+  start_date: string | null;
+  end_date: string | null;
+  trial_ends_at: string | null;
+  invoice_link?: string | null;
+  payment_ids?: string | null;
+  razorpay_customer_id?: string | null;
+  renewal_reminder_sent?: number | boolean | string | null;
+}
+
+export async function getOptedSubscriptions(): Promise<{ success: boolean; data: SubscriptionRecord[] }> {
+  try {
+    const response = await apiClient<{ success: boolean; data: SubscriptionRecord[] }>(`/superadmin/subscriptions`, {
+      method: 'GET',
+    });
+    return response;
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to fetch subscriptions');
+  }
+}
+
+export type EditSubscriptionPayload = Partial<{
+  society_id: number;
+  plan_id: number | null;
+  payment_cycle: string;
+  amount: string;
+  discount: string;
+  total_flats: number;
+  modules: string | string[];
+  billing_months: number | null;
+  razorpay_subscription_id?: string | null;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  trial_ends_at: string | null;
+  invoice_link?: string | null;
+  payment_ids?: string | null;
+  razorpay_customer_id?: string | null;
+  renewal_reminder_sent?: number | boolean | string | null;
+}>;
+
+export async function updateOptedSubscription(id: number, payload: EditSubscriptionPayload): Promise<{ success: boolean; data: SubscriptionRecord }> {
+  try {
+    const response = await apiClient<{ success: boolean; data: SubscriptionRecord }>(`/superadmin/subscriptions/${id}`, {
+      method: 'PUT',
+      body: payload,
+    });
+    return response;
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to update subscription');
+  }
+}

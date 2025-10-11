@@ -18,6 +18,7 @@ const tabMapping: Record<string, { label: string; icon: React.ComponentType<{ cl
   dashboard: { label: 'Dashboard', icon: Home },
   societies: { label: 'Societies', icon: Building },
   subscription: { label: 'Subscription', icon: Building },
+  'opted-subscriptions': { label: 'Opted Subscriptions', icon: Package },
   'ad-management': { 
     label: 'Ad Management', 
     icon: Megaphone,

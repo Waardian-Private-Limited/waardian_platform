@@ -34,6 +34,7 @@ interface PassbookEntry {
   fees: number;
   taxes: number;
   net_amount: number;
+  refund_amount: number;
   created_at: string;
   source: string;
   status: string;
@@ -90,7 +91,7 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
       setLoading(true);
       const params: Record<string, string> = {
         page: page.toString(),
-        limit: pagination.entriesPerPage.toString()
+        limit: '20' // Use fixed value instead of pagination.entriesPerPage
       };
 
       if (filters.search) params.search = filters.search;
@@ -112,7 +113,7 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
           currentPage: response.data.pagination.currentPage,
           totalPages: response.data.pagination.totalPages,
           totalEntries: response.data.pagination.totalEntries,
-          entriesPerPage: response.data.pagination.entriesPerPage
+          entriesPerPage: response.data.pagination.entriesPerPage || 20
         });
       }
     } catch (error) {
@@ -424,6 +425,9 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
                   Gross Amount
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Refund
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Fees
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -432,9 +436,7 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Net Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
+            
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
@@ -497,6 +499,11 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
+                      <span className="text-sm text-red-600">
+                        {entry.refund_amount > 0 ? formatCurrency(entry.refund_amount) : '-'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
                       <span className="text-sm text-gray-600">
                         {entry.fees > 0 ? formatCurrency(entry.fees) : '-'}
                       </span>
@@ -513,9 +520,7 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
                         {entry.entry_type === 'credit' ? '+' : '-'}{formatCurrency(entry.net_amount)}
                       </span>
                     </td>
-                    <td className="px-6 py-4">
-                      {getStatusBadge(entry.status)}
-                    </td>
+                    
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">{formatDate(entry.created_at)}</span>
                     </td>

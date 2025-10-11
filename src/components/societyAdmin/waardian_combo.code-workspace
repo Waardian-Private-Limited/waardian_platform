@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../../../../waardian_backend"
+		},
+		{
+			"path": "../../.."
+		},
+		{
+			"path": "../../../../waardian"
+		},
+		{
+			"path": "../../../../waardian_website"
+		},
+		{
+			"path": "../../../../waardian_assistant"
+		}
+	],
+	"settings": {}
+}

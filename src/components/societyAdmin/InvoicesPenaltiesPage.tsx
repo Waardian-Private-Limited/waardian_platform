@@ -2575,7 +2575,7 @@ const TemplatesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
 
   const fetchFloors = async (wingId: string) => {
     try {
-      const response = await apiClient(`/billing/floors?wing_id=${wingId}`, {
+      const response = await apiClient(`/billing/floors?wingId=${wingId}`, {
         withAuth: true,
       });
       setFloors(response?.floors || response?.data || response || []);
@@ -2587,9 +2587,9 @@ const TemplatesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
 
   const fetchFlats = async (wingId: string, floorId?: string) => {
     try {
-      let url = `/billing/flats?wing_id=${wingId}`;
+      let url = `/billing/flats?wingId=${wingId}`;
       if (floorId) {
-        url += `&floor_id=${floorId}`;
+        url += `&floorId=${floorId}`;
       }
       const response = await apiClient(url, {
         withAuth: true,
@@ -3023,7 +3023,7 @@ const RaisedInvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
 
   const fetchFloors = async (wingId: string) => {
     try {
-      const response = await apiClient(`/billing/floors?wing_id=${wingId}`, {
+      const response = await apiClient(`/billing/floors?wingId=${wingId}`, {
         withAuth: true,
       });
       setFloors(response?.floors || response?.data || response || []);
@@ -3035,9 +3035,9 @@ const RaisedInvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
 
   const fetchFlats = async (wingId: string, floorId?: string) => {
     try {
-      let url = `/billing/flats?wing_id=${wingId}`;
+      let url = `/billing/flats?wingId=${wingId}`;
       if (floorId) {
-        url += `&floor_id=${floorId}`;
+        url += `&floorId=${floorId}`;
       }
       const response = await apiClient(url, {
         withAuth: true,

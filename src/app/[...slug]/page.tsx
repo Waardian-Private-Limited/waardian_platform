@@ -15,6 +15,7 @@ import SocietyAdminDashboard from '@/components/societyAdmin/SocietyAdminDashboa
 import SuperadminSubscription from '@/components/superadmin/SuperAdminSubscription';
 import AdPackages from '@/components/superadmin/AdPackages';
 import PlacementManagement from '@/components/superadmin/PlacementManagement';
+import OptedSubscriptions from '@/components/superadmin/OptedSubscriptions';
 import HousingStructure from '@/components/societyAdmin/HousingStructure';
 import MembersPage from '@/components/societyAdmin/MembersPage';
 import BillingPage from '@/components/societyAdmin/BillingPage';
@@ -51,7 +52,7 @@ export default function DynamicAdminPage() {
 
   const allowedBaseRoutes = ['superadmin', 'societyadmin'];
   const validTabs: Record<string, string[]> = {
-    superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management'],
+    superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management', 'opted-subscriptions'],
     societyadmin: ['dashboard', 'members', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'polls', 'notices-dashboard', 'notices-management', 'staff'],
   };
 
@@ -194,6 +195,8 @@ export default function DynamicAdminPage() {
           return <SuperadminSociety />;
         case 'subscription':
           return <SuperadminSubscription />;
+        case 'opted-subscriptions':
+          return <OptedSubscriptions />;
         case 'ad-packages':
           return <AdPackages />;
         case 'placement-management':

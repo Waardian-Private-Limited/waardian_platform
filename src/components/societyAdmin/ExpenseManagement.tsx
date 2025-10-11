@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { apiClient } from '@/lib/apiClient';
+import { toast } from 'react-hot-toast';
 
 // Types
 interface Attachment {
@@ -47,13 +48,21 @@ interface ExpenseRecord {
   total_amount?: number;
   payment_method: string;
   payment_details_specific: string;
+  payment_details?: Record<string, any>;
+  transaction_id?: string;
+  cheque_number?: string;
+  bank_name?: string;
   transaction_date: string;
   clearing_date?: string;
   receipt_no?: string;
+  receipt_number?: string;
   wing_id?: string;
   floor_id?: string;
   flat_id?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  wing_names?: string[];
+  flat_names?: string[];
+  is_flat_specific?: number;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
   created_at: string;
   updated_at: string;
   created_by_name?: string;
@@ -61,6 +70,8 @@ interface ExpenseRecord {
   paid_by_contact?: string;
   collected_by?: string;
   collected_by_contact?: string;
+  collected_by_gst_number?: string;
+  paid_by_gst_number?: string;
   charges?: Charge[];
   attachments?: Attachment[];
   notes?: string;
@@ -81,6 +92,8 @@ interface ExpenseFormData {
   net_amount: string;
   payment_method: string;
   payment_details_specific: string;
+  cheque_number: string;
+  bank_name: string;
   transaction_date: string;
   clearing_date: string;
   receipt_no: string;
@@ -90,9 +103,11 @@ interface ExpenseFormData {
   collected_by_name: string;
   collected_by_phone: string;
   collected_by_email: string;
+  collected_by_gst_number: string;
   paid_by_name: string;
   paid_by_phone: string;
   paid_by_email: string;
+  paid_by_gst_number: string;
   transaction_id: string;
   gst_percentage: string;
   gst_amount: string;
@@ -106,6 +121,8 @@ interface Charge {
   charge_name: string;
   quantity: number;
   rate: number;
+  tax_percentage: number;
+  tax_amount?: number;
   total: number;
 }
 
@@ -191,6 +208,8 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
     net_amount: '',
     payment_method: '',
     payment_details_specific: '',
+    cheque_number: '',
+    bank_name: '',
     transaction_date: '',
     clearing_date: '',
     receipt_no: '',
@@ -200,9 +219,11 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
     collected_by_name: '',
     collected_by_phone: '',
     collected_by_email: '',
+    collected_by_gst_number: '',
     paid_by_name: '',
     paid_by_phone: '',
     paid_by_email: '',
+    paid_by_gst_number: '',
     transaction_id: '',
     gst_percentage: '0',
     gst_amount: '',
@@ -294,6 +315,8 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       net_amount: '',
       payment_method: '',
       payment_details_specific: '',
+      cheque_number: '',
+      bank_name: '',
       transaction_date: '',
       clearing_date: '',
       receipt_no: '',
@@ -303,9 +326,11 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       collected_by_name: '',
       collected_by_phone: '',
       collected_by_email: '',
+      collected_by_gst_number: '',
       paid_by_name: '',
       paid_by_phone: '',
       paid_by_email: '',
+      paid_by_gst_number: '',
       transaction_id: '',
       gst_percentage: '0',
       gst_amount: '',
@@ -336,23 +361,34 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       net_amount: expense.net_amount.toString(),
       payment_method: expense.payment_method,
       payment_details_specific: expense.payment_details_specific || '',
+      cheque_number: expense.cheque_number || '',
+      bank_name: expense.bank_name || '',
       transaction_date: expense.transaction_date,
       clearing_date: expense.clearing_date || '',
-      receipt_no: expense.receipt_no || '',
+      receipt_no: (expense.receipt_no || expense.receipt_number || ''),
       wing_id: expense.wing_id || '',
       floor_id: expense.floor_id || '',
       flat_id: expense.flat_id || '',
       collected_by_name: expense.collected_by || '',
       collected_by_phone: expense.collected_by_contact || '',
       collected_by_email: '',
+      collected_by_gst_number: expense.collected_by_gst_number || '',
       paid_by_name: expense.paid_by || '',
       paid_by_phone: expense.paid_by_contact || '',
       paid_by_email: '',
-      transaction_id: expense.receipt_no || '',
+      paid_by_gst_number: expense.paid_by_gst_number || '',
+      transaction_id: (expense.transaction_id || ''),
       gst_percentage: (expense.gst_percentage || 0).toString(),
       gst_amount: (expense.gst_amount || 0).toString(),
       attachments: [], // Files cannot be pre-populated in edit mode
-      charges: expense.charges || [], // Populate existing charges
+      charges: (expense.charges || []).map(c => ({
+        charge_name: c.charge_name,
+        quantity: Number(c.quantity),
+        rate: Number(c.rate),
+        tax_percentage: Number(c.tax_percentage || 0),
+        tax_amount: c.tax_amount !== undefined ? Number(c.tax_amount) : undefined,
+        total: Number(c.total)
+      })),
       notes: expense.notes || '',
       description: expense.description || ''
     };
@@ -574,6 +610,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       charge_name: '',
       quantity: 1,
       rate: 0,
+      tax_percentage: 0,
       total: 0
     };
     setFormData(prev => ({
@@ -595,8 +632,10 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       charges: prev.charges.map((charge, i) => {
         if (i === index) {
           const updated = { ...charge, [field]: value };
-          if (field === 'quantity' || field === 'rate') {
-            updated.total = updated.quantity * updated.rate;
+          if (field === 'quantity' || field === 'rate' || field === 'tax_percentage') {
+            const baseTotal = (Number(updated.quantity) || 0) * (Number(updated.rate) || 0);
+            const taxPct = Number(updated.tax_percentage) || 0;
+            updated.total = baseTotal + baseTotal * (taxPct / 100);
           }
           return updated;
         }
@@ -680,7 +719,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       });
       
       if (response.success) {
-        setWings(response.data || []);
+        setWings((response.data || []).map((w: any) => ({ id: w.id ?? w.wing_id, name: w.name ?? w.wing_name })));
       }
     } catch (error) {
       console.error('Error fetching wings:', error);
@@ -689,61 +728,77 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
 
   const fetchFloors = async (wingId: string) => {
     try {
-      const response = await apiClient(`/billing/floors/${wingId}`, {
+      const response = await apiClient(`/billing/floors?wingId=${wingId}`, {
         method: 'GET',
         withAuth: true
       });
       
       if (response.success) {
-        setFloors(response.data || []);
+        setFloors((response.data || []).map((f: any) => ({ id: f.id ?? f.floor_id, name: f.name ?? f.floor_number, wing_id: f.wing_id ?? wingId })));
+      } else {
+        setFloors([]);
       }
     } catch (error) {
       console.error('Error fetching floors:', error);
+      setFloors([]);
     }
   };
 
   const fetchFlats = async (floorId: string) => {
     try {
-      const response = await apiClient(`/billing/flats/${floorId}`, {
+      if (!formData.wing_id) {
+        setFlats([]);
+        return;
+      }
+      const response = await apiClient(`/billing/flats?wingId=${formData.wing_id}&floorId=${floorId}`, {
         method: 'GET',
         withAuth: true
       });
       
       if (response.success) {
-        setFlats(response.data || []);
+        setFlats((response.data || []).map((fl: any) => ({ id: fl.id ?? fl.flat_id, name: fl.name ?? fl.flat_number, floor_id: fl.floor_id ?? floorId })));
+      } else {
+        setFlats([]);
       }
     } catch (error) {
       console.error('Error fetching flats:', error);
+      setFlats([]);
     }
   };
 
   const fetchExportFloors = async (wingId: string) => {
     try {
-      const response = await apiClient(`/billing/floors/${wingId}`, {
+      const response = await apiClient(`/billing/floors?wingId=${wingId}`, {
         method: 'GET',
         withAuth: true
       });
       
       if (response.success) {
-        setExportFloors(response.data || []);
+        setExportFloors((response.data || []).map((f: any) => ({ id: f.id ?? f.floor_id, name: f.name ?? f.floor_number, wing_id: f.wing_id ?? wingId })));
+      } else {
+        setExportFloors([]);
       }
     } catch (error) {
       console.error('Error fetching export floors:', error);
+      setExportFloors([]);
     }
   };
 
   const fetchExportFlats = async (floorId: string) => {
     try {
-      const response = await apiClient(`/billing/flats/${floorId}`, {
+      const response = await apiClient(`/billing/flats?wingId=${exportWingId}&floorId=${floorId}`, {
         method: 'GET',
         withAuth: true
       });
       
       if (response.success) {
-        setExportFlats(response.data || []);
+        setExportFlats((response.data || []).map((fl: any) => ({ id: fl.id ?? fl.flat_id, name: fl.name ?? fl.flat_number, floor_id: fl.floor_id ?? floorId })));
+      } else {
+        setExportFlats([]);
       }
     } catch (error) {
       console.error('Error fetching export flats:', error);
+      setExportFlats([]);
     }
   };
 
@@ -782,21 +837,27 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       e.preventDefault();
     }
 
-    const validEmails = exportEmails.filter(email => email.trim() !== '');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const validEmails = exportEmails.map(e => e.trim()).filter(email => email !== '' && emailRegex.test(email));
     if (validEmails.length === 0) {
-      alert('Please enter at least one email address');
+      toast.error('Please enter at least one valid email address');
       return;
     }
 
     if (!exportDateFrom || !exportDateTo) {
-      alert('Please select date range');
+      toast.error('Please select date range');
       return;
     }
 
     const fromDate = new Date(exportDateFrom);
     const toDate = new Date(exportDateTo);
     if (fromDate > toDate) {
-      alert('From date cannot be later than to date');
+      toast.error('From date cannot be later than to date');
+      return;
+    }
+    const daysDiff = Math.ceil((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff > 90) {
+      toast.error('Date range cannot exceed 90 days');
       return;
     }
 
@@ -813,13 +874,14 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
           status: exportStatus,
           wingId: exportWingId,
           floorId: exportFloorId,
-          flatIds: exportFlatIds
+          flatIds: exportFlatIds,
+          includeExcel: true
         },
         withAuth: true
       });
 
       if (response.success) {
-        alert(`Export report sent successfully to ${validEmails.length} recipient(s)`);
+        toast.success(`Export report sent successfully to ${validEmails.length} recipient(s)`);
         setShowExportModal(false);
         resetExportModal();
       } else {
@@ -827,7 +889,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
       }
     } catch (error) {
       console.error('Error exporting expenses:', error);
-      alert('Error exporting expenses');
+      toast.error('Error exporting expenses');
     } finally {
       setExportLoading(false);
     }
@@ -945,10 +1007,6 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
-                Fees Analysis
-              </div>
             </button>
           </nav>
         </div>
@@ -1175,42 +1233,6 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
         </>
       )}
       
-      {/* Fees Tab Content */}
-      {activeTab === 'fees' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="text-center py-12">
-            <DollarSign className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Fees Analysis</h3>
-            <p className="text-gray-500 mb-6">
-              Analyze fees breakdown across all expenses and transactions.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              <div className="bg-blue-50 p-6 rounded-lg">
-                <h4 className="text-lg font-semibold text-blue-900 mb-2">Total Fees Collected</h4>
-                <p className="text-3xl font-bold text-blue-600">
-                  {formatCurrency(expenses.reduce((sum, expense) => sum + (expense.fees || 0), 0))}
-                </p>
-              </div>
-              <div className="bg-green-50 p-6 rounded-lg">
-                <h4 className="text-lg font-semibold text-green-900 mb-2">Average Fee Rate</h4>
-                <p className="text-3xl font-bold text-green-600">
-                  {expenses.length > 0 
-                    ? `${((expenses.reduce((sum, expense) => sum + (expense.fees || 0), 0) / expenses.length)).toFixed(2)}%`
-                    : '0%'
-                  }
-                </p>
-              </div>
-              <div className="bg-purple-50 p-6 rounded-lg">
-                <h4 className="text-lg font-semibold text-purple-900 mb-2">Transactions with Fees</h4>
-                <p className="text-3xl font-bold text-purple-600">
-                  {expenses.filter(expense => (expense.fees || 0) > 0).length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* Add/Edit Expense Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
@@ -1399,6 +1421,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                 {currentStep === 2 && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
                       {/* Gross Amount */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1421,6 +1444,22 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         )}
                       </div>
 
+                      {/* Fees */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Fees 
+                          <span className="text-xs text-gray-500">(Additional charges, if any)</span>
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.fees || ''}
+                          onChange={(e) => setFormData(prev => ({ ...prev, fees: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+
                       {/* GST Percentage */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1437,23 +1476,23 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         />
                       </div>
 
-                      {/* GST Amount */}
+                      {/* GST Amount (Editable now) */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           GST Amount
-                          <span className="text-xs text-gray-500">(Calculated automatically)</span>
+                          <span className="text-xs text-gray-500">(Editable if custom tax applied)</span>
                         </label>
                         <input
                           type="number"
                           step="0.01"
                           value={formData.gst_amount}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                          onChange={(e) => setFormData(prev => ({ ...prev, gst_amount: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="0.00"
-                          readOnly
                         />
                       </div>
 
-                      {/* Net Amount */}
+                      {/* Net Amount (Editable now) */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Net Amount *
@@ -1463,9 +1502,9 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                           type="number"
                           step="0.01"
                           value={formData.net_amount}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                          onChange={(e) => setFormData(prev => ({ ...prev, net_amount: e.target.value }))}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="0.00"
-                          readOnly
                         />
                       </div>
 
@@ -1497,8 +1536,8 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             {formData.payment_method === 'online' ? 'UPI VPA / Account Number / Last 4 digits of Card *' :
-                             formData.payment_method === 'cheque' ? 'Cheque Number *' :
-                             formData.payment_method === 'cash' ? 'Reference (Optional)' : 'Payment Details *'}
+                            formData.payment_method === 'cheque' ? 'Cheque Number *' :
+                            formData.payment_method === 'cash' ? 'Reference (Optional)' : 'Payment Details *'}
                           </label>
                           <input
                             type="text"
@@ -1549,7 +1588,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                       </div>
                       
                       {formData.charges.map((charge, index) => (
-                        <div key={index} className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 p-4 border border-gray-200 rounded-lg">
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 p-4 border border-gray-200 rounded-lg">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
                             <input
@@ -1579,6 +1618,17 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                               onChange={(e) => updateCharge(index, 'rate', parseFloat(e.target.value) || 0)}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tax (%)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={charge.tax_percentage}
+                              onChange={(e) => updateCharge(index, 'tax_percentage', parseFloat(e.target.value) || 0)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="0"
                             />
                           </div>
                           <div>
@@ -1682,6 +1732,16 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                               <p className="mt-1 text-sm text-red-600">{formErrors.collected_by_email}</p>
                             )}
                           </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">GST Number (Optional)</label>
+                            <input
+                              type="text"
+                              value={formData.collected_by_gst_number}
+                              onChange={(e) => setFormData(prev => ({ ...prev, collected_by_gst_number: e.target.value }))}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Enter GST Number"
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -1730,6 +1790,16 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                             {formErrors.paid_by_email && (
                               <p className="mt-1 text-sm text-red-600">{formErrors.paid_by_email}</p>
                             )}
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">GST Number (Optional)</label>
+                            <input
+                              type="text"
+                              value={formData.paid_by_gst_number}
+                              onChange={(e) => setFormData(prev => ({ ...prev, paid_by_gst_number: e.target.value }))}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder="Enter GST Number"
+                            />
                           </div>
                         </div>
                       </div>
@@ -1922,46 +1992,93 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                           <h5 className="font-medium text-gray-700 mb-2">Basic Information</h5>
                           <div className="space-y-2 text-sm">
                             <p><span className="font-medium">Invoice Name:</span> {formData.invoice_name}</p>
+                            <p><span className="font-medium">Invoice ID:</span> {formData.invoice_id}</p>
                             <p><span className="font-medium">Category:</span> {formData.category}</p>
                             <p><span className="font-medium">Subcategory:</span> {formData.subcategory}</p>
                             <p><span className="font-medium">Type:</span> {formData.type}</p>
                             <p><span className="font-medium">Credit/Debit:</span> {formData.credit_debit}</p>
+                            {formData.wing_id && (
+                              <p><span className="font-medium">Wing:</span> {wings.find(w => w.id === formData.wing_id)?.name || formData.wing_id}</p>
+                            )}
+                            {formData.floor_id && (
+                              <p><span className="font-medium">Floor:</span> {floors.find(f => f.id === formData.floor_id)?.name || formData.floor_id}</p>
+                            )}
+                            {formData.flat_id && (
+                              <p><span className="font-medium">Flat:</span> {flats.find(fl => fl.id === formData.flat_id)?.name || formData.flat_id}</p>
+                            )}
                           </div>
                         </div>
                         
                         <div>
                           <h5 className="font-medium text-gray-700 mb-2">Financial Details</h5>
                           <div className="space-y-2 text-sm">
-                            <p><span className="font-medium">Gross Amount:</span> ₹{formData.gross_amount}</p>
-                            <p><span className="font-medium">GST:</span> {formData.gst_percentage}% (₹{formData.gst_amount})</p>
-                            <p><span className="font-medium">Net Amount:</span> ₹{formData.net_amount}</p>
+                            <p><span className="font-medium">Gross Amount:</span> {formatCurrency(parseFloat(formData.gross_amount || '0'))}</p>
+                            {formData.fees && <p><span className="font-medium">Fees:</span> {formatCurrency(parseFloat(formData.fees || '0'))}</p>}
+                            {formData.tax_percentage && <p><span className="font-medium">Tax:</span> {formData.tax_percentage}% ({formatCurrency(parseFloat(formData.tax_amount || '0'))})</p>}
+                            <p><span className="font-medium">GST:</span> {formData.gst_percentage}% ({formatCurrency(parseFloat(formData.gst_amount || '0'))})</p>
+                            <p><span className="font-medium">Net Amount:</span> {formatCurrency(parseFloat(formData.net_amount || '0'))}</p>
                             <p><span className="font-medium">Payment Method:</span> {formData.payment_method}</p>
                             <p><span className="font-medium">Transaction Date:</span> {formData.transaction_date}</p>
+                            {formData.clearing_date && <p><span className="font-medium">Clearing Date:</span> {formData.clearing_date}</p>}
                           </div>
                         </div>
                         
-                        {formData.charges.length > 0 && (
+                        {(formData.payment_details_specific || formData.receipt_no || formData.transaction_id || formData.cheque_number || formData.bank_name) && (
                           <div className="md:col-span-2">
-                            <h5 className="font-medium text-gray-700 mb-2">Item-wise Charges</h5>
-                            <div className="space-y-1 text-sm">
-                              {formData.charges.map((charge, index) => (
-                                <p key={index}>
-                                  {charge.charge_name}: {charge.quantity} × ₹{charge.rate} = ₹{charge.total}
-                                </p>
-                              ))}
+                            <h5 className="font-medium text-gray-700 mb-2">Payment Details</h5>
+                            <div className="space-y-2 text-sm">
+                              {formData.payment_details_specific && <p><span className="font-medium">Payment Details:</span> {formData.payment_details_specific}</p>}
+                              {formData.receipt_no && <p><span className="font-medium">Receipt Number:</span> {formData.receipt_no}</p>}
+                              {formData.transaction_id && <p><span className="font-medium">Transaction ID:</span> {formData.transaction_id}</p>}
+                              {formData.cheque_number && <p><span className="font-medium">Cheque Number:</span> {formData.cheque_number}</p>}
+                              {formData.bank_name && <p><span className="font-medium">Bank Name:</span> {formData.bank_name}</p>}
                             </div>
                           </div>
                         )}
                         
-                        <div className="md:col-span-2">
-                          <h5 className="font-medium text-gray-700 mb-2">Additional Information</h5>
-                          <div className="space-y-2 text-sm">
-                            {formData.collected_by_name && <p><span className="font-medium">Collected By:</span> {formData.collected_by_name}</p>}
-                            {formData.paid_by_name && <p><span className="font-medium">Paid By:</span> {formData.paid_by_name}</p>}
-                            {formData.transaction_id && <p><span className="font-medium">Transaction ID:</span> {formData.transaction_id}</p>}
-                            {formData.description && <p><span className="font-medium">Description:</span> {formData.description}</p>}
+                        {formData.charges.length > 0 && (
+                          <div className="md:col-span-2">
+                            <h5 className="font-medium text-gray-700 mb-2">Item-wise Charges</h5>
+                            <div className="space-y-2 text-sm">
+                              {formData.charges.map((charge, index) => (
+                                <div key={index} className="flex items-center justify-between">
+                                  <div>
+                                    <span className="font-medium">{charge.charge_name}</span>: {charge.quantity} × {formatCurrency(charge.rate)} = {formatCurrency(charge.total)}
+                                    {typeof charge.tax_percentage === 'number' && charge.tax_percentage > 0 && (
+                                      <span className="text-gray-500"> • Tax: {charge.tax_percentage}%{typeof charge.tax_amount === 'number' ? ` (${formatCurrency(charge.tax_amount)})` : ''}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-gray-300">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium text-gray-900">Total Charges:</span>
+                                <span className="text-sm font-bold text-gray-900">
+                                  {formatCurrency(formData.charges.reduce((sum, c) => sum + (c.total || 0), 0))}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        )}
+                        
+                        {(formData.collected_by_name || formData.collected_by_phone || formData.collected_by_email || formData.collected_by_gst_number || formData.paid_by_name || formData.paid_by_phone || formData.paid_by_email || formData.paid_by_gst_number || formData.description || formData.notes) && (
+                          <div className="md:col-span-2">
+                            <h5 className="font-medium text-gray-700 mb-2">Additional Information</h5>
+                            <div className="space-y-2 text-sm">
+                              {formData.collected_by_name && <p><span className="font-medium">Collected By:</span> {formData.collected_by_name}</p>}
+                              {formData.collected_by_phone && <p><span className="font-medium">Collected By Phone:</span> {formData.collected_by_phone}</p>}
+                              {formData.collected_by_email && <p><span className="font-medium">Collected By Email:</span> {formData.collected_by_email}</p>}
+                              {formData.collected_by_gst_number && <p><span className="font-medium">Collected By GST Number:</span> {formData.collected_by_gst_number}</p>}
+                              {formData.paid_by_name && <p><span className="font-medium">Paid By:</span> {formData.paid_by_name}</p>}
+                              {formData.paid_by_phone && <p><span className="font-medium">Paid By Phone:</span> {formData.paid_by_phone}</p>}
+                              {formData.paid_by_email && <p><span className="font-medium">Paid By Email:</span> {formData.paid_by_email}</p>}
+                              {formData.paid_by_gst_number && <p><span className="font-medium">Paid By GST Number:</span> {formData.paid_by_gst_number}</p>}
+                              {formData.description && <p><span className="font-medium">Description:</span> {formData.description}</p>}
+                              {formData.notes && <p><span className="font-medium">Notes:</span> {formData.notes}</p>}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -2017,8 +2134,16 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                     <p className="mt-1 text-sm text-gray-900">{viewingExpense.invoice_name}</p>
                   </div>
                   <div>
+                    <label className="block text-sm font-medium text-gray-500">Invoice ID</label>
+                    <p className="mt-1 text-sm text-gray-900">{viewingExpense.invoice_id}</p>
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-500">Category</label>
                     <p className="mt-1 text-sm text-gray-900">{viewingExpense.category}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500">Subcategory</label>
+                    <p className="mt-1 text-sm text-gray-900">{viewingExpense.subcategory}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-500">Type</label>
@@ -2049,6 +2174,18 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                       <p className="mt-1 text-sm text-gray-900">{viewingExpense.created_by_name}</p>
                     </div>
                   )}
+                  {(viewingExpense.wing_names && viewingExpense.wing_names.length > 0) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Wing Names</label>
+                      <p className="mt-1 text-sm text-gray-900">{viewingExpense.wing_names.join(', ')}</p>
+                    </div>
+                  )}
+                  {(viewingExpense.flat_names && viewingExpense.flat_names.length > 0) && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500">Flat Names</label>
+                      <p className="mt-1 text-sm text-gray-900">{viewingExpense.flat_names.join(', ')}</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Financial Details Section */}
@@ -2074,6 +2211,10 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                           <p className="mt-1 text-sm text-gray-900">{formatCurrency(viewingExpense.gst_amount)}</p>
                         </div>
                       )}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-500">Fees</label>
+                        <p className="mt-1 text-sm text-gray-900">{formatCurrency(viewingExpense.fees)}</p>
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-500">Net Amount</label>
                         <p className="mt-1 text-sm text-gray-900">{formatCurrency(viewingExpense.net_amount)}</p>
@@ -2104,12 +2245,32 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                       </div>
                       {viewingExpense.payment_details_specific && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-500">
-                            {viewingExpense.payment_method === 'online' ? 'Payment Details' :
-                             viewingExpense.payment_method === 'cheque' ? 'Cheque Number' :
-                             viewingExpense.payment_method === 'cash' ? 'Reference' : 'Payment Details'}
-                          </label>
+                          <label className="block text-sm font-medium text-gray-500">Payment Details</label>
                           <p className="mt-1 text-sm text-gray-900">{viewingExpense.payment_details_specific}</p>
+                        </div>
+                      )}
+                      {(viewingExpense.receipt_no || viewingExpense.receipt_number) && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Receipt Number</label>
+                          <p className="mt-1 text-sm text-gray-900">{viewingExpense.receipt_no || viewingExpense.receipt_number}</p>
+                        </div>
+                      )}
+                      {viewingExpense.transaction_id && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Transaction ID</label>
+                          <p className="mt-1 text-sm text-gray-900">{viewingExpense.transaction_id}</p>
+                        </div>
+                      )}
+                      {viewingExpense.cheque_number && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Cheque Number</label>
+                          <p className="mt-1 text-sm text-gray-900">{viewingExpense.cheque_number}</p>
+                        </div>
+                      )}
+                      {viewingExpense.bank_name && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Bank Name</label>
+                          <p className="mt-1 text-sm text-gray-900">{viewingExpense.bank_name}</p>
                         </div>
                       )}
                       {viewingExpense.paid_by && (
@@ -2124,6 +2285,12 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                           <p className="mt-1 text-sm text-gray-900">{viewingExpense.paid_by_contact}</p>
                         </div>
                       )}
+                      {viewingExpense.paid_by_gst_number && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Paid By GST Number</label>
+                          <p className="mt-1 text-sm text-gray-900">{viewingExpense.paid_by_gst_number}</p>
+                        </div>
+                      )}
                       {viewingExpense.collected_by && (
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Collected By</label>
@@ -2134,6 +2301,12 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         <div>
                           <label className="block text-sm font-medium text-gray-500">Collected By Contact</label>
                           <p className="mt-1 text-sm text-gray-900">{viewingExpense.collected_by_contact}</p>
+                        </div>
+                      )}
+                      {viewingExpense.collected_by_gst_number && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Collected By GST Number</label>
+                          <p className="mt-1 text-sm text-gray-900">{viewingExpense.collected_by_gst_number}</p>
                         </div>
                       )}
                     </div>
@@ -2162,7 +2335,12 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         <div className="flex justify-between items-center">
                           <span className="text-sm font-medium text-gray-900">Total Charges:</span>
                           <span className="text-sm font-bold text-gray-900">
-                            {formatCurrency(viewingExpense.charges.reduce((sum, charge) => sum + charge.total, 0))}
+                            {formatCurrency(
+                              viewingExpense.charges.reduce((sum, charge) => {
+                                const total = Number(charge.total) || 0;
+                                return sum + total;
+                              }, 0)
+                            )}                          
                           </span>
                         </div>
                       </div>
@@ -2388,7 +2566,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         <option value="">All Floors</option>
                         {exportFloors.map((floor) => (
                           <option key={floor.id} value={floor.id}>
-                            {floor.floor_number}
+                            {floor.name}
                           </option>
                         ))}
                       </select>
@@ -2416,7 +2594,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                               }}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700">{flat.flat_number}</span>
+                            <span className="text-sm text-gray-700">{flat.name}</span>
                           </label>
                         ))}
                       </div>

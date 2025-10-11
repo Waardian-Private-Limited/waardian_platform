@@ -64,6 +64,7 @@ const societyTypes = [
   'Cooperative Housing Society',
 ];
 const flatTypes = ['1RK', '1BHK', '2BHK', '3BHK', '4BHK'];
+const trialDays = 0;
 
 const SocietyOnboarding = () => {
   const router = useRouter();
@@ -88,6 +89,7 @@ const SocietyOnboarding = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isTrialMode, setIsTrialMode] = useState(false);
 
   // Form state
   const [societyForm, setSocietyForm] = useState({
@@ -245,9 +247,7 @@ const SocietyOnboarding = () => {
         pincode: numericValue ? (validatePincode(numericValue) ? '' : 'Invalid 6-digit PIN code') : 'PIN code is required',
       }));
       
-      // Auto-fetch pincode data when valid 6-digit pincode is entered
       if (numericValue && validatePincode(numericValue)) {
-        // Use setTimeout to avoid dependency issues
         setTimeout(() => {
           fetchPincodeData(numericValue);
         }, 100);
@@ -494,7 +494,7 @@ const SocietyOnboarding = () => {
         ? validateAddress(societyForm.addressLine2)
           ? ''
           : 'Invalid address (5-200 chars, letters, numbers, spaces, -,.,#,/)'
-        : 'Address Line 2 is required',
+        : '',
       city: societyForm.city ? (validateCityState(societyForm.city) ? '' : 'Invalid city (2-50 chars, letters, spaces)') : 'City is required',
       state: societyForm.state ? (validateCityState(societyForm.state) ? '' : 'Invalid state (2-50 chars, letters, spaces)') : 'State is required',
       country: societyForm.country
@@ -520,7 +520,7 @@ const SocietyOnboarding = () => {
         ? validatePhone(societyForm.societyContact)
           ? ''
           : 'Invalid 10-digit Indian mobile number'
-        : 'Contact number is required',
+        : '',
       societyEmail: societyForm.societyEmail ? (validateEmail(societyForm.societyEmail) ? '' : 'Valid email required') : 'Email is required',
       password: societyForm.password
         ? validatePassword(societyForm.password)
@@ -593,9 +593,9 @@ const SocietyOnboarding = () => {
         });
         return hasErrors;
       }
-      return !selectedPlan;
+      return !isTrialMode && !selectedPlan;
     },
-    [validateSocietyForm, selectedPlan]
+    [validateSocietyForm, selectedPlan, isTrialMode]
   );
 
   const fetchPincodeData = useCallback(
@@ -670,16 +670,17 @@ const SocietyOnboarding = () => {
           societyName: response.data.societyName || '',
           addressLine1: response.data.societyAddress || '',
           societyEmail: response.data.email || '',
+          trialEndsAt: response.data.trialEndsAt || '',
+          trialDays: response.data.trialEndsAt
+                ? Math.ceil((new Date(response.data.trialEndsAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                : 0,
         }));
-        if (response.data.userType !== 'societyAdmin') {
-          setInvalidToken(true);
-          setErrorMessage('Invalid Token. Please contact support at help@waardian.com');
-        }
+        setIsTrialMode(response.data.isTrial || false);
       })
       .catch((error) => {
         console.error('Token validation error:', error);
         setInvalidToken(true);
-        setErrorMessage('Invalid Token. Please contact support at help@waardian.com');
+        setErrorMessage('Invalid Token. Please contact support at support@waardian.com');
       });
     getSubscriptions()
       .then((value: { plans: any; paymentCycles: any }) => {
@@ -723,25 +724,14 @@ const SocietyOnboarding = () => {
       setSubscriptionAmount(amount);
       setDiscountPrice(plan.discountPrice || 0);
     },
-    [calculateTotalFlats, paymentType]
+    [calculateTotalFlats]
   );
 
   useEffect(() => {
-    if (Date.now() > new Date('2025-10-08').getTime()) {
-      setErrorMessage('Subscription offer expired. Please contact support.');
-      return;
-    }
-    if (selectedPlan) {
+    if (selectedPlan && !isTrialMode) {
       calculateSubscriptionAmount(selectedPlan);
     }
-  }, [selectedPlan, calculateSubscriptionAmount]);
-
-  // Real-time amount calculation when wings or payment type changes
-  useEffect(() => {
-    if (selectedPlan) {
-      calculateSubscriptionAmount(selectedPlan);
-    }
-  }, [societyForm.wings, paymentType, selectedPlan, calculateSubscriptionAmount]);
+  }, [selectedPlan, calculateSubscriptionAmount, isTrialMode]);
 
   const updateWings = useCallback(
     (totalWings: number) => {
@@ -883,9 +873,7 @@ const SocietyOnboarding = () => {
       societyId: number;
     }) => {
       setDiscountPrice(order.discountPrice || 0);
-      // Get payment provider information
       const providerInfo = await getPaymentProvider();
-      
       const isSubscription = paymentType === 'recurring';
       const options: any = {
         key: providerInfo.razorpayKeyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
@@ -1040,7 +1028,7 @@ const SocietyOnboarding = () => {
   const handleSubmit = useCallback(async () => {
     const societyErrors = validateSocietyForm();
     setErrors((prev) => ({ ...prev, ...societyErrors }));
-    if (isStepInvalid(2)) {
+    if (isStepInvalid(2) && !isTrialMode) {
       setErrorMessage('Please correct the errors in the form before proceeding');
       setCurrentStep(1);
       toast.error('Please Fill All Required Fields');
@@ -1088,30 +1076,54 @@ const SocietyOnboarding = () => {
         wings,
         subscription: {
           planId: selectedPlan!.id,
-          amount: subscriptionAmount,
+          amount: isTrialMode ? 0 : subscriptionAmount,
           pricePerFlat: selectedPlan!.pricePerFlat,
           totalFlats: calculateTotalFlats(),
           modules: selectedPlan!.modules,
-          billingMonths: paymentType === 'recurring' ? selectedPlan!.numberOfMonths : 1,
-          paymentType,
-          promoCode: promoCode || undefined,
+          billingMonths: isTrialMode ? selectedPlan!.trial_days : (paymentType === 'recurring' ? selectedPlan!.numberOfMonths : 1),
+          paymentType: isTrialMode ? 'trial' : paymentType,
+          promoCode: isTrialMode ? undefined : promoCode || undefined,
         },
+        certificateFile: undefined as string | undefined,
       };
-      const order = await createRazorpayOrder(payload);
-      if (order.error) {
-        setErrorMessage(order.error);
-        setIsSubmitting(false);
-        toast.error(order.error);
-        return;
+      if (isTrialMode) {
+        if (certificateFile) {
+          const reader = new FileReader();
+          reader.readAsDataURL(certificateFile);
+          reader.onload = async () => {
+            const base64File = reader.result?.toString().split(',')[1];
+            await completeOnboarding({ ...payload, certificateFile: base64File });
+            toast.success('Trial onboarding completed successfully!');
+            router.push('/login');
+          };
+          reader.onerror = (error) => {
+            console.error('Certificate file read error:', error);
+            setErrorMessage('Failed to read certificate file. Please try again.');
+            setIsSubmitting(false);
+            toast.error('Failed to read certificate file');
+          };
+        } else {
+          await completeOnboarding(payload);
+          toast.success('Trial onboarding completed successfully!');
+          router.push('/login');
+        }
+      } else {
+        const order = await createRazorpayOrder(payload);
+        if (order.error) {
+          setErrorMessage(order.error);
+          setIsSubmitting(false);
+          toast.error(order.error);
+          return;
+        }
+        await initiateRazorpayPayment(order);
       }
-      await initiateRazorpayPayment(order);
     } catch (error: any) {
       console.error('Onboarding error:', error);
-      setErrorMessage(error.message || 'Failed to initiate payment. Please try again.');
+      setErrorMessage(error.message || 'Failed to initiate onboarding. Please try again.');
       setIsSubmitting(false);
-      toast.error(error.message || 'Failed to initiate payment');
+      toast.error(error.message || 'Failed to initiate onboarding');
     }
-  }, [societyForm, selectedPlan, subscriptionAmount, token, promoCode, validateSocietyForm, isStepInvalid, calculateTotalFlats, initiateRazorpayPayment, paymentType]);
+  }, [societyForm, selectedPlan, subscriptionAmount, token, promoCode, validateSocietyForm, isStepInvalid, calculateTotalFlats, initiateRazorpayPayment, paymentType, certificateFile, router, isTrialMode]);
 
   const nextStep = useCallback(() => {
     if (currentStep === 1) {
@@ -1126,10 +1138,14 @@ const SocietyOnboarding = () => {
         toast.error('At least one wing with one flat type is required');
         return;
       }
-      setCurrentStep(2);
-      if (selectedPlan) calculateSubscriptionAmount(selectedPlan);
+      if (isTrialMode) {
+        handleSubmit();
+      } else {
+        setCurrentStep(2);
+        if (selectedPlan) calculateSubscriptionAmount(selectedPlan);
+      }
     }
-  }, [currentStep, selectedPlan, validateSocietyForm, isStepInvalid, calculateSubscriptionAmount, societyForm.wings]);
+  }, [currentStep, selectedPlan, validateSocietyForm, isStepInvalid, calculateSubscriptionAmount, societyForm.wings, isTrialMode, handleSubmit]);
 
   const prevStep = useCallback(() => {
     if (currentStep > 1) setCurrentStep(currentStep - 1);
@@ -1180,29 +1196,34 @@ const SocietyOnboarding = () => {
     <div className="bg-gray-50 min-h-screen p-4 sm:p-6 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-          {/* Progress Steps */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             {[1, 2].map((step) => (
               <div
                 key={step}
                 className={`flex items-center space-x-2 text-sm font-medium transition-all ${
                   currentStep === step ? 'text-blue-600 font-bold' : currentStep > step ? 'text-green-600' : 'text-gray-400'
-                }`}
+                } ${isTrialMode && step === 2 ? 'hidden' : ''}`}
               >
                 {currentStep > step && <CheckCircle className="w-5 h-5" />}
                 <span>Step {step}</span>
               </div>
             ))}
           </div>
-          {/* Step 1: Society Configuration */}
           {currentStep === 1 && (
             <div className="p-6 sm:p-8">
+              {isTrialMode && (
+                <div className="mb-6 p-4 bg-green-100 text-green-800 rounded-lg flex items-center">
+                  <CheckCircle className="w-6 h-6 mr-2" />
+                  <p className="text-lg font-semibold">
+                    Hurray! Your society is pre-approved for a {trialDays || 'free'} day trial!
+                  </p>
+                </div>
+              )}
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Set Up Your Society Root Account</h2>
               <p className="text-gray-600 mb-6">
                 Configure your society’s root account for administrative access. This account is for web portal management only.
               </p>
               <div className="space-y-6">
-                {/* Society Details */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-gray-700 text-sm font-medium mb-1">Society Name *</label>
@@ -1386,7 +1407,7 @@ const SocietyOnboarding = () => {
                     {certificateError && <p className="text-red-500 text-xs mt-1">{certificateError}</p>}
                   </div>
                   <div>
-                    <label className="block text-gray-700 text-sm font-medium mb-1">Contact Number</label>
+                    <label className="block text-gray-700 text-sm font-medium mb-1">Contact Number *</label>
                     <input
                       type="text"
                       value={societyForm.societyContact}
@@ -1461,7 +1482,6 @@ const SocietyOnboarding = () => {
                     {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
                   </div>
                 </div>
-                {/* Wing Configuration */}
                 <div className="border-t pt-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Wing Configuration</h3>
@@ -1603,288 +1623,206 @@ const SocietyOnboarding = () => {
                   type="button"
                   onClick={nextStep}
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all flex items-center"
+                  disabled={isSubmitting}
                 >
-                  Next <ArrowRight className="w-5 h-5 ml-2" />
-                </button>
-              </div>
-            </div>
-          )}
-          {/* Step 2: Subscription Plan */}
-          {currentStep === 2 && (
-            <div className="p-6 sm:p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Subscription Plan</h2>
-              <p className="text-gray-600 mb-6">Select a plan and payment type that best fits your society’s needs.</p>
-              {/* Payment Type Selection */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Type</h3>
-                <div className="flex space-x-4">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      value="recurring"
-                      checked={paymentType === 'recurring'}
-                      onChange={() => setPaymentType('recurring')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-700">Recurring (Recommended)</span>
-                    <div className="relative group">
-                      <Info className="h-4 w-4 text-gray-400" />
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        Automatic renewals, hassle-free management, and exclusive discounts
-                      </div>
-                    </div>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      value="one-time"
-                      checked={paymentType === 'one-time'}
-                      onChange={() => setPaymentType('one-time')}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-700">One-Time</span>
-                    <div className="relative group">
-                      <Info className="h-4 w-4 text-gray-400" />
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        Single payment for the selected period
-                      </div>
-                    </div>
-                  </label>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  {paymentType === 'recurring'
-                    ? 'Enjoy automatic renewals and exclusive discounts with recurring payments!'
-                    : 'Make a one-time payment for the selected plan duration.'}
-                </p>
-              </div>
-              {/* Subscription Plans */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                {subscriptionPlans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    onClick={() => {
-                      setSelectedPlan(plan);
-                      setPromoCode('');
-                      setPromoCodeError('');
-                      calculateSubscriptionAmount(plan);
-                    }}
-                    className={`p-6 border-2 rounded-xl cursor-pointer hover:border-blue-300 transition-all duration-300 ${
-                      selectedPlan?.id === plan.id ? 'ring-4 ring-blue-500 shadow-lg scale-[1.02]' : 'border-gray-200'
-                    } relative`}
-                  >
-                    {selectedPlan?.id === plan.id && (
-                      <div className="absolute -top-3 -right-3 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                        SELECTED
-                      </div>
-                    )}
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{plan.name}</h3>
-                    <p className="text-gray-600 mb-4">{plan.description}</p>
-                    <div className="text-xl font-bold text-blue-600">
-                      ₹{plan.pricePerFlat.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      {plan.discountPrice > 0 && (
-                        <span className="text-sm text-gray-500 line-through ml-2">
-                          ₹{plan.discountPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      )}
-                      <span className="text-sm text-gray-600"> per Flat</span>
-                    </div>
-                    {plan.discountPrice > 0 && (
-                      <span className="text-sm text-green-600">
-                        (Save {((plan.discountPrice - plan.pricePerFlat) / plan.discountPrice * 100).toFixed(0)}%)
-                      </span>
-                    )}
-                    {plan.isTrial && (
-                      <div className="mt-2 text-sm text-blue-600 font-medium">{plan.trial_days} Days trial period</div>
-                    )}
-                    <div className="mt-4">
-                      <h5 className="font-medium text-gray-900 mb-2">Included Modules:</h5>
-                      <ul className="text-sm text-gray-600">
-                        {parseModules(plan.modules).map((module, i) => (
-                          <li key={i} className="flex items-center">
-                            <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
-                            {module}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Promo Code */}
-              {selectedPlan && (
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Apply Promo Code</h3>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={promoCode}
-                      onChange={(e) => handlePromoCodeChange(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
-                      placeholder="Enter promo code"
-                      disabled={isValidatingPromo}
-                      aria-invalid={!!promoCodeError}
-                      maxLength={20}
-                    />
-                    <button
-                      type="button"
-                      onClick={handlePromoCode}
-                      disabled={isValidatingPromo || !promoCode}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center"
-                    >
-                      {isValidatingPromo ? (
-                        <>
-                          <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                          Validating...
-                        </>
-                      ) : (
-                        'Apply'
-                      )}
-                    </button>
-                  </div>
-                  {promoCodeError && <p className="text-red-500 text-xs mt-1">{promoCodeError}</p>}
-                </div>
-              )}
-              {/* Subscription Summary */}
-              {selectedPlan && (
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl mb-6 border-2 border-blue-200 shadow-sm">
-                  <h4 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                    <CheckCircle className="h-6 w-6 mr-2 text-blue-500" />
-                    Subscription Summary
-                  </h4>
-                  <div className="space-y-3 mb-4">
-                    <div className="flex justify-between">
-                      <div className="text-gray-600">Total Flats:</div>
-                      <div className="font-medium text-gray-900">{calculateTotalFlats() || 'N/A'}</div>
-                    </div>
-                    <div className="flex justify-between">
-                      <div className="text-gray-600">Selected Plan:</div>
-                      <div className="font-medium text-gray-900">{selectedPlan?.name || 'No plan selected'}</div>
-                    </div>
-                    <div className="flex justify-between">
-                      <div className="text-gray-600">Payment Type:</div>
-                      <div className="font-medium text-gray-900">{paymentType === 'recurring' ? 'Recurring' : 'One-Time'}</div>
-                    </div>
-                    {promoCode && (
-                      <div className="flex justify-between">
-                        <div className="text-gray-600">Promo Code:</div>
-                        <div className="font-medium text-gray-900">{promoCode}</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="border-t-2 border-blue-200 pt-4">
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="text-gray-600">Original Cost:</div>
-                      <div className="font-medium text-gray-900">
-                        ₹{subscriptionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    {discountPrice > 0 && (
-                      <div className="flex justify-between items-center text-green-600">
-                        <div className="flex items-center">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 mr-1"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                          </svg>
-                          Your Savings ({((selectedPlan.discountPrice - selectedPlan.pricePerFlat) / selectedPlan.discountPrice * 100).toFixed(0)}%)
-                        </div>
-                        <div className="font-medium">
-                          ₹{(calculateTotalFlats() * (selectedPlan.discountPrice - selectedPlan.pricePerFlat)).toLocaleString('en-IN', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center text-lg font-bold text-blue-700 mt-3 pt-3 border-t-2 border-blue-200">
-                      <div>Total Due:</div>
-                      <div className="text-2xl">
-                        ₹{subscriptionAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    {discountPrice > 0 && (
-                      <div className="mt-3 p-3 bg-green-50 rounded-lg text-green-700 text-sm flex items-center">
-                        <CheckCircle className="h-5 w-5 mr-2" />
-                        You're saving ₹
-                        {((selectedPlan.discountPrice * calculateTotalFlats()) - subscriptionAmount).toLocaleString('en-IN', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}{' '}
-                        with this plan!
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {/* Transaction History */}
-              {transactions.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Transaction History</h3>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    {transactions.map((transaction, index) => (
-                      <div key={index} className="flex justify-between items-center py-2 border-b last:border-b-0">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Payment ID: {transaction.paymentId}</p>
-                          <p className="text-xs text-gray-600">Date: {new Date(transaction.createdAt).toLocaleString()}</p>
-                        </div>
-                        <div className="text-sm">
-                          <span className={`font-medium ${transaction.status === 'captured' ? 'text-green-600' : 'text-red-600'}`}>
-                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                          </span>
-                          <p className="text-gray-600">
-                            ₹{transaction.amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* Error Message */}
-              {errorMessage && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">{errorMessage}</div>
-              )}
-              {/* Navigation Buttons */}
-              <div className="flex justify-between">
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-all flex items-center"
-                >
-                  <ArrowLeft className="h-5 w-5 mr-2" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !selectedPlan}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-all flex items-center"
-                >
-                  {isSubmitting ? (
+                  {isTrialMode ? (
                     <>
-                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                      Processing...
+                      Start Trial
+                      {isSubmitting && <Loader2 className="w-5 h-5 ml-2 animate-spin" />}
                     </>
                   ) : (
                     <>
-                      Proceed to Payment
-                      <CheckCircle className="h-5 w-5 ml-2" />
+                      Next
+                      <ArrowRight className="w-5 h-5 ml-2" />
                     </>
                   )}
                 </button>
               </div>
+              {errorMessage && (
+                <div className="mt-4 p-4 bg-red-100 text-red-800 rounded-lg flex items-center">
+                  <Info className="w-5 h-5 mr-2" />
+                  <p>{errorMessage}</p>
+                </div>
+              )}
             </div>
           )}
-        </div>
+          {currentStep === 2 && !isTrialMode && (
+            <div className="p-6 sm:p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Subscription Plan</h2>
+              <p className="text-gray-600 mb-6">Select a plan and payment type that best fits your society’s needs.</p>
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Type</h3>
+                <div className="flex space-x-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input type="radio"
+                    name="paymentType"
+                    value="recurring"
+                    checked={paymentType === 'recurring'}
+                    onChange={() => setPaymentType('recurring')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">Recurring (Recommended)</span>
+                  <div className="relative group">
+                    <Info className="h-4 w-4 text-gray-400" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Automatic renewals, hassle-free management, and exclusive discounts
+                    </div>
+                  </div>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="paymentType"
+                    value="one-time"
+                    checked={paymentType === 'one-time'}
+                    onChange={() => setPaymentType('one-time')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">One-Time</span>
+                  <div className="relative group">
+                    <Info className="h-4 w-4 text-gray-400" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Pay upfront for the selected billing cycle
+                    </div>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Plan</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {subscriptionPlans.map((plan) => (
+                  <div
+                    key={plan.id}
+                    className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                      selectedPlan?.id === plan.id
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-300'
+                    }`}
+                    onClick={() => {
+                      setSelectedPlan(plan);
+                      calculateSubscriptionAmount(plan);
+                    }}
+                  >
+                    <h4 className="text-lg font-semibold text-gray-900">{plan.name}</h4>
+                    <p className="text-gray-600 text-sm mt-1">{plan.description}</p>
+                    <p className="text-2xl font-bold text-gray-900 mt-2">
+                      ₹{plan.pricePerFlat.toFixed(2)} / flat
+                    </p>
+                    {plan.discountPrice > 0 && (
+                      <p className="text-green-600 text-sm">Discount: ₹{plan.discountPrice.toFixed(2)}</p>
+                    )}
+                    <p className="text-gray-500 text-sm mt-1">
+                      {plan.numberOfMonths} {plan.numberOfMonths > 1 ? 'months' : 'month'}
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {parseModules(plan.modules).map((module, index) => (
+                        <li key={index} className="text-gray-600 text-sm flex items-center">
+                          <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                          {module}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Apply Promo Code</h3>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => handlePromoCodeChange(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
+                  placeholder="Enter promo code"
+                  aria-invalid={!!promoCodeError}
+                />
+                <button
+                  type="button"
+                  onClick={handlePromoCode}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  disabled={isValidatingPromo}
+                >
+                  {isValidatingPromo ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      Validating...
+                    </>
+                  ) : (
+                    'Apply'
+                  )}
+                </button>
+              </div>
+              {promoCodeError && <p className="text-red-500 text-xs mt-1">{promoCodeError}</p>}
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Order Summary</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between text-gray-700">
+                  <span>Total Flats:</span>
+                  <span>{calculateTotalFlats()}</span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span>Plan:</span>
+                  <span>{selectedPlan?.name || 'No plan selected'}</span>
+                </div>
+                <div className="flex justify-between text-gray-700">
+                  <span>Price per Flat:</span>
+                  <span>₹{selectedPlan?.pricePerFlat.toFixed(2) || '0.00'}</span>
+                </div>
+                {discountPrice > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount:</span>
+                    <span>-₹{discountPrice.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold text-gray-900">
+                  <span>Total Amount:</span>
+                  <span>₹{(subscriptionAmount - discountPrice).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-8 flex justify-between">
+              <button
+                type="button"
+                onClick={prevStep}
+                className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-all flex items-center"
+                disabled={isSubmitting}
+              >
+                <ArrowLeft className="w-5 h-5 mr-2" />
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-all flex items-center"
+                disabled={isSubmitting || !selectedPlan}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Proceed to Payment
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+        {errorMessage && (
+          <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-lg">
+            <p>{errorMessage}</p>
+          </div>
+        )}
       </div>
     </div>
+    </div>
   );
-};
+}
 
 export default SocietyOnboarding;
