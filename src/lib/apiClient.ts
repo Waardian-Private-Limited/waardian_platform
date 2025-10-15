@@ -670,3 +670,28 @@ export async function updateOptedSubscription(id: number, payload: EditSubscript
     throw new Error(error.message || 'Failed to update subscription');
   }
 }
+
+// Expenses API
+export async function getExpenseInvoiceUrl(id: string): Promise<{ success: boolean; data: { url: string; filename: string } }> {
+  try {
+    const response = await apiClient<{ success: boolean; message?: string; data: { url: string; filename: string } }>(`/expenses/${id}/invoice`, {
+      method: 'GET',
+      withAuth: true,
+    });
+    return response;
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to generate expense invoice');
+  }
+}
+
+export async function getSocietyDetailsForExpenses(): Promise<{ success: boolean; data: { id: number; name: string; email?: string; contact_number?: string; gst_number?: string; pan_number?: string; address?: string } }> {
+  try {
+    const response = await apiClient<{ success: boolean; data: { id: number; name: string; email?: string; contact_number?: string; gst_number?: string; pan_number?: string; address?: string } }>(`/expenses/society/details`, {
+      method: 'GET',
+      withAuth: true,
+    });
+    return response;
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to fetch society details');
+  }
+}

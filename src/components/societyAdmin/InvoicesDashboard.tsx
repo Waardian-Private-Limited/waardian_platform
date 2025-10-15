@@ -169,6 +169,7 @@ const InvoicesDashboard: React.FC<InvoicesDashboardProps> = ({ societyId }) => {
   const [exportDateFrom, setExportDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
   const [exportDateTo, setExportDateTo] = useState(new Date().toISOString().split('T')[0]);
   const [exportCategories, setExportCategories] = useState<string[]>([]);
+  const [newCategoryInput, setNewCategoryInput] = useState<string>('');
   const [exportStatus, setExportStatus] = useState('all');
   const [exportWingId, setExportWingId] = useState('');
   const [exportFloorId, setExportFloorId] = useState('');
@@ -189,6 +190,7 @@ const InvoicesDashboard: React.FC<InvoicesDashboardProps> = ({ societyId }) => {
   });
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
+  const DEFAULT_CATEGORIES = ['penalty', 'maintenance', 'utility', 'amenity', 'event', 'donations'];
 
   useEffect(() => {
     fetchAnalytics();
@@ -349,7 +351,14 @@ const InvoicesDashboard: React.FC<InvoicesDashboardProps> = ({ societyId }) => {
       const response = await apiClient('/billing/analytics', { withAuth: true });
       if (response.success && response.analytics?.categoryWiseBreakdown) {
         const categories = Object.keys(response.analytics.categoryWiseBreakdown);
-        setAvailableCategories(categories);
+        const seen = new Set<string>();
+        const merged = [...categories, ...DEFAULT_CATEGORIES].filter((cat) => {
+          const key = cat.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        setAvailableCategories(merged);
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -380,6 +389,21 @@ const InvoicesDashboard: React.FC<InvoicesDashboardProps> = ({ societyId }) => {
       console.error('Error fetching export flats:', error);
       setExportFlats([]);
     }
+  };
+
+  const addCustomCategory = () => {
+    const cat = newCategoryInput.trim();
+    if (!cat) return;
+    const lc = cat.toLowerCase();
+    const exists = availableCategories.some((c) => c.toLowerCase() === lc);
+    if (!exists) {
+      setAvailableCategories((prev) => [...prev, cat]);
+    }
+    const selectedExists = exportCategories.some((c) => c.toLowerCase() === lc);
+    if (!selectedExists) {
+      setExportCategories((prev) => [...prev, cat]);
+    }
+    setNewCategoryInput('');
   };
 
   const resetExportModal = () => {
@@ -1747,6 +1771,23 @@ const InvoicesDashboard: React.FC<InvoicesDashboardProps> = ({ societyId }) => {
                           <span className="text-sm text-gray-700">{category}</span>
                         </label>
                       ))}
+                    </div>
+                    {/* Add more category input */}
+                    <div className="mt-2 flex items-center space-x-2">
+                      <input
+                        type="text"
+                        value={newCategoryInput}
+                        onChange={(e) => setNewCategoryInput(e.target.value)}
+                        placeholder="Add more"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomCategory}
+                        className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                      >
+                        Add
+                      </button>
                     </div>
                     {availableCategories.length === 0 && (
                       <p className="text-sm text-gray-500 mt-1">No categories available</p>

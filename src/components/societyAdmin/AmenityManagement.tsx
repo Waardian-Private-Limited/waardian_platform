@@ -975,6 +975,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fees</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Taxes</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Refund</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual Amount</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
@@ -1001,10 +1002,15 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                       const amount = typeof booking.amount === 'string' ? parseFloat(booking.amount) : (booking.amount || 0);
                       const fees = typeof booking.fees === 'string' ? parseFloat(booking.fees) : (booking.fees || 0);
                       const taxes = typeof booking.taxes === 'string' ? parseFloat(booking.taxes) : (booking.taxes || 0);
-                      const rawActualAmount = booking.actual_amount || booking.actualAmount;
-                      const actualAmount = rawActualAmount ? 
-                        (typeof rawActualAmount === 'string' ? parseFloat(rawActualAmount) : rawActualAmount) : 
-                        (amount - fees - taxes);
+                      const refundAmountVal = (() => {
+                        const r1 = booking.refund_amount;
+                        const r2 = booking.refundAmount;
+                        if (typeof r1 === 'string') return parseFloat(r1);
+                        if (typeof r2 === 'string') return parseFloat(r2);
+                        return (r1 || r2 || 0) as number;
+                      })();
+                      const rawActualAmount = booking.actual_amount || booking.actualAmount || 0;
+                      const actualAmount = amount - fees - taxes - refundAmountVal;
                       const StatusIcon = getStatusIcon(bookingStatus);
                       const bookingId = String(booking.id);
                       
@@ -1032,6 +1038,9 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm text-gray-900">{formatCurrency(taxes)}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{formatCurrency(refundAmountVal)}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-green-600">{formatCurrency(actualAmount)}</div>
@@ -1062,7 +1071,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                           </tr>
                           {expandedBooking === bookingId && (
                             <tr>
-                              <td colSpan={7} className="px-6 py-4 bg-gray-50">
+                              <td colSpan={8} className="px-6 py-4 bg-gray-50">
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                                   <div>
                                     <span className="font-medium text-gray-700">Booking ID:</span>

@@ -136,6 +136,8 @@ interface Invoice {
   payable: string;
   fees?: string;
   taxes?: string;
+  refund_amount?: string;
+  refundAmount?: string;
   actual_amount?: string;
   status: string;
   waiver_status: string;
@@ -485,6 +487,9 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
                       Taxes
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Refund
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actual Amount
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -503,11 +508,14 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
                     const totalAmount = parseFloat(invoice.total_payable);
                     const fees = parseFloat(invoice.fees || '0');
                     const taxes = parseFloat(invoice.taxes || '0');
-                    const actualAmount = invoice.actual_amount ? parseFloat(invoice.actual_amount) : totalAmount - fees - taxes;
+                    const refundRaw = (invoice.refund_amount ?? invoice.refundAmount) || '0';
+                    const refund = parseFloat(refundRaw);
+                    const actualAmount = invoice.actual_amount ? parseFloat(invoice.actual_amount) : totalAmount - fees - taxes - refund;
                     
                     // Check if fees and taxes are empty/zero for display
                     const displayFees = !invoice.fees || parseFloat(invoice.fees) === 0 ? '-' : formatCurrency(fees);
                     const displayTaxes = !invoice.taxes || parseFloat(invoice.taxes) === 0 ? '-' : formatCurrency(taxes);
+                    const displayRefund = !refundRaw || refund === 0 ? '-' : formatCurrency(refund);
                     
                     return (
                     <tr key={invoice.id} className="hover:bg-gray-50">
@@ -545,6 +553,11 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-md inline-block">
                           {displayTaxes}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-md inline-block">
+                          {displayRefund}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

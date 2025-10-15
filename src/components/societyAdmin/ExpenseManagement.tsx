@@ -19,7 +19,7 @@ import {
   Receipt
 } from 'lucide-react';
 import clsx from 'clsx';
-import { apiClient } from '@/lib/apiClient';
+import { apiClient, getExpenseInvoiceUrl, getSocietyDetailsForExpenses } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 
 // Types
@@ -240,7 +240,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
   
   // Available options
   const availableCategories = ['Maintenance', 'Utilities', 'Security', 'Cleaning', 'Repairs', 'Administration', 'Promotion', 'Other'];
-  const availablePaymentMethods = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Credit Card', 'Debit Card'];
+  const availablePaymentMethods = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card'];
   
   // Subcategory mapping
   const subcategoryMapping: Record<string, string[]> = {
@@ -297,6 +297,76 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
   
   const cancelCloseModal = () => {
     setShowConfirmDialog(false);
+  };
+
+  // Auto-fill society details into Collected By / Paid By
+  const autoFillSocietyDetails = async () => {
+    try {
+      setModalLoading(true);
+      const res = await getSocietyDetailsForExpenses();
+      const s = res.data;
+      setFormData(prev => ({
+        ...prev,
+        collected_by_name: s.name || prev.collected_by_name,
+        collected_by_email: s.email || prev.collected_by_email,
+        collected_by_phone: s.contact_number || prev.collected_by_phone,
+        collected_by_gst_number: s.gst_number || prev.collected_by_gst_number,
+        paid_by_name: s.name || prev.paid_by_name,
+        paid_by_email: s.email || prev.paid_by_email,
+        paid_by_phone: s.contact_number || prev.paid_by_phone,
+        paid_by_gst_number: s.gst_number || prev.paid_by_gst_number,
+      }));
+      toast.success('Society details auto-filled');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to auto-fill society details');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Add Expense: auto-populate next invoice id
+  const handleAddExpenseClick = async () => {
+    // Reset and open modal
+    resetForm();
+    setHasFormChanges(false);
+    setOriginalFormData(null);
+    setIsModalOpen(true);
+    try {
+      setModalLoading(true);
+      const res = await apiClient<{ success: boolean; data: { next_id: number } }>(`/expenses/next-invoice-id`, {
+        method: 'GET',
+        withAuth: true,
+      });
+      const nextId = (res as any)?.data?.next_id;
+      if (nextId !== undefined && nextId !== null) {
+        setFormData(prev => ({ ...prev, invoice_id: String(nextId) }));
+        toast.success(`Invoice ID auto-filled: ${nextId}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to fetch next invoice ID');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Download generated invoice for viewing expense
+  const handleDownloadInvoice = async () => {
+    if (!viewingExpense) return;
+    try {
+      setModalLoading(true);
+      const res = await getExpenseInvoiceUrl(String(viewingExpense.id));
+      const url = res?.data?.url;
+      if (url) {
+        window.open(url, '_blank');
+        toast.success('Invoice generated');
+      } else {
+        toast.error('Invoice URL not available');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to download invoice');
+    } finally {
+      setModalLoading(false);
+    }
   };
   
   // Form functions
@@ -428,6 +498,32 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
     }
     if (!formData.transaction_date) {
       errors.transaction_date = 'Transaction date is required';
+    }
+
+    // Conditional requirements based on payment method
+    const pm = (formData.payment_method || '').toLowerCase().replace(/\s+/g, '_');
+    if (pm === 'upi') {
+      if (!formData.transaction_id || !formData.transaction_id.trim()) {
+        errors.transaction_id = 'Transaction ID is required for UPI payments';
+      }
+    } else if (pm === 'bank_transfer') {
+      if (!formData.bank_name || !formData.bank_name.trim()) {
+        errors.bank_name = 'Bank name is required for Bank Transfer';
+      }
+      if (!formData.transaction_id || !formData.transaction_id.trim()) {
+        errors.transaction_id = 'Transaction ID is required for Bank Transfer';
+      }
+    } else if (pm === 'cheque') {
+      if (!formData.cheque_number || !formData.cheque_number.trim()) {
+        errors.cheque_number = 'Cheque number is required for Cheque payments';
+      }
+      if (!formData.clearing_date || !formData.clearing_date.trim()) {
+        errors.clearing_date = 'Clearing date is required for Cheque payments';
+      }
+    } else if (pm === 'card') {
+      if (!formData.transaction_id || !formData.transaction_id.trim()) {
+        errors.transaction_id = 'Transaction ID is required for Card payments';
+      }
     }
     
     return errors;
@@ -1063,12 +1159,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
               Export
             </button>
             <button
-              onClick={() => {
-                resetForm();
-                setHasFormChanges(false);
-                setOriginalFormData(null);
-                setIsModalOpen(true);
-              }}
+              onClick={handleAddExpenseClick}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
             >
               <Plus className="w-4 h-4" />
@@ -1531,25 +1622,143 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         )}
                       </div>
 
-                      {/* Payment Details Specific */}
+                      {/* Payment Method Specific Details */}
                       {formData.payment_method && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            {formData.payment_method === 'online' ? 'UPI VPA / Account Number / Last 4 digits of Card *' :
-                            formData.payment_method === 'cheque' ? 'Cheque Number *' :
-                            formData.payment_method === 'cash' ? 'Reference (Optional)' : 'Payment Details *'}
-                          </label>
-                          <input
-                            type="text"
-                            value={formData.payment_details_specific}
-                            onChange={(e) => setFormData(prev => ({ ...prev, payment_details_specific: e.target.value }))}
-                            placeholder={
-                              formData.payment_method === 'online' ? 'Enter UPI VPA, Account Number, or Last 4 digits of Card' :
-                              formData.payment_method === 'cheque' ? 'Enter Cheque Number' :
-                              formData.payment_method === 'cash' ? 'Enter Reference (Optional)' : 'Enter Payment Details'
+                        <div className="space-y-4">
+                          {/* Normalize payment method for comparisons */}
+                          {(() => {
+                            const pm = (formData.payment_method || '').toLowerCase().replace(/\s+/g, '_');
+                            if (pm === 'upi') {
+                              return (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID *</label>
+                                  <input
+                                    type="text"
+                                    value={formData.transaction_id}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
+                                    className={clsx(
+                                      'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                                      formErrors.transaction_id ? 'border-red-500' : 'border-gray-300'
+                                    )}
+                                    placeholder="Enter transaction ID"
+                                  />
+                                  {formErrors.transaction_id && (
+                                    <p className="mt-1 text-sm text-red-600">{formErrors.transaction_id}</p>
+                                  )}
+                                </div>
+                              );
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
+                            if (pm === 'bank_transfer') {
+                              return (
+                                <>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
+                                    <input
+                                      type="text"
+                                      value={formData.bank_name}
+                                      onChange={(e) => setFormData(prev => ({ ...prev, bank_name: e.target.value }))}
+                                      className={clsx(
+                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                                        formErrors.bank_name ? 'border-red-500' : 'border-gray-300'
+                                      )}
+                                      placeholder="Enter bank name"
+                                    />
+                                    {formErrors.bank_name && (
+                                      <p className="mt-1 text-sm text-red-600">{formErrors.bank_name}</p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID *</label>
+                                    <input
+                                      type="text"
+                                      value={formData.transaction_id}
+                                      onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
+                                      className={clsx(
+                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                                        formErrors.transaction_id ? 'border-red-500' : 'border-gray-300'
+                                      )}
+                                      placeholder="Enter transaction ID"
+                                    />
+                                    {formErrors.transaction_id && (
+                                      <p className="mt-1 text-sm text-red-600">{formErrors.transaction_id}</p>
+                                    )}
+                                  </div>
+                                </>
+                              );
+                            }
+                            if (pm === 'cheque') {
+                              return (
+                                <>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Cheque Number *</label>
+                                    <input
+                                      type="text"
+                                      value={formData.cheque_number}
+                                      onChange={(e) => setFormData(prev => ({ ...prev, cheque_number: e.target.value }))}
+                                      className={clsx(
+                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                                        formErrors.cheque_number ? 'border-red-500' : 'border-gray-300'
+                                      )}
+                                      placeholder="Enter cheque number"
+                                    />
+                                    {formErrors.cheque_number && (
+                                      <p className="mt-1 text-sm text-red-600">{formErrors.cheque_number}</p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Clearing Date *</label>
+                                    <input
+                                      type="date"
+                                      value={formData.clearing_date}
+                                      onChange={(e) => setFormData(prev => ({ ...prev, clearing_date: e.target.value }))}
+                                      className={clsx(
+                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                                        formErrors.clearing_date ? 'border-red-500' : 'border-gray-300'
+                                      )}
+                                    />
+                                    {formErrors.clearing_date && (
+                                      <p className="mt-1 text-sm text-red-600">{formErrors.clearing_date}</p>
+                                    )}
+                                  </div>
+                                </>
+                              );
+                            }
+                            if (pm === 'card') {
+                              return (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID *</label>
+                                  <input
+                                    type="text"
+                                    value={formData.transaction_id}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
+                                    className={clsx(
+                                      'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                                      formErrors.transaction_id ? 'border-red-500' : 'border-gray-300'
+                                    )}
+                                    placeholder="Enter transaction ID"
+                                  />
+                                  {formErrors.transaction_id && (
+                                    <p className="mt-1 text-sm text-red-600">{formErrors.transaction_id}</p>
+                                  )}
+                                </div>
+                              );
+                            }
+                            if (pm === 'cash') {
+                              return (
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Reference (Optional)</label>
+                                  <input
+                                    type="text"
+                                    value={formData.payment_details_specific}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, payment_details_specific: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter reference"
+                                  />
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       )}
 
@@ -1688,7 +1897,16 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Collected By */}
                       <div className="md:col-span-2">
-                        <h4 className="text-lg font-medium text-gray-900 mb-4">Collected By</h4>
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-lg font-medium text-gray-900">Collected By</h4>
+                          <button
+                            type="button"
+                            onClick={autoFillSocietyDetails}
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                          >
+                            <RefreshCw className="w-4 h-4" /> Auto-fill Society
+                          </button>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
@@ -1804,19 +2022,7 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         </div>
                       </div>
 
-                      {/* Transaction ID */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Transaction ID
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.transaction_id}
-                          onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter transaction ID"
-                        />
-                      </div>
+                      {/* Transaction ID (moved to Payment Method section) */}
 
                       {/* Receipt No */}
                       <div>
@@ -2404,6 +2610,12 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
 
               {/* Modal Footer */}
               <div className="flex items-center justify-end gap-4 pt-6 border-t">
+                <button
+                  onClick={handleDownloadInvoice}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700"
+                >
+                  <Download className="w-4 h-4 inline mr-2" /> Download Invoice
+                </button>
                 <button
                   onClick={() => setViewModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
