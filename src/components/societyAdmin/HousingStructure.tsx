@@ -281,7 +281,7 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
                       wing.floors.map((floor) => (
                         <div key={floor.floor_id} className="bg-white rounded-lg shadow-sm border border-gray-200 transform transition-all duration-200 hover:shadow-md">
                           <button
-                            onClick={() => toggleExpandFloor(wing.id, floor.floor_id)}
+                            onClick={() => toggleExpandFloor(wing.id, String(floor.floor_id))}
                             className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors duration-200 rounded-lg"
                           >
                             <div className="flex items-center space-x-3">
@@ -293,20 +293,20 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
                                 <p className="text-gray-600 text-sm">{floor.flats?.length || 0} flats</p>
                               </div>
                             </div>
-                            {expandedFloors.has(floor.floor_id) ? (
+                            {expandedFloors.has(String(floor.floor_id)) ? (
                               <ChevronDown className="w-4 h-4 text-gray-500 transition-transform duration-200" />
                             ) : (
                               <ChevronRight className="w-4 h-4 text-gray-500 transition-transform duration-200" />
                             )}
                           </button>
 
-                          {expandedFloors.has(floor.floor_id) && (
+                          {expandedFloors.has(String(floor.floor_id)) && (
                             <div className="px-3 pb-4 space-y-3">
                               {floor.flats?.length ? (
                                 floor.flats.map((flat) => (
                                   <div key={flat.flat_id} className="bg-gray-50 rounded-lg border border-gray-200 transform transition-all duration-200 hover:shadow-md">
                                     <button
-                                      onClick={() => toggleExpandFlat(wing.id, floor.floor_id, flat.flat_id)}
+                                      onClick={() => toggleExpandFlat(wing.id, String(floor.floor_id), String(flat.flat_id))}
                                       className="w-full flex items-center justify-between p-3 hover:bg-gray-100 transition-colors duration-200 rounded-lg"
                                     >
                                       <div className="flex items-center space-x-3">
@@ -318,14 +318,14 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
                                           <p className="text-gray-600 text-sm">{flat.members?.length || 0} members</p>
                                         </div>
                                       </div>
-                                      {expandedFlats.has(flat.flat_id) ? (
+                                      {expandedFlats.has(String(flat.flat_id)) ? (
                                         <ChevronDown className="w-4 h-4 text-gray-500 transition-transform duration-200" />
                                       ) : (
                                         <ChevronRight className="w-4 h-4 text-gray-500 transition-transform duration-200" />
                                       )}
                                     </button>
 
-                                    {expandedFlats.has(flat.flat_id) && (
+                                    {expandedFlats.has(String(flat.flat_id)) && (
                                       <div className="p-3 bg-white rounded-lg mx-2 mb-3 shadow-sm">
                                         {flat.members?.length ? (
                                           <div className="space-y-3">
