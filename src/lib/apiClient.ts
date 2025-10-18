@@ -695,3 +695,78 @@ export async function getSocietyDetailsForExpenses(): Promise<{ success: boolean
     throw new Error(error.message || 'Failed to fetch society details');
   }
 }
+
+export interface SocietyDetails {
+  id: number;
+  name: string;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  status: string;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  pincode?: string | null;
+  type?: string | null;
+  registration_number?: string | null;
+  registration_date?: string | null;
+  pan_number?: string | null;
+  gst_number?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  email?: string | null;
+  certificate_url?: string | null;
+  contact_number?: string | null;
+}
+
+export type UpdateSocietyPayload = Partial<{
+  name: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  status: string;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  pincode: string | null;
+  type: string | null;
+  registration_number: string | null;
+  registration_date: string | null;
+  pan_number: string | null;
+  gst_number: string | null;
+  email: string | null;
+  certificate_url: string | null;
+  contact_number: string | null;
+}>;
+
+export async function getSocietyProfile(): Promise<{ success: boolean; data: SocietyDetails }> {
+  try {
+    const response = await apiClient<{ success: boolean; data: SocietyDetails }>(
+      '/society-admin/society/details',
+      { method: 'GET', withAuth: true }
+    );
+    return response;
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to fetch society profile');
+  }
+}
+
+export async function updateSocietyProfile(payload: UpdateSocietyPayload): Promise<{ success: boolean; data: SocietyDetails }> {
+  try {
+    const response = await apiClient<{ success: boolean; data: SocietyDetails }>(
+      '/society-admin/society/details',
+      { method: 'PATCH', body: payload, withAuth: true }
+    );
+    return response;
+  } catch (error: any) {
+    throw new Error(error.message || 'Failed to update society profile');
+  }
+}
+
+export async function uploadFiles(context: string, files: File[]): Promise<{ status: string; data: { files: { url: string }[] } }> {
+  const fd = new FormData();
+  files.forEach((f) => fd.append('files', f));
+  const response = await apiClient<{ status: string; data: { files: { url: string }[] } }>(
+    `/files/upload/${encodeURIComponent(context)}`,
+    { method: 'POST', body: fd, withAuth: true }
+  );
+  return response;
+}

@@ -102,6 +102,32 @@ const navigationItems: NavigationItem[] = [
           href: '/societyadmin/amenity-management',
         },
         {
+          id: 'building-structure',
+          label: 'Building Structure',
+          icon: Building2,
+          isCategory: true,
+          children: [
+            {
+              id: 'wings',
+              label: 'Wings',
+              icon: Folder,
+              href: '/societyadmin/wings',
+            },
+            {
+              id: 'floors',
+              label: 'Floors',
+              icon: Folder,
+              href: '/societyadmin/floors',
+            },
+            {
+              id: 'flats',
+              label: 'Flats',
+              icon: Folder,
+              href: '/societyadmin/flats',
+            },
+          ],
+        },
+        {
           id: 'notices',
           label: 'Notices & Alerts',
           icon: Bell,
@@ -218,6 +244,20 @@ const navigationItems: NavigationItem[] = [
       ],
     },
     {
+      id: 'society',
+      label: 'Society',
+      icon: Shield,
+      isCategory: true,
+      children: [
+        {
+          id: 'society-profile',
+          label: 'Profile',
+          icon: FileSignature,
+          href: '/societyadmin/society-profile',
+        },
+      ],
+    },
+    {
       id: 'subscription',
       label: 'Subscription',
       icon: Crown,
@@ -247,6 +287,7 @@ export default function SocietyAdminSidebar({
     'invoices-collections',
     'expenses',
     'ledger',
+    'society',
   ]);
 
   useEffect(() => {

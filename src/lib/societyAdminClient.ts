@@ -17,9 +17,18 @@ export interface SocietyMember {
 }
 
 export interface Flat {
-  flat_id: string;
+  flat_id: string | number;
+  wing_id?: string | number;
+  floor_id?: string | number;
   flat_number: string;
-  floor: Floor;
+  square_feet?: number | string;
+  occupancy_status?: string;
+  flat_type?: string;
+  max_tenants?: number;
+  is_rent_management_enabled?: number | boolean;
+  preferred_payment_mode?: string;
+  created_at?: string;
+  floor?: Floor;
   members?: SocietyMember[];
 }
 
@@ -261,6 +270,79 @@ export async function makeMemberSocietyAdmin(userId: number): Promise<ApiRespons
   const response = await apiClient(`/members/${userId}/make-admin`, {
     method: 'POST',
     withAuth: true,
+  });
+  return response;
+}
+
+export interface WingCreatePayload {
+  name: string;
+  floors: number;
+  flatTypes: Array<{ type: string; count: number; squareFootage: number }>;
+  accountsPerFlat?: number;
+}
+
+export interface FloorCreatePayload {
+  floorNumber: number;
+  flatTypes: Array<{ type: string; count: number; squareFootage: number }>;
+  accountsPerFlat?: number;
+}
+
+export interface FlatCreatePayload {
+  flatNumber: string;
+  squareFeet: number;
+  flatType: string;
+  occupancyStatus?: string;
+  maxTenants?: number;
+  preferredPaymentMode?: string;
+}
+
+export interface FlatUpdatePayload {
+  square_feet?: number;
+  occupancy_status?: string;
+  flat_type?: string;
+}
+
+export async function renameWing(wingId: string, wing_name: string): Promise<ApiResponse<any>> {
+  const response: ApiResponse<any> = await apiClient(`/society-admin/wings/${wingId}/rename`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: { wing_name },
+  });
+  return response;
+}
+
+export async function updateFlatDetails(flatId: string, payload: FlatUpdatePayload): Promise<ApiResponse<any>> {
+  const response: ApiResponse<any> = await apiClient(`/society-admin/flats/${flatId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+  });
+  return response;
+}
+
+export async function createWing(payload: WingCreatePayload): Promise<ApiResponse<any>> {
+  const response: ApiResponse<any> = await apiClient('/society-admin/wings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+  });
+  return response;
+}
+
+export async function createFloor(wingId: string, payload: FloorCreatePayload): Promise<ApiResponse<any>> {
+  const response: ApiResponse<any> = await apiClient(`/society-admin/wings/${wingId}/floors`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+  });
+  return response;
+}
+
+export async function createFlat(wingId: string, floorId: string, payload: FlatCreatePayload): Promise<ApiResponse<any>> {
+  const response: ApiResponse<any> = await apiClient(`/society-admin/wings/${wingId}/floors/${floorId}/flats`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
   });
   return response;
 }

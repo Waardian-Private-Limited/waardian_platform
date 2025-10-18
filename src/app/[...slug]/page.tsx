@@ -35,6 +35,10 @@ import Header from '@/components/common/Header';
 import Footer from '@/components/common/Footer';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import StaffDashboard from '@/components/societyAdmin/StaffDashboard';
+import SocietyProfile from '@/components/societyAdmin/SocietyProfile';
+import WingsManagement from '@/components/societyAdmin/WingsManagement';
+import FloorsManagement from '@/components/societyAdmin/FloorsManagement';
+import FlatsManagement from '@/components/societyAdmin/FlatsManagement';
 
 export default function DynamicAdminPage() {
   const router = useRouter();
@@ -53,7 +57,7 @@ export default function DynamicAdminPage() {
   const allowedBaseRoutes = ['superadmin', 'societyadmin'];
   const validTabs: Record<string, string[]> = {
     superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management', 'opted-subscriptions'],
-    societyadmin: ['dashboard', 'members', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'polls', 'notices-dashboard', 'notices-management', 'staff'],
+    societyadmin: ['dashboard', 'members', 'wings', 'floors', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'polls', 'notices-dashboard', 'notices-management', 'staff', 'society-profile'],
   };
 
   const redirectToLogin = useCallback((reason: string) => {
@@ -213,6 +217,12 @@ export default function DynamicAdminPage() {
           return <SocietyAdminDashboard societyId={Number(user?.societyId) || 0} />;
         case 'members':
           return <MembersPage societyId={(user?.societyId || '0').toString()} />;
+        case 'wings':
+          return <WingsManagement societyId={(user?.societyId || '0').toString()} />;
+        case 'floors':
+          return <FloorsManagement societyId={(user?.societyId || '0').toString()} />;
+        case 'flats':
+          return <FlatsManagement societyId={(user?.societyId || '0').toString()} />;
         case 'buildingstructure':
           return <HousingStructure societyId={(user?.societyId || '0').toString()} />;
         case 'billing':
@@ -248,6 +258,8 @@ export default function DynamicAdminPage() {
           return <NoticeManagement societyId={(user?.societyId || '0').toString()} user={user} />;
         case 'staff':
           return <StaffDashboard societyId={(user?.societyId || '0').toString()} user={user} />;
+        case 'society-profile':
+          return <SocietyProfile societyId={(user?.societyId || '0').toString()} user={user} />;
         default:
           return <div>Select a tab</div>;
       }
