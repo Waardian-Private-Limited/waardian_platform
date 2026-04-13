@@ -434,8 +434,8 @@ export default function MemberOnboarding() {
                         {memberData.is_security_deposit_paid
                           ? 'Paid'
                           : memberData.security_deposit_due_date
-                          ? `Due on ${formatDate(memberData.security_deposit_due_date)}`
-                          : 'N/A'}
+                            ? `Due on ${formatDate(memberData.security_deposit_due_date)}`
+                            : 'N/A'}
                       </p>
                     </div>
                     <div>
@@ -492,7 +492,7 @@ export default function MemberOnboarding() {
                     Payment Collection Details
                   </h3>
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                    
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Payment Methods Allowed
@@ -511,7 +511,7 @@ export default function MemberOnboarding() {
                         <p className="w-full p-2 border border-gray-300 rounded-lg bg-gray-100">{memberData.gstin}</p>
                       </div>
                     )}
-                    
+
                   </div>
                 </div>
                 {memberData.bank_details && (

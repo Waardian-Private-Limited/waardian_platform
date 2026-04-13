@@ -1,7 +1,8 @@
-import { apiClient } from './apiClient';
+import { apiClient, ApiResponse } from './apiClient';
 
 export interface SocietyMember {
   id: number;
+  user_id: number; // Added to match backend response and handle promotion
   name: string;
   firstName: string;
   lastName: string;
@@ -14,6 +15,11 @@ export interface SocietyMember {
   wingId: string;
   floorId: string;
   flatId: string;
+  IAM: string; // Added IAM field
+  wing_id?: string | number; // Added to support mapping in modal
+  floor_id?: string | number; // Added to support mapping in modal
+  flat_id?: string | number; // Added to support mapping in modal
+  wing_name?: string; // Added to support mapping in modal
 }
 
 export interface Flat {
@@ -56,12 +62,6 @@ export interface Wing {
   floors?: Floor[];
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-  total?: number;
-}
 
 interface RawWing {
   wing_id: number;
@@ -215,6 +215,7 @@ export async function getSpecificMembers(wingId: string, floorId: string, flatId
   }
   const members = (response.data ?? []).map((member): SocietyMember => ({
     id: member.id,
+    user_id: member.user_id, // Added user_id mapping
     name: `${member.first_name} ${member.last_name}`,
     email: member.email,
     firstName:member.first_name,
@@ -227,6 +228,7 @@ export async function getSpecificMembers(wingId: string, floorId: string, flatId
     wingId: member.wing_id,
     floorId: member.floor_id,
     flatId: member.flat_id,
+    IAM: member.IAM || 'owner', // Added IAM mapping
   }));
   return members;
 }
@@ -267,7 +269,7 @@ export async function getMembersDashboardStats(societyId: string | number): Prom
 
 // New: Promote a member to Society Admin
 export async function makeMemberSocietyAdmin(userId: number): Promise<ApiResponse<any>> {
-  const response = await apiClient(`/members/${userId}/make-admin`, {
+  const response = await apiClient(`/society-admin/members/${userId}/make-admin`, {
     method: 'POST',
     withAuth: true,
   });

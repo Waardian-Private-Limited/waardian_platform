@@ -37,6 +37,8 @@ import {
   Gift,
   Crown,
   AlertTriangle,
+  Paintbrush,
+  Wrench,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -102,6 +104,18 @@ const navigationItems: NavigationItem[] = [
           href: '/societyadmin/amenity-management',
         },
         {
+          id: 'document-requests',
+          label: 'Document Requests',
+          icon: FileText,
+          href: '/societyadmin/document-requests',
+        },
+        {
+          id: 'move-management',
+          label: 'Move Management',
+          icon: Truck,
+          href: '/societyadmin/move-management',
+        },
+        {
           id: 'building-structure',
           label: 'Building Structure',
           icon: Building2,
@@ -165,7 +179,26 @@ const navigationItems: NavigationItem[] = [
           icon: Headphones,
           href: '/societyadmin/complaints',
         },
-
+      ],
+    },
+    {
+      id: 'work-management',
+      label: 'Work Management',
+      icon: Wrench,
+      isCategory: true,
+      children: [
+        {
+          id: 'renovations',
+          label: 'Renovation Requests',
+          icon: Paintbrush,
+          href: '/societyadmin/renovations',
+        },
+        {
+          id: 'maintenance-requests',
+          label: 'Maintenance Requests',
+          icon: Wrench,
+          href: '/societyadmin/maintenance-requests',
+        },
       ],
     },
     {
@@ -244,6 +277,68 @@ const navigationItems: NavigationItem[] = [
       ],
     },
     {
+      id: 'asset-management',
+      label: 'Asset Management',
+      icon: Package,
+      isCategory: true,
+      children: [
+        {
+          id: 'asset-dashboard',
+          label: 'Assets Dashboard',
+          icon: BarChart3,
+          href: '/societyadmin/asset-dashboard',
+        },
+        {
+          id: 'asset-list',
+          label: 'Asset List',
+          icon: Package,
+          href: '/societyadmin/asset-list',
+        },
+        {
+          id: 'asset-booking',
+          label: 'Asset Booking',
+          icon: Calendar,
+          href: '/societyadmin/asset-booking',
+        },
+        {
+          id: 'asset-movement',
+          label: 'Asset Movement',
+          icon: Truck,
+          href: '/societyadmin/asset-movement',
+        },
+        {
+          id: 'asset-maintenance',
+          label: 'Maintenance',
+          icon: Settings,
+          href: '/societyadmin/asset-maintenance',
+        },
+        {
+          id: 'asset-amc',
+          label: 'AMC Contracts',
+          icon: FileSignature,
+          href: '/societyadmin/asset-amc',
+        },
+        {
+          id: 'asset-inventory',
+          label: 'Inventory / Spares',
+          icon: CheckSquare,
+          href: '/societyadmin/asset-inventory',
+        },
+        {
+          id: 'asset-vendors',
+          label: 'Vendors',
+          icon: Users,
+          href: '/societyadmin/asset-vendors',
+        },
+        {
+          id: 'asset-reports',
+          label: 'Reports & Analytics',
+          icon: BarChart3,
+          href: '/societyadmin/asset-reports',
+        },
+      ],
+    },
+    {
       id: 'society',
       label: 'Society',
       icon: Shield,
@@ -283,7 +378,8 @@ export default function SocietyAdminSidebar({
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
     'management',
     'finance',
-    'community', // Added to expand the new Community subcategory by default
+    'community',
+    'work-management',
     'invoices-collections',
     'expenses',
     'ledger',

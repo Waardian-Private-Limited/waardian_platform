@@ -31,6 +31,7 @@ export async function verifyOtp(mobile: string, otp: string) {
 export async function checkSession() {
   return await apiClient('/auth/session', {
     method: 'GET',
+    withAuth: true,
     headers: {
       'Content-Type': 'application/json',
     },

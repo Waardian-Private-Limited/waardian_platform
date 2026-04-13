@@ -236,7 +236,10 @@ const BillingPage = ({ societyId }: Props) => {
         throw new Error('No payment found for this subscription');
       }
 
-      const token = localStorage.getItem('token') || '';
+      const isLocalStorageAvailable = typeof window !== 'undefined' && 
+                                     typeof window.localStorage !== 'undefined' && 
+                                     typeof window.localStorage.getItem === 'function';
+      const token = isLocalStorageAvailable ? localStorage.getItem('token') || '' : '';
       const response = await fetch(`/api/billing/invoice/${recordId}/${paymentId}`, {
         method: 'GET',
         headers: {

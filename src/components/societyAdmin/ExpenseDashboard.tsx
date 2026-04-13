@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -150,19 +151,19 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await apiClient<{success: boolean, data: any}>('/expenses/analytics', {
+      const response = await apiClient<{ success: boolean, data: any }>('/expenses/analytics', {
         withAuth: true
       });
-      
+
       if (response.success && response.data) {
         const apiData = response.data;
-        
+
         // Transform the API response to match our interface
         const transformedData: ExpenseAnalytics = {
           totalExpenses: apiData.summary?.totalExpenses || 0,
           totalAmount: apiData.summary?.totalAmount || 0,
           averageExpense: apiData.summary?.averageMonthlyExpense || 0,
-          monthlyGrowth: apiData.summary?.thisMonthAmount && apiData.summary?.lastMonthAmount 
+          monthlyGrowth: apiData.summary?.thisMonthAmount && apiData.summary?.lastMonthAmount
             ? ((apiData.summary.thisMonthAmount - apiData.summary.lastMonthAmount) / apiData.summary.lastMonthAmount) * 100
             : 0,
           topCategories: apiData.topCategories || [],
@@ -190,7 +191,7 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
             attachments: expense.attachments || []
           }))
         };
-        
+
         setAnalytics(transformedData);
       }
     } catch (error) {
@@ -285,9 +286,8 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                 {analytics.monthlyGrowth > 0 ? '+' : ''}{analytics.monthlyGrowth.toFixed(1)}%
               </p>
             </div>
-            <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-              analytics.monthlyGrowth >= 0 ? 'bg-green-100' : 'bg-red-100'
-            }`}>
+            <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${analytics.monthlyGrowth >= 0 ? 'bg-green-100' : 'bg-red-100'
+              }`}>
               {analytics.monthlyGrowth >= 0 ? (
                 <TrendingUp className="h-6 w-6 text-green-600" />
               ) : (
@@ -313,11 +313,10 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-4 w-4" />
                   {tab.label}
@@ -349,10 +348,10 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                           <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
                           <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
                           <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                          <Line 
-                            type="monotone" 
-                            dataKey="amount" 
-                            stroke="#3b82f6" 
+                          <Line
+                            type="monotone"
+                            dataKey="amount"
+                            stroke="#3b82f6"
                             strokeWidth={3}
                             dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
                             activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
@@ -369,15 +368,15 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
-                             data={categoryData}
-                             cx="50%"
-                             cy="50%"
-                             labelLine={false}
-                             label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
-                             outerRadius={80}
-                             fill="#8884d8"
-                             dataKey="value"
-                           >
+                            data={categoryData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
                             {categoryData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
@@ -420,10 +419,10 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                           <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
                           <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
                           <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                          <Line 
-                            type="monotone" 
-                            dataKey="amount" 
-                            stroke="#3b82f6" 
+                          <Line
+                            type="monotone"
+                            dataKey="amount"
+                            stroke="#3b82f6"
                             strokeWidth={3}
                             dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
                             activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
@@ -443,9 +442,9 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={categoryData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis 
-                            dataKey="name" 
-                            stroke="#6b7280" 
+                          <XAxis
+                            dataKey="name"
+                            stroke="#6b7280"
                             fontSize={12}
                             angle={-45}
                             textAnchor="end"
@@ -548,46 +547,46 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={monthlyTrendData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="month" 
+                        <XAxis
+                          dataKey="month"
                           stroke="#6b7280"
                           fontSize={12}
                         />
-                        <YAxis 
+                        <YAxis
                           yAxisId="amount"
                           orientation="left"
                           stroke="#3b82f6"
                           fontSize={12}
                           tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
                         />
-                        <YAxis 
+                        <YAxis
                           yAxisId="count"
                           orientation="right"
                           stroke="#10b981"
                           fontSize={12}
                         />
-                        <Tooltip 
+                        <Tooltip
                           formatter={(value, name) => [
                             name === 'amount' ? formatCurrency(value as number) : value,
                             name === 'amount' ? 'Amount' : 'Count'
                           ]}
                         />
                         <Legend />
-                        <Line 
+                        <Line
                           yAxisId="amount"
-                          type="monotone" 
-                          dataKey="amount" 
-                          stroke="#3b82f6" 
+                          type="monotone"
+                          dataKey="amount"
+                          stroke="#3b82f6"
                           strokeWidth={3}
                           dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
                           activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
                           name="Amount"
                         />
-                        <Line 
+                        <Line
                           yAxisId="count"
-                          type="monotone" 
-                          dataKey="count" 
-                          stroke="#10b981" 
+                          type="monotone"
+                          dataKey="count"
+                          stroke="#10b981"
                           strokeWidth={3}
                           dot={{ fill: '#10b981', strokeWidth: 2, r: 5 }}
                           activeDot={{ r: 7, stroke: '#10b981', strokeWidth: 2 }}
@@ -605,49 +604,49 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={categoryData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="name" 
-                          stroke="#6b7280" 
+                        <XAxis
+                          dataKey="name"
+                          stroke="#6b7280"
                           fontSize={12}
                           angle={-45}
                           textAnchor="end"
                           height={60}
                         />
-                        <YAxis 
+                        <YAxis
                           yAxisId="amount"
                           orientation="left"
                           stroke="#3b82f6"
                           fontSize={12}
                           tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
                         />
-                        <YAxis 
+                        <YAxis
                           yAxisId="count"
                           orientation="right"
                           stroke="#10b981"
                           fontSize={12}
                         />
-                        <Tooltip 
+                        <Tooltip
                           formatter={(value, name) => [
                             name === 'value' ? formatCurrency(value as number) : value,
                             name === 'value' ? 'Amount' : 'Count'
                           ]}
                         />
                         <Legend />
-                        <Line 
+                        <Line
                           yAxisId="amount"
-                          type="monotone" 
-                          dataKey="value" 
-                          stroke="#3b82f6" 
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#3b82f6"
                           strokeWidth={3}
                           dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
                           activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
                           name="Amount"
                         />
-                        <Line 
+                        <Line
                           yAxisId="count"
-                          type="monotone" 
-                          dataKey="count" 
-                          stroke="#10b981" 
+                          type="monotone"
+                          dataKey="count"
+                          stroke="#10b981"
                           strokeWidth={3}
                           dot={{ fill: '#10b981', strokeWidth: 2, r: 5 }}
                           activeDot={{ r: 7, stroke: '#10b981', strokeWidth: 2 }}
@@ -668,10 +667,10 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
                         <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
                         <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
                         <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                        <Line 
-                          type="monotone" 
-                          dataKey="amount" 
-                          stroke="#8b5cf6" 
+                        <Line
+                          type="monotone"
+                          dataKey="amount"
+                          stroke="#8b5cf6"
                           strokeWidth={3}
                           dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 5 }}
                           activeDot={{ r: 7, stroke: '#8b5cf6', strokeWidth: 2 }}

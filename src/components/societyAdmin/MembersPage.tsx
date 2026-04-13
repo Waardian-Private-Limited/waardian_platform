@@ -542,6 +542,7 @@ const MembersPage = ({ societyId }: Props) => {
       wing_id: modalWing,
       floor_id: modalFloor,
       flat_id: modalFlat,
+      IAM: formData.get('IAM') as string || 'owner',
       flat_number: `${wings.find(w => String(w.id) === String(modalWing))?.name || 'Unknown'}-${modalFlats.find(f => String(f.flat_id) === String(modalFlat))?.flat_number || ''}`,
     };
 
@@ -560,6 +561,8 @@ const MembersPage = ({ societyId }: Props) => {
           floorId: String(memberData.floor_id),
           flatId: String(memberData.flat_id),
           flat_number: String(memberData.flat_number),
+          IAM: memberData.IAM,
+          user_id: editingMember.user_id,
         });
         if (response.success) {
           toast.success('Member updated successfully');
@@ -579,6 +582,8 @@ const MembersPage = ({ societyId }: Props) => {
           floorId: String(memberData.floor_id),
           flatId: String(memberData.flat_id),
           flat_number: String(memberData.flat_number),
+          IAM: memberData.IAM,
+          user_id: 0,
         });
         if (response.success) {
           toast.success('Member added successfully');
@@ -1113,6 +1118,20 @@ const MembersPage = ({ societyId }: Props) => {
                               {formErrors.role && (
                                 <p className="text-xs text-red-500 mt-1">{formErrors.role}</p>
                               )}
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                Identity (IAM)
+                              </label>
+                              <select
+                                name="IAM"
+                                defaultValue={editingMember?.IAM || 'owner'}
+                                className="w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 border-gray-200 focus:ring-blue-400 text-sm"
+                              >
+                                <option value="owner">Owner</option>
+                                <option value="tenant">Tenant</option>
+                                <option value="family">Family Member</option>
+                              </select>
                             </div>
                           </div>
 

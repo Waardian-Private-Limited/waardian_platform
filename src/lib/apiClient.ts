@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const BASE_URL = "http://localhost:3003/api/v1";
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -30,9 +30,30 @@ export async function apiClient<T = any>(
   };
 
   if (withAuth) {
-    const token = localStorage.getItem('token');
+    const getToken = () => {
+      // 1. Check primary token key
+      const localToken = localStorage.getItem('token');
+      if (localToken && localToken !== 'undefined' && localToken !== 'null') return localToken;
+
+      // 2. Check Zustand store (Primary source of truth for this app)
+      try {
+        const userStorage = localStorage.getItem('user-storage');
+        if (userStorage) {
+          const parsed = JSON.parse(userStorage);
+          const storeToken = parsed.state?.user?.token || parsed.state?.token;
+          if (storeToken && storeToken !== 'undefined' && storeToken !== 'null') return storeToken;
+        }
+      } catch (err) { }
+
+      return null;
+    };
+
+    const token = getToken();
     if (token) {
       allHeaders['Authorization'] = `Bearer ${token}`;
+      console.log('✅ apiClient: Authorization header attached');
+    } else {
+      console.log('⚠️ apiClient: No token found. Storage keys:', Object.keys(localStorage));
     }
   }
 
@@ -40,6 +61,7 @@ export async function apiClient<T = any>(
     allHeaders['Content-Type'] = 'application/json';
   }
 
+  console.log(`🌐 Calling API: ${method} ${path}${query}`);
   const res = await fetch(`${BASE_URL}${path}${query}`, {
     method,
     credentials: 'include', // ensures cookies work across domains
@@ -47,18 +69,36 @@ export async function apiClient<T = any>(
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
   });
 
+  if (res.status === 304) {
+    return null as any; // Or handle as successful cached response
+  }
+
   if (!res.ok) {
-    let errorMsg = 'Request failed';
+    let errorMsg = '';
     try {
       const errData = await res.json();
-      errorMsg = errData.message || JSON.stringify(errData);
+      errorMsg = errData.message || errData.error || JSON.stringify(errData);
     } catch {
-      errorMsg = await res.text();
+      try {
+        errorMsg = await res.text();
+      } catch {
+        errorMsg = `Request failed with status ${res.status}`;
+      }
     }
-    throw new Error(errorMsg || `Request failed with status ${res.status}`);
+    
+    const finalMsg = errorMsg || `Request failed with status ${res.status}`;
+    console.error(`❌ API Error [${method} ${path}]:`, finalMsg);
+    throw new Error(finalMsg);
   }
 
   return res.json();
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  total?: number;
 }
 
 // Multi-account interfaces
@@ -93,9 +133,11 @@ export interface OtpVerificationResponse {
     email: string;
     societyId: string;
     name?: string;
+    token?: string;
   };
   accounts?: Account[];
   error?: string;
+  token?: string;
 }
 
 // Check accounts for multi-account login
@@ -185,7 +227,7 @@ export async function getAmenityBookings(params?: {
       if (params.dateFrom) queryParams.dateFrom = params.dateFrom;
       if (params.dateTo) queryParams.dateTo = params.dateTo;
     }
-    
+
     const response = await apiClient('/amenities/bookings', {
       method: 'GET',
       params: queryParams,
@@ -237,7 +279,7 @@ export async function getLedgerRecentTransactions(params?: {
   try {
     const queryParams: Record<string, string> = {};
     if (params?.limit !== undefined) queryParams.limit = params.limit.toString();
-    
+
     const response = await apiClient('/ledger/dashboard/recent-transactions', {
       method: 'GET',
       params: queryParams,
@@ -292,7 +334,7 @@ export async function getAllLedgerTransactions(params?: {
       if (params.financialCycle) queryParams.financialCycle = params.financialCycle;
       if (params.paymentMethod) queryParams.paymentMethod = params.paymentMethod;
     }
-    
+
     const response = await apiClient('/ledger/transactions', {
       method: 'GET',
       params: queryParams,
@@ -311,7 +353,7 @@ export async function searchLedgerTransactions(params: {
   try {
     const queryParams: Record<string, string> = { query: params.query };
     if (params.limit !== undefined) queryParams.limit = params.limit.toString();
-    
+
     const response = await apiClient('/ledger/transactions/search', {
       method: 'GET',
       params: queryParams,
@@ -334,11 +376,11 @@ export async function exportLedgerToPDF(filters: any): Promise<Blob> {
       credentials: 'include',
       body: JSON.stringify({ filters }),
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to export PDF');
     }
-    
+
     return response.blob();
   } catch (error: any) {
     throw new Error(error.message || 'Failed to export ledger to PDF');
@@ -356,11 +398,11 @@ export async function exportLedgerToExcel(filters: any): Promise<Blob> {
       credentials: 'include',
       body: JSON.stringify({ filters }),
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to export Excel');
     }
-    
+
     return response.blob();
   } catch (error: any) {
     throw new Error(error.message || 'Failed to export ledger to Excel');
@@ -378,11 +420,11 @@ export async function exportLedgerToCSV(filters: any): Promise<Blob> {
       credentials: 'include',
       body: JSON.stringify({ filters }),
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to export CSV');
     }
-    
+
     return response.blob();
   } catch (error: any) {
     throw new Error(error.message || 'Failed to export ledger to CSV');
@@ -445,7 +487,7 @@ export async function getRecentNotices(params?: { limit?: number; search?: strin
     const queryParams: Record<string, string> = {};
     if (params?.limit !== undefined) queryParams.limit = params.limit.toString();
     if (params?.search) queryParams.search = params.search;
-    
+
     const response = await apiClient('/notices/recent', {
       method: 'GET',
       params: queryParams,
@@ -457,12 +499,12 @@ export async function getRecentNotices(params?: { limit?: number; search?: strin
   }
 }
 
-export async function getAllNotices(params?: { 
-  page?: number; 
-  limit?: number; 
-  search?: string; 
-  status?: string; 
-  type?: string; 
+export async function getAllNotices(params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  type?: string;
   priority?: string;
 }): Promise<any> {
   try {
@@ -473,7 +515,7 @@ export async function getAllNotices(params?: {
     if (params?.status) queryParams.status = params.status;
     if (params?.type) queryParams.type = params.type;
     if (params?.priority) queryParams.priority = params.priority;
-    
+
     const response = await apiClient('/notices', {
       method: 'GET',
       params: queryParams,
@@ -568,8 +610,8 @@ export async function getAudienceOptions(): Promise<any> {
     });
     return response;
   } catch (error: any) {
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error.message || 'Failed to fetch audience options',
       types: ['All Residents', 'Specific Wing(s)', 'Specific Flat(s)'],
       wings: [],
@@ -770,3 +812,370 @@ export async function uploadFiles(context: string, files: File[]): Promise<{ sta
   );
   return response;
 }
+
+export interface Asset {
+  id: number;
+  society_id: number;
+  name: string;
+  description: string;
+  category: string;
+  image_url: string;
+  status: 'active' | 'in_use' | 'under_maintenance' | 'missing' | 'decommissioned' | 'available';
+  is_bookable: boolean;
+  pricing_model: 'free' | 'paid_hourly' | 'paid_daily';
+  price: number;
+  security_deposit: number;
+  max_booking_hours: number | null;
+  advance_booking_days: number | null;
+  approval_required: boolean;
+  rules: string;
+  location?: string;
+  location_name?: string;
+  location_id?: number;
+  current_holder_id?: number;
+  last_seen_at?: string;
+  created_at?: string;
+  updated_at?: string;
+
+  // New fields
+  sub_type?: string;
+  block_wing?: string;
+  floor?: string;
+  exact_location?: string;
+  owned_by?: 'society' | 'vendor';
+  vendor_id?: number;
+  assigned_staff_id?: number;
+  purchase_date?: string;
+  purchase_cost?: number;
+  invoice_number?: string;
+  condition_status?: string;
+  installation_date?: string;
+  expected_life_years?: number;
+  warranty_expiry?: string;
+  maintenance_type_policy?: string;
+  maintenance_frequency?: string;
+  last_service_date?: string;
+  next_service_date?: string;
+  invoice_url?: string;
+  // Financial fields
+  useful_life_years?: number;
+  scrap_value?: number;
+  depreciation_method?: string;
+  // Disposal fields
+  is_disposed?: boolean;
+  disposal_date?: string;
+  disposal_amount?: number;
+  disposal_reason?: string;
+}
+
+export interface AssetBooking {
+  id: number;
+  user_id: number;
+  asset_id: number;
+  society_id: number;
+  start_time: string;
+  end_time: string;
+  status: 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
+  approval_status: 'not_required' | 'pending' | 'approved' | 'rejected';
+  payment_status: 'free' | 'pending' | 'paid' | 'refunded' | 'failed';
+  total_amount: number;
+  deposit_amount: number;
+  booking_id: string;
+  first_name?: string;
+  last_name?: string;
+  asset_name?: string;
+  rejection_reason?: string;
+  checked_out_at?: string;
+  checked_in_at?: string;
+  taken_from?: string;
+  submitted_to?: string;
+  qr_code?: string;
+  user_name?: string;
+  created_at?: string;
+  updated_at?: string;
+  manual_penalty_rate?: number;
+  manual_grace_period?: number;
+  final_penalty_amount?: number;
+}
+
+export const getAllAssets = async (): Promise<ApiResponse<Asset[]>> => {
+  return apiClient('/assets', { withAuth: true });
+};
+
+export const createAsset = async (asset: Partial<Asset>): Promise<ApiResponse<{ id: number }>> => {
+  return apiClient('/assets/admin/create', {
+    method: 'POST',
+    withAuth: true,
+    body: asset,
+  });
+};
+
+export const updateAsset = async (assetId: number, asset: Partial<Asset>): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/update/${assetId}`, {
+    method: 'PATCH',
+    withAuth: true,
+    body: asset,
+  });
+};
+
+export const createBooking = async (booking: {
+  asset_id: number;
+  start_time: string;
+  end_time: string;
+  total_amount: number;
+  deposit_amount: number;
+}): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/book', {
+    method: 'POST',
+    withAuth: true,
+    body: booking,
+  });
+};
+
+export const getAllBookings = async (): Promise<ApiResponse<AssetBooking[]>> => {
+  return apiClient('/assets/admin/bookings', { withAuth: true });
+};
+
+export const updateBookingStatus = async (
+  id: number,
+  status: 'confirmed' | 'rejected',
+  remarks?: string
+): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/bookings/${id}/status`, {
+    method: 'PATCH',
+    withAuth: true,
+    body: { status, remarks },
+  });
+};
+
+export const recordHandover = async (params: {
+  bookingId: number;
+  type: 'checkout' | 'checkin';
+  remarks?: string;
+  manualPenaltyRate?: number;
+  manualGracePeriod?: number;
+  waivePenalty?: boolean;
+  collectedPenalty?: number;
+}): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/bookings/handover`, {
+    method: 'POST',
+    withAuth: true,
+    body: params,
+  });
+};
+
+export const verifyBooking = async (bookingId: string): Promise<ApiResponse<AssetBooking>> => {
+  return apiClient(`/assets/admin/verify-booking/${bookingId}`, { withAuth: true });
+};
+
+export const getMyBookings = async (): Promise<ApiResponse<AssetBooking[]>> => {
+  return apiClient('/assets/my-bookings', { withAuth: true });
+};
+
+// Tracking & Movement
+export const checkOutAsset = async (data: any) => {
+  return apiClient('/assets/admin/move/checkout', { method: 'POST', body: data, withAuth: true });
+};
+
+export const checkInAsset = async (data: any) => {
+  return apiClient('/assets/admin/move/checkin', { method: 'POST', body: data, withAuth: true });
+};
+
+export const getAssetLifecycle = async (assetId: number) => {
+  return apiClient(`/assets/admin/${assetId}/lifecycle`, { withAuth: true });
+};
+
+export const markAssetMissing = async (assetId: number) => {
+  return apiClient(`/assets/admin/${assetId}/missing`, { method: 'POST', withAuth: true });
+};
+
+export const getDashboardSummary = async (): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/dashboard-summary', { withAuth: true });
+};
+
+export const getMaintenanceDashboard = async (): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/maintenance/dashboard', { withAuth: true });
+};
+
+export const getMaintenanceFinancials = async (): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/maintenance/financials', { withAuth: true });
+};
+
+export const markAssetAsServiced = async (data: any): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/maintenance/service', {
+    method: 'POST',
+    withAuth: true,
+    body: data,
+  });
+};
+
+export const createRepairRequest = async (assetId: number, remarks?: string): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/maintenance/repair', {
+    method: 'POST',
+    withAuth: true,
+    body: { assetId, remarks },
+  });
+};
+
+export const getAMCDashboard = async (): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/amc/dashboard', { withAuth: true });
+};
+
+export const createAMC = async (data: any): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/amc/create', {
+    method: 'POST',
+    withAuth: true,
+    body: data,
+  });
+};
+
+export const getInventoryList = async (): Promise<ApiResponse<any[]>> => {
+  return apiClient('/inventory/items', { withAuth: true });
+};
+
+export const createInventoryItem = async (data: any): Promise<ApiResponse<any>> => {
+  return apiClient('/inventory/items', { method: 'POST', body: data, withAuth: true });
+};
+
+export const updateInventoryStock = async (data: any): Promise<ApiResponse<any>> => {
+  return apiClient('/inventory/stock/update', { method: 'POST', body: data, withAuth: true });
+};
+
+export const getInventoryDashboard = async (): Promise<ApiResponse<any>> => {
+  return apiClient('/inventory/dashboard', { withAuth: true });
+};
+
+export const getInventoryLogs = async (itemId: number): Promise<ApiResponse<any>> => {
+  return apiClient(`/inventory/items/${itemId}`, { withAuth: true });
+};
+
+export const getStaffList = async (isAdmin: boolean = true): Promise<ApiResponse<any[]>> => {
+  return apiClient(`/staff/list?isAdminMode=${isAdmin}`, { withAuth: true });
+};
+
+export const getVendorsList = async (): Promise<ApiResponse<any[]>> => {
+  return apiClient('/assets/admin/vendors', { withAuth: true });
+};
+
+export const getVendorDetails = async (vendorId: number): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/vendors/${vendorId}`, { withAuth: true });
+};
+
+export const onboardVendor = async (data: any): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/vendors/onboard', {
+    method: 'POST',
+    withAuth: true,
+    body: data,
+  });
+};
+
+export const updateVendorStatus = async (vendorId: number, status: string, notes?: string): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/vendors/status', {
+    method: 'PATCH',
+    withAuth: true,
+    body: { vendorId, status, notes },
+  });
+};
+
+export const updateVendor = async (vendorId: number, data: any): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/vendors/${vendorId}`, {
+    method: 'PATCH',
+    withAuth: true,
+    body: data,
+  });
+};
+
+export const deleteVendor = async (vendorId: number): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/vendors/${vendorId}`, {
+    method: 'DELETE',
+    withAuth: true,
+  });
+};
+
+export const getMovementsList = async (): Promise<ApiResponse<any[]>> => {
+  return apiClient('/assets/admin/movements', { withAuth: true });
+};
+
+export const coordinateMovement = async (data: any): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/movements/coord', {
+    method: 'POST',
+    withAuth: true,
+    body: data,
+  });
+};
+
+export const receiveMovement = async (movementId: number): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/movements/receive', {
+    method: 'POST',
+    withAuth: true,
+    body: { movementId },
+  });
+};
+
+export const getAssetFullDetails = async (assetId: number): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/details/${assetId}`, { withAuth: true });
+};
+
+export const deleteAsset = async (assetId: number): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/${assetId}`, { method: 'DELETE', withAuth: true });
+};
+
+export const disposeAsset = async (assetId: number, data: {
+  disposal_date: string;
+  disposal_amount: number;
+  disposal_reason: string;
+}): Promise<ApiResponse<any>> => {
+  return apiClient(`/assets/admin/dispose/${assetId}`, {
+    method: 'PUT',
+    withAuth: true,
+    body: data,
+  });
+};
+
+export const exportAssetsToExcel = async (filters: any): Promise<Blob> => {
+  const query = new URLSearchParams(filters).toString();
+  const BASE_URL = "http://localhost:3003/api/v1";
+
+  // Robust token retrieval logic consistent with apiClient
+  const getToken = () => {
+    const localToken = localStorage.getItem('token');
+    if (localToken && localToken !== 'undefined' && localToken !== 'null') return localToken;
+    try {
+      const userStorage = localStorage.getItem('user-storage');
+      if (userStorage) {
+        const parsed = JSON.parse(userStorage);
+        return parsed.state?.user?.token || parsed.state?.token || null;
+      }
+    } catch { }
+    return null;
+  };
+
+  const token = getToken();
+  console.log(`🚀 Triggering Export: ${BASE_URL}/assets/admin/export-assets?${query}`);
+
+  const res = await fetch(`${BASE_URL}/assets/admin/export-assets?${query}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error('❌ Export HTTP Error:', res.status, errText);
+    throw new Error(`Export failed (${res.status}): ${errText}`);
+  }
+  return res.blob();
+};
+
+// Building Structure
+export const getPropertyWings = async (): Promise<ApiResponse<any[]>> => {
+  return apiClient('/useronboarding/wings', { withAuth: true });
+};
+
+export const getPropertyFloors = async (wingId: number): Promise<ApiResponse<any[]>> => {
+  return apiClient(`/useronboarding/floors?wingId=${wingId}`, { withAuth: true });
+};
+
+export const getPropertyFlats = async (wingId: number, floorId: number): Promise<ApiResponse<any[]>> => {
+  return apiClient(`/useronboarding/flats?wingId=${wingId}&floorId=${floorId}`, { withAuth: true });
+};

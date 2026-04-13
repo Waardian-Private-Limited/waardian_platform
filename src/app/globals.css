@@ -1,3 +1,93 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --primary: #4f46e5;
+  --primary-dark: #3730a3;
+  --premium-glass: rgba(255, 255, 255, 0.7);
+}
+
+body {
+  color: var(--foreground);
+  background: #f8fafc;
+  font-family: var(--font-outfit), sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  body {
+    @apply text-gray-900;
+  }
+}
+
+@layer components {
+  /* Premium Dashboard Styles */
+  .dashboard-card {
+    @apply bg-white border border-gray-100 shadow-xl shadow-gray-100/50 rounded-[2.5rem] transition-all duration-300;
+  }
+
+  .premium-sidebar-item {
+    @apply flex items-center gap-3 px-6 py-4 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest;
+  }
+
+  /* Animated List Items */
+  .animate-list-item {
+     animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom Scrollbar for High-Density UI */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+/* Move Management Specific Premium Styles */
+.move-card-gradient {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.status-badge {
+  @apply px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase transition-all duration-300;
+}
+
+.status-pending { @apply bg-slate-100 text-slate-600 border border-slate-200; }
+.status-approved { @apply bg-blue-50 text-blue-600 border border-blue-100; }
+.status-in_progress { @apply bg-amber-50 text-amber-600 border border-amber-100 animate-pulse; }
+.status-completed { @apply bg-emerald-50 text-emerald-600 border border-emerald-100; }
+.status-closed { @apply bg-gray-900 text-white border border-gray-800 opacity-80; }
+.status-rejected { @apply bg-red-50 text-red-600 border border-red-100; }
+
+.timeline-dot {
+  @apply w-6 h-6 rounded-full flex items-center justify-center text-white shrink-0 transition-all duration-500;
+}
+
+.timeline-line {
+  @apply w-0.5 flex-1 my-1 transition-all duration-700;
+}

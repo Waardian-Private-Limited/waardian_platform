@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -330,7 +331,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
     setMounted(true);
     fetchAnalytics();
     fetchAmenities();
-    
+
     // Set default date range (last 30 days)
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - (30 * 24 * 60 * 60 * 1000));
@@ -351,13 +352,13 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
       if (selectedAmenity !== 'all') {
         params.amenityId = selectedAmenity;
       }
-      
+
       const response = await apiClient('/amenities/booking-analytics', {
         method: 'GET',
         params,
         withAuth: true
       });
-      
+
       if (response.success) {
         setAnalytics(response.data);
       }
@@ -374,7 +375,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
         method: 'GET',
         withAuth: true
       });
-      
+
       if (response.success) {
         setAmenities(response.data);
       }
@@ -388,36 +389,36 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     if (!exportEmail) {
       console.warn('Please enter your email address');
       return;
     }
-    
+
     if (!exportDateFrom || !exportDateTo) {
       console.warn('Please select both from and to dates');
       return;
     }
-    
+
     // Validate date range (max 90 days)
     const fromDate = new Date(exportDateFrom);
     const toDate = new Date(exportDateTo);
     const diffTime = Math.abs(toDate.getTime() - fromDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays > 90) {
       console.warn('Date range cannot exceed 90 days');
       return;
     }
-    
+
     if (fromDate > toDate) {
       console.warn('From date cannot be later than to date');
       return;
     }
-    
+
     try {
       setExportLoading(true);
-      
+
       const response = await apiClient('/amenities/analytics/export', {
         method: 'POST',
         body: {
@@ -428,7 +429,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
         },
         withAuth: true
       });
-      
+
       if (response.success) {
         console.log('Amenity analytics report with Excel attachment has been sent to your email!');
         setShowExportModal(false);
@@ -468,9 +469,8 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
           <p className="text-sm font-medium text-gray-600">{title}</p>
           <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
           {trend && trendValue && (
-            <div className={`flex items-center mt-2 text-sm ${
-              trend === 'up' ? 'text-green-600' : 'text-red-600'
-            }`}>
+            <div className={`flex items-center mt-2 text-sm ${trend === 'up' ? 'text-green-600' : 'text-red-600'
+              }`}>
               {trend === 'up' ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
               {trendValue}
             </div>
@@ -490,130 +490,129 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
     return matchesSearch && matchesStatus;
   });
 
-        {activeTab === 'amenities' && (
-          <motion.div
-            key="amenities"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            {/* Controls */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div className="flex items-center space-x-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Search amenities..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+  {
+    activeTab === 'amenities' && (
+      <motion.div
+        key="amenities"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="space-y-6"
+      >
+        {/* Controls */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search amenities..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={() => setShowInactive(!showInactive)}
+                className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${showInactive
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+              >
+                {showInactive ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                {showInactive ? 'Hide Inactive' : 'Show Inactive'}
+              </button>
+            </div>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Data
+            </button>
+          </div>
+        </div>
+
+        {/* Amenities Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAmenities.map((amenity) => {
+            const Icon = getAmenityIcon(amenity.type);
+            const statusColor = amenity.status === 'active' ? 'text-green-600' : 'text-red-600';
+            const bgColor = amenity.status === 'active' ? 'bg-green-50' : 'bg-red-50';
+
+            return (
+              <motion.div
+                key={amenity.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Icon className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{amenity.name}</h3>
+                      <p className="text-sm text-gray-500">{amenity.type}</p>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setShowInactive(!showInactive)}
-                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${
-                      showInactive
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {showInactive ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                    {showInactive ? 'Hide Inactive' : 'Show Inactive'}
-                  </button>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${statusColor}`}>
+                    {amenity.status}
+                  </span>
                 </div>
-                <button
-                  onClick={() => setShowExportModal(true)}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Data
-                </button>
-              </div>
-            </div>
 
-            {/* Amenities Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredAmenities.map((amenity) => {
-                const Icon = getAmenityIcon(amenity.type);
-                const statusColor = amenity.status === 'active' ? 'text-green-600' : 'text-red-600';
-                const bgColor = amenity.status === 'active' ? 'bg-green-50' : 'bg-red-50';
-                
-                return (
-                  <motion.div
-                    key={amenity.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-blue-50 rounded-lg">
-                          <Icon className="w-6 h-6 text-blue-600" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{amenity.name}</h3>
-                          <p className="text-sm text-gray-500">{amenity.type}</p>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${bgColor} ${statusColor}`}>
-                        {amenity.status}
-                      </span>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">{amenity.description}</p>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <MapPin className="w-4 h-4 mr-1" />
+                    {amenity.location}
+                  </div>
+                  {amenity.charges && (
+                    <div className="flex items-center text-sm text-gray-900 font-medium">
+                      <DollarSign className="w-4 h-4 mr-1" />
+                      {formatCurrency(amenity.charges.chargeAmount)} / {amenity.charges.chargeType}
                     </div>
-                    
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-600">{amenity.description}</p>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {amenity.location}
-                      </div>
-                      {amenity.charges && (
-                        <div className="flex items-center text-sm text-gray-900 font-medium">
-                          <DollarSign className="w-4 h-4 mr-1" />
-                          {formatCurrency(amenity.charges.chargeAmount)} / {amenity.charges.chargeType}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
 
-            {filteredAmenities.length === 0 && (
-              <div className="text-center py-12">
-                <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No amenities found</h3>
-                <p className="text-gray-500">
-                  {searchTerm ? 'Try adjusting your search terms' : 'No amenities match the current filters'}
-                </p>
-              </div>
-            )}
-          </motion.div>
+        {filteredAmenities.length === 0 && (
+          <div className="text-center py-12">
+            <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No amenities found</h3>
+            <p className="text-gray-500">
+              {searchTerm ? 'Try adjusting your search terms' : 'No amenities match the current filters'}
+            </p>
+          </div>
         )}
+      </motion.div>
+    )
+  }
 
-  const TabButton = ({ id, label, icon: Icon, isActive, onClick }: { 
-    id: string; 
-    label: string; 
+  const TabButton = ({ id, label, icon: Icon, isActive, onClick }: {
+    id: string;
+    label: string;
     icon: any;
     isActive?: boolean;
     onClick?: () => void;
   }) => {
     const isTabActive = isActive !== undefined ? isActive : activeTab === id;
-    
+
     return (
       <button
         onClick={onClick || (() => setActiveTab(id))}
-        className={`relative flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
-          isTabActive
+        className={`relative flex items-center px-6 py-3 rounded-lg font-medium transition-all duration-200 ${isTabActive
             ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 transform scale-105'
             : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50 hover:shadow-md hover:scale-102'
-        }`}
+          }`}
       >
-        <Icon className={`w-4 h-4 mr-2 transition-transform duration-200 ${
-          isTabActive ? 'text-white' : 'text-gray-500'
-        }`} />
+        <Icon className={`w-4 h-4 mr-2 transition-transform duration-200 ${isTabActive ? 'text-white' : 'text-gray-500'
+          }`} />
         <span className="relative z-10">{label}</span>
         {isTabActive && (
           <motion.div
@@ -823,9 +822,9 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                         {topPerformingAmenities
                           .filter(amenity => showInactive || amenity.status === 'active')
                           .map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
-                              fill={entry.status === 'inactive' ? '#ef4444' : COLORS[index % COLORS.length]} 
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={entry.status === 'inactive' ? '#ef4444' : COLORS[index % COLORS.length]}
                             />
                           ))}
                       </Pie>
@@ -897,17 +896,14 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                     const Icon = getAmenityIcon(amenity.amenityName || amenity.name || 'general');
                     const isInactive = amenity.status === 'inactive';
                     return (
-                      <div key={index} className={`border rounded-lg p-4 ${
-                        isInactive ? 'border-red-200 bg-red-50' : 'border-gray-200'
-                      }`}>
+                      <div key={index} className={`border rounded-lg p-4 ${isInactive ? 'border-red-200 bg-red-50' : 'border-gray-200'
+                        }`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center">
-                            <Icon className={`w-5 h-5 mr-2 ${
-                              isInactive ? 'text-red-600' : 'text-blue-600'
-                            }`} />
-                            <h4 className={`font-medium ${
-                              isInactive ? 'text-red-900' : 'text-gray-900'
-                            }`}>{amenity.amenityName || amenity.name}</h4>
+                            <Icon className={`w-5 h-5 mr-2 ${isInactive ? 'text-red-600' : 'text-blue-600'
+                              }`} />
+                            <h4 className={`font-medium ${isInactive ? 'text-red-900' : 'text-gray-900'
+                              }`}>{amenity.amenityName || amenity.name}</h4>
                           </div>
                           <div className="flex items-center space-x-2">
                             <span className="text-sm text-gray-500">#{index + 1}</span>
@@ -987,170 +983,170 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                       const startIndex = (currentPage - 1) * itemsPerPage;
                       const endIndex = startIndex + itemsPerPage;
                       const paginatedBookings = analytics.recentBookings?.slice(startIndex, endIndex) || [];
-                      
+
                       return paginatedBookings.map((booking) => {
-                      const bookingStatus = booking.booking_status || booking.bookingStatus || 'pending';
-                      const paymentStatus = booking.payment_status || booking.paymentStatus || 'pending';
-                      const amenityName = booking.amenity_name || booking.amenityName || 'N/A';
-                      const userName = booking.user_name || booking.userName || 
-                        `${booking.first_name || booking.firstName || ''} ${booking.last_name || booking.lastName || ''}`.trim() || 'N/A';
-                      const flatNumber = booking.flat_number || booking.flatNumber || 'N/A';
-                      const wingName = booking.wing_name || booking.wingName || '';
-                      const flatDisplay = wingName ? `${wingName}-${flatNumber}` : flatNumber;
-                      const slotDate = booking.slot_date || booking.slotDate || '';
-                      const slotTime = booking.slot_time || booking.slotTime || 'N/A';
-                      const amount = typeof booking.amount === 'string' ? parseFloat(booking.amount) : (booking.amount || 0);
-                      const fees = typeof booking.fees === 'string' ? parseFloat(booking.fees) : (booking.fees || 0);
-                      const taxes = typeof booking.taxes === 'string' ? parseFloat(booking.taxes) : (booking.taxes || 0);
-                      const refundAmountVal = (() => {
-                        const r1 = booking.refund_amount;
-                        const r2 = booking.refundAmount;
-                        if (typeof r1 === 'string') return parseFloat(r1);
-                        if (typeof r2 === 'string') return parseFloat(r2);
-                        return (r1 || r2 || 0) as number;
-                      })();
-                      const rawActualAmount = booking.actual_amount || booking.actualAmount || 0;
-                      const actualAmount = amount - fees - taxes - refundAmountVal;
-                      const StatusIcon = getStatusIcon(bookingStatus);
-                      const bookingId = String(booking.id);
-                      
-                      return (
-                        <React.Fragment key={booking.id}>
-                          <tr>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <div className="text-sm font-medium text-gray-900">{amenityName}</div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{userName}</div>
-                              <div className="text-sm text-gray-500">Flat: {flatDisplay}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{slotDate ? formatDate(slotDate) : 'N/A'}</div>
-                              <div className="text-sm text-gray-500">{slotTime}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{formatCurrency(amount)}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{formatCurrency(fees)}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{formatCurrency(taxes)}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{formatCurrency(refundAmountVal)}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-green-600">{formatCurrency(actualAmount)}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className={`flex items-center text-sm ${getStatusColor(bookingStatus)}`}>
-                                <StatusIcon className="w-4 h-4 mr-1" />
-                                {bookingStatus}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className={`text-sm ${getStatusColor(paymentStatus)}`}>
-                                {paymentStatus}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <button
-                                onClick={() => setExpandedBooking(expandedBooking === bookingId ? null : bookingId)}
-                                className="text-blue-600 hover:text-blue-800 transition-colors"
-                              >
-                                {expandedBooking === bookingId ? (
-                                  <EyeOff className="w-4 h-4" />
-                                ) : (
-                                  <Eye className="w-4 h-4" />
-                                )}
-                              </button>
-                            </td>
-                          </tr>
-                          {expandedBooking === bookingId && (
+                        const bookingStatus = booking.booking_status || booking.bookingStatus || 'pending';
+                        const paymentStatus = booking.payment_status || booking.paymentStatus || 'pending';
+                        const amenityName = booking.amenity_name || booking.amenityName || 'N/A';
+                        const userName = booking.user_name || booking.userName ||
+                          `${booking.first_name || booking.firstName || ''} ${booking.last_name || booking.lastName || ''}`.trim() || 'N/A';
+                        const flatNumber = booking.flat_number || booking.flatNumber || 'N/A';
+                        const wingName = booking.wing_name || booking.wingName || '';
+                        const flatDisplay = wingName ? `${wingName}-${flatNumber}` : flatNumber;
+                        const slotDate = booking.slot_date || booking.slotDate || '';
+                        const slotTime = booking.slot_time || booking.slotTime || 'N/A';
+                        const amount = typeof booking.amount === 'string' ? parseFloat(booking.amount) : (booking.amount || 0);
+                        const fees = typeof booking.fees === 'string' ? parseFloat(booking.fees) : (booking.fees || 0);
+                        const taxes = typeof booking.taxes === 'string' ? parseFloat(booking.taxes) : (booking.taxes || 0);
+                        const refundAmountVal = (() => {
+                          const r1 = booking.refund_amount;
+                          const r2 = booking.refundAmount;
+                          if (typeof r1 === 'string') return parseFloat(r1);
+                          if (typeof r2 === 'string') return parseFloat(r2);
+                          return (r1 || r2 || 0) as number;
+                        })();
+                        const rawActualAmount = booking.actual_amount || booking.actualAmount || 0;
+                        const actualAmount = amount - fees - taxes - refundAmountVal;
+                        const StatusIcon = getStatusIcon(bookingStatus);
+                        const bookingId = String(booking.id);
+
+                        return (
+                          <React.Fragment key={booking.id}>
                             <tr>
-                              <td colSpan={8} className="px-6 py-4 bg-gray-50">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                                  <div>
-                                    <span className="font-medium text-gray-700">Booking ID:</span>
-                                    <span className="ml-2 text-gray-900">{booking.booking_doc_id || booking.bookingDocId || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Booking Type:</span>
-                                    <span className="ml-2 text-gray-900">{booking.booking_type || booking.bookingType || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Currency:</span>
-                                    <span className="ml-2 text-gray-900">{booking.currency || 'INR'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Method:</span>
-                                    <span className="ml-2 text-gray-900">{booking.method || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Gateway:</span>
-                                    <span className="ml-2 text-gray-900">{booking.gateway_provider || booking.gatewayProvider || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Transaction ID:</span>
-                                    <span className="ml-2 text-gray-900">{booking.transaction_id || booking.transactionId || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Payment ID:</span>
-                                    <span className="ml-2 text-gray-900">{booking.payment_id || booking.paymentId || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Order ID:</span>
-                                    <span className="ml-2 text-gray-900">{booking.order_id || booking.orderId || 'N/A'}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Fees:</span>
-                                    <span className="ml-2 text-gray-900">{formatCurrency(typeof booking.fees === 'string' ? parseFloat(booking.fees) : (booking.fees || 0))}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Taxes:</span>
-                                    <span className="ml-2 text-gray-900">{formatCurrency(typeof booking.taxes === 'string' ? parseFloat(booking.taxes) : (booking.taxes || 0))}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Refund Amount:</span>
-                                    <span className="ml-2 text-gray-900">{formatCurrency(typeof booking.refund_amount === 'string' ? parseFloat(booking.refund_amount) : typeof booking.refundAmount === 'string' ? parseFloat(booking.refundAmount) : (booking.refund_amount || booking.refundAmount || 0))}</span>
-                                  </div>
-                                  <div>
-                                    <span className="font-medium text-gray-700">Created At:</span>
-                                    <span className="ml-2 text-gray-900">{(booking.created_at || booking.createdAt) ? formatDate(booking.created_at || booking.createdAt || '') : 'N/A'}</span>
-                                  </div>
-                                  {(booking.payment_date || booking.paymentDate) && (
-                                    <div>
-                                      <span className="font-medium text-gray-700">Payment Date:</span>
-                                      <span className="ml-2 text-gray-900">{formatDate(booking.payment_date || booking.paymentDate || '')}</span>
-                                    </div>
-                                  )}
-                                  {(booking.cancellation_reason || booking.cancellationReason) && (
-                                    <div className="col-span-full">
-                                      <span className="font-medium text-gray-700">Cancellation Reason:</span>
-                                      <span className="ml-2 text-gray-900">{booking.cancellation_reason || booking.cancellationReason}</span>
-                                    </div>
-                                  )}
-                                  {(booking.rejection_reason || booking.rejectionReason) && (
-                                    <div className="col-span-full">
-                                      <span className="font-medium text-gray-700">Rejection Reason:</span>
-                                      <span className="ml-2 text-gray-900">{booking.rejection_reason || booking.rejectionReason}</span>
-                                    </div>
-                                  )}
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="text-sm font-medium text-gray-900">{amenityName}</div>
                                 </div>
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{userName}</div>
+                                <div className="text-sm text-gray-500">Flat: {flatDisplay}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{slotDate ? formatDate(slotDate) : 'N/A'}</div>
+                                <div className="text-sm text-gray-500">{slotTime}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{formatCurrency(amount)}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{formatCurrency(fees)}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{formatCurrency(taxes)}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">{formatCurrency(refundAmountVal)}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-green-600">{formatCurrency(actualAmount)}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className={`flex items-center text-sm ${getStatusColor(bookingStatus)}`}>
+                                  <StatusIcon className="w-4 h-4 mr-1" />
+                                  {bookingStatus}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className={`text-sm ${getStatusColor(paymentStatus)}`}>
+                                  {paymentStatus}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <button
+                                  onClick={() => setExpandedBooking(expandedBooking === bookingId ? null : bookingId)}
+                                  className="text-blue-600 hover:text-blue-800 transition-colors"
+                                >
+                                  {expandedBooking === bookingId ? (
+                                    <EyeOff className="w-4 h-4" />
+                                  ) : (
+                                    <Eye className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </td>
                             </tr>
-                          )}
-                        </React.Fragment>
-                      );
+                            {expandedBooking === bookingId && (
+                              <tr>
+                                <td colSpan={8} className="px-6 py-4 bg-gray-50">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                                    <div>
+                                      <span className="font-medium text-gray-700">Booking ID:</span>
+                                      <span className="ml-2 text-gray-900">{booking.booking_doc_id || booking.bookingDocId || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Booking Type:</span>
+                                      <span className="ml-2 text-gray-900">{booking.booking_type || booking.bookingType || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Currency:</span>
+                                      <span className="ml-2 text-gray-900">{booking.currency || 'INR'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Method:</span>
+                                      <span className="ml-2 text-gray-900">{booking.method || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Gateway:</span>
+                                      <span className="ml-2 text-gray-900">{booking.gateway_provider || booking.gatewayProvider || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Transaction ID:</span>
+                                      <span className="ml-2 text-gray-900">{booking.transaction_id || booking.transactionId || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Payment ID:</span>
+                                      <span className="ml-2 text-gray-900">{booking.payment_id || booking.paymentId || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Order ID:</span>
+                                      <span className="ml-2 text-gray-900">{booking.order_id || booking.orderId || 'N/A'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Fees:</span>
+                                      <span className="ml-2 text-gray-900">{formatCurrency(typeof booking.fees === 'string' ? parseFloat(booking.fees) : (booking.fees || 0))}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Taxes:</span>
+                                      <span className="ml-2 text-gray-900">{formatCurrency(typeof booking.taxes === 'string' ? parseFloat(booking.taxes) : (booking.taxes || 0))}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Refund Amount:</span>
+                                      <span className="ml-2 text-gray-900">{formatCurrency(typeof booking.refund_amount === 'string' ? parseFloat(booking.refund_amount) : typeof booking.refundAmount === 'string' ? parseFloat(booking.refundAmount) : (booking.refund_amount || booking.refundAmount || 0))}</span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-700">Created At:</span>
+                                      <span className="ml-2 text-gray-900">{(booking.created_at || booking.createdAt) ? formatDate(booking.created_at || booking.createdAt || '') : 'N/A'}</span>
+                                    </div>
+                                    {(booking.payment_date || booking.paymentDate) && (
+                                      <div>
+                                        <span className="font-medium text-gray-700">Payment Date:</span>
+                                        <span className="ml-2 text-gray-900">{formatDate(booking.payment_date || booking.paymentDate || '')}</span>
+                                      </div>
+                                    )}
+                                    {(booking.cancellation_reason || booking.cancellationReason) && (
+                                      <div className="col-span-full">
+                                        <span className="font-medium text-gray-700">Cancellation Reason:</span>
+                                        <span className="ml-2 text-gray-900">{booking.cancellation_reason || booking.cancellationReason}</span>
+                                      </div>
+                                    )}
+                                    {(booking.rejection_reason || booking.rejectionReason) && (
+                                      <div className="col-span-full">
+                                        <span className="font-medium text-gray-700">Rejection Reason:</span>
+                                        <span className="ml-2 text-gray-900">{booking.rejection_reason || booking.rejectionReason}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
                       });
-                    })()} 
+                    })()}
                   </tbody>
                 </table>
               </div>
-              
+
               {/* Pagination */}
               {analytics.recentBookings && analytics.recentBookings.length > itemsPerPage && (
                 <div className="flex items-center justify-between mt-6">
@@ -1165,7 +1161,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                     >
                       Previous
                     </button>
-                    
+
                     {Array.from({ length: Math.ceil(analytics.recentBookings.length / itemsPerPage) }, (_, i) => i + 1)
                       .filter(page => {
                         const totalPages = Math.ceil(analytics.recentBookings.length / itemsPerPage);
@@ -1178,11 +1174,10 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                             {showEllipsis && <span className="px-2 text-gray-500">...</span>}
                             <button
                               onClick={() => setCurrentPage(page)}
-                              className={`px-3 py-1 text-sm border rounded-md ${
-                                currentPage === page
+                              className={`px-3 py-1 text-sm border rounded-md ${currentPage === page
                                   ? 'bg-blue-500 text-white border-blue-500'
                                   : 'border-gray-300 hover:bg-gray-50'
-                              }`}
+                                }`}
                             >
                               {page}
                             </button>
@@ -1190,7 +1185,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                         );
                       })
                     }
-                    
+
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(analytics.recentBookings.length / itemsPerPage)))}
                       disabled={currentPage === Math.ceil(analytics.recentBookings.length / itemsPerPage)}
@@ -1234,10 +1229,10 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                   <XAxis dataKey="month" stroke="#6b7280" />
                   <YAxis yAxisId="left" stroke="#6b7280" />
                   <YAxis yAxisId="right" orientation="right" stroke="#6b7280" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#ffffff', 
-                      border: '1px solid #e5e7eb', 
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '8px',
                       boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}
@@ -1262,10 +1257,10 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="hour" stroke="#6b7280" />
                     <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#ffffff', 
-                        border: '1px solid #e5e7eb', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                       }}
@@ -1283,10 +1278,10 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="day" stroke="#6b7280" />
                     <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#ffffff', 
-                        border: '1px solid #e5e7eb', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                       }}
@@ -1324,8 +1319,8 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                   {analytics.bookingStatusBreakdown.map((status, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center">
-                        <div 
-                          className="w-4 h-4 rounded-full mr-3" 
+                        <div
+                          className="w-4 h-4 rounded-full mr-3"
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         ></div>
                         <span className="font-medium text-gray-900">{status.status}</span>
@@ -1390,7 +1385,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1404,7 +1399,7 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1429,12 +1424,12 @@ const AmenityManagement: React.FC<AmenityManagementProps> = ({ societyId }) => {
                   />
                 </div>
               </div>
-              
+
               <p className="text-sm text-gray-500">
                 Maximum date range: 90 days. Excel file will be sent to your email.
               </p>
             </div>
-            
+
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={() => setShowExportModal(false)}

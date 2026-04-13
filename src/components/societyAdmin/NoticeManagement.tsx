@@ -170,7 +170,10 @@ const NoticeManagement = ({ societyId, user }: NoticeManagementProps) => {
     
     try {
       setActionLoading(noticeId);
-      const token = localStorage.getItem('token');
+      const isLocalStorageAvailable = typeof window !== 'undefined' && 
+                                     typeof window.localStorage !== 'undefined' && 
+                                     typeof window.localStorage.getItem === 'function';
+      const token = isLocalStorageAvailable ? localStorage.getItem('token') : null;
       await deleteNotice(noticeId);
       await fetchNotices();
       
@@ -231,7 +234,10 @@ const NoticeManagement = ({ societyId, user }: NoticeManagementProps) => {
   const handleViewAudit = async (notice: Notice) => {
     try {
       setSelectedNotice(notice);
-      const token = localStorage.getItem('token');
+      const isLocalStorageAvailable = typeof window !== 'undefined' && 
+                                     typeof window.localStorage !== 'undefined' && 
+                                     typeof window.localStorage.getItem === 'function';
+      const token = isLocalStorageAvailable ? localStorage.getItem('token') : null;
       const response = await getNoticeAuditLog(String(notice.id));
       setAuditLog(response.auditLog || []);
       setShowAuditModal(true);
