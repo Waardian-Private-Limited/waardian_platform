@@ -72,7 +72,7 @@ export default function DynamicAdminPage() {
   const allowedBaseRoutes = ['superadmin', 'societyadmin'];
   const validTabs: Record<string, string[]> = {
     superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management', 'opted-subscriptions'],
-    societyadmin: ['dashboard', 'members', 'wings', 'floors', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'move-management', 'polls', 'notices-dashboard', 'notices-management', 'staff', 'society-profile', 'asset-management', 'asset-dashboard', 'asset-list', 'asset-add', 'asset-edit', 'asset-booking', 'asset-movement', 'asset-maintenance', 'asset-amc', 'asset-inventory', 'asset-vendors', 'asset-reports', 'renovations', 'maintenance-requests', 'document-requests'],
+    societyadmin: ['dashboard', 'members', 'wings', 'floors', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'move-management', 'polls', 'notices-dashboard', 'notices-management', 'staff', 'society-profile', 'asset-management', 'asset-dashboard', 'asset-list', 'asset-booking', 'asset-movement', 'asset-maintenance', 'asset-amc', 'asset-inventory', 'asset-vendors', 'asset-reports', 'renovations', 'maintenance-requests', 'document-requests'],
   };
 
   const redirectToLogin = useCallback((reason: string) => {
@@ -290,10 +290,6 @@ export default function DynamicAdminPage() {
           return <AssetDashboard />;
         case 'asset-list':
           return <AssetList />;
-        case 'asset-add':
-          return <AssetAdd />;
-        case 'asset-edit':
-          return <AssetAdd editAssetId={Array.isArray(slug) ? slug[2] : undefined} />;
         case 'asset-booking':
           return <AssetBookings />;
         case 'asset-movement':

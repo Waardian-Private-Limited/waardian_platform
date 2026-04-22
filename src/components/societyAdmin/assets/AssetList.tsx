@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Plus, Download, Package, MapPin, MoreVertical, Edit2, Boxes, ChevronRight, CheckCircle2, AlertCircle, HistoryIcon, Clock } from 'lucide-react';
+import { Search, Filter, Plus, Download, Package, MapPin, MoreVertical, Edit2, Boxes, ChevronRight, CheckCircle2, AlertCircle, HistoryIcon, Clock, RefreshCw, TrendingUp, TrendingDown, IndianRupee, PieChart as PieChartIcon } from 'lucide-react';
 import { apiClient, Asset, exportAssetsToExcel } from '@/lib/apiClient';
 import clsx from 'clsx';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import AssetDetailsModal from './AssetDetailsModal';
-import AssetEditModal from './AssetEditModal';
+import AssetAddModal from './AssetAddModal';
+
+import { motion } from 'framer-motion';
 
 export default function AssetList() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -17,6 +19,7 @@ export default function AssetList() {
   const [editAssetId, setEditAssetId] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeView, setActiveView] = useState<'list' | 'financials'>('list');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
@@ -65,40 +68,42 @@ export default function AssetList() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60rem]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6 bg-gray-50/50">
+        <RefreshCw className="animate-spin text-blue-600" size={48} />
+        <p className="text-sm font-bold text-gray-400 animate-pulse uppercase tracking-[0.2em]">Loading Asset Registry...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">Asset Registry</h1>
-          <p className="text-sm text-gray-400 font-bold uppercase tracking-widest">Manage and track society infrastructure</p>
-        </div>
-      </div>
-
-      <div className="inline-flex p-1 bg-gray-100 rounded-xl mb-2">
-        <button 
-          onClick={() => setActiveView('list')}
-          className={clsx("px-6 py-2 rounded-lg text-sm font-bold transition-all", activeView === 'list' ? "bg-blue-600 text-white shadow-sm" : "hover:text-gray-900 text-gray-500")}
-        >
-          Assets
-        </button>
-        <button 
-          onClick={() => setActiveView('financials')}
-          className={clsx("px-6 py-2 rounded-lg text-sm font-bold transition-all", activeView === 'financials' ? "bg-blue-600 text-white shadow-sm" : "hover:text-gray-900 text-gray-500")}
-        >
-          Financial Reports
-        </button>
-        <button 
-          onClick={() => router.push('/societyadmin/asset-dashboard')}
-          className="px-6 py-2 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-900 transition-all"
-        >
-          Admin Dashboard
-        </button>
+    <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen bg-gray-50/50">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-200">
+         <div className="space-y-1">
+            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Asset Registry</h1>
+            <p className="text-gray-500 font-medium tracking-tight">Systematic inventory and infrastructure oversight</p>
+         </div>
+         <div className="flex items-center gap-3">
+            <div className="inline-flex p-1.5 bg-gray-200/50 rounded-lg border border-gray-200 backdrop-blur-sm">
+               <button 
+                 className="px-6 py-2.5 rounded-lg text-sm font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 transform hover:scale-105 active:scale-95 transition-all"
+               >
+                 Registry View
+               </button>
+               <button 
+                 onClick={() => router.push('/societyadmin/asset-dashboard')}
+                 className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-white transition-all transform hover:scale-105 active:scale-95"
+               >
+                 Diagnostic Center
+               </button>
+            </div>
+            <button 
+              onClick={fetchData}
+              className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all active:scale-90"
+            >
+              <RefreshCw size={20} />
+            </button>
+         </div>
       </div>
 
       {activeView === 'list' ? (
@@ -115,7 +120,7 @@ export default function AssetList() {
                     placeholder="Search assets by name or category..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-14 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-gray-400"
+                    className="w-full pl-14 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-gray-400"
                   />
                 </div>
 
@@ -126,7 +131,7 @@ export default function AssetList() {
                   <select 
                     value={activeCategory}
                     onChange={(e) => setActiveCategory(e.target.value)}
-                    className="pl-14 pr-10 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium appearance-none min-w-[180px] outline-none hover:border-gray-300 transition-all cursor-pointer"
+                    className="pl-14 pr-10 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium appearance-none min-w-[180px] outline-none hover:border-gray-300 transition-all cursor-pointer"
                   >
                     {categories.map(c => <option key={c} value={c}>{c === 'All' ? 'All Categories' : c}</option>)}
                   </select>
@@ -138,7 +143,10 @@ export default function AssetList() {
 
               <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                  <button 
-                   onClick={() => router.push('/societyadmin/asset-add')}
+                   onClick={() => {
+                     setEditAssetId(null);
+                     setIsAddModalOpen(true);
+                   }}
                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg transition-all shadow-lg active:scale-95 text-sm font-bold"
                  >
                    <Plus size={18} />
@@ -187,7 +195,7 @@ export default function AssetList() {
                       >
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
+                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
                               asset.status === 'missing' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
                             }`}>
                               <Package size={20} />
@@ -199,7 +207,7 @@ export default function AssetList() {
                           </div>
                         </td>
                         <td className="px-8 py-6">
-                          <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full text-[11px] font-bold shadow-sm border border-blue-100/50">
+                          <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-[11px] font-bold shadow-sm border border-blue-100/50">
                             {asset.category}
                           </span>
                         </td>
@@ -212,7 +220,7 @@ export default function AssetList() {
                         <td className="px-8 py-6">
                           <span
                             className={clsx(
-                              'inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm border',
+                              'inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm border',
                               {
                                 'bg-green-100 text-green-800 border-green-200': asset.status === 'in_use' || asset.status === 'active',
                                 'bg-yellow-100 text-yellow-800 border-yellow-200': asset.status === 'under_maintenance',
@@ -236,6 +244,7 @@ export default function AssetList() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditAssetId(Number(asset.id));
+                                setIsAddModalOpen(true);
                               }}
                               className="p-2 hover:bg-white rounded-lg transition-all text-blue-400 hover:text-blue-600 border border-transparent hover:border-blue-100 shadow-sm"
                             >
@@ -258,8 +267,8 @@ export default function AssetList() {
                 Showing <span className="text-gray-900">1 to {filteredAssets.length}</span> of <span className="text-gray-900">{filteredAssets.length}</span> assets
               </p>
               <div className="flex items-center gap-2">
-                <button className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-300 cursor-not-allowed">Previous</button>
-                <button className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-300 cursor-not-allowed">Next</button>
+                <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-300 cursor-not-allowed">Previous</button>
+                <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-300 cursor-not-allowed">Next</button>
               </div>
             </div>
           </div>
@@ -274,6 +283,7 @@ export default function AssetList() {
           onClose={() => setSelectedAssetId(null)} 
           onEdit={() => {
             setEditAssetId(selectedAssetId);
+            setIsAddModalOpen(true);
             setSelectedAssetId(null);
           }}
           onUpdate={() => {
@@ -283,16 +293,15 @@ export default function AssetList() {
         />
       )}
 
-      {editAssetId && (
-        <AssetEditModal 
-          assetId={editAssetId} 
-          onClose={() => setEditAssetId(null)} 
-          onUpdate={() => {
-            setEditAssetId(null);
-            fetchData();
-          }}
-        />
-      )}
+      <AssetAddModal 
+        isOpen={isAddModalOpen}
+        onClose={() => {
+           setIsAddModalOpen(false);
+           setEditAssetId(null);
+        }}
+        editAssetId={editAssetId}
+        onSuccess={fetchData}
+      />
     </div>
   );
 }
@@ -333,33 +342,39 @@ function FinancialReportingModule({ assets, onExport }: { assets: Asset[], onExp
   }, [assets]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Global Asset Value</p>
-           <p className="text-2xl font-black text-gray-900">₹{metrics.totalCurrentValue.toLocaleString()}</p>
-           <p className="text-[10px] font-bold text-gray-400 italic">Net Book Value</p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Accumulated Dep.</p>
-           <p className="text-2xl font-black text-red-600">₹{metrics.totalDepreciation.toLocaleString()}</p>
-           <p className="text-[10px] font-bold text-red-400 italic">Total Value Loss</p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Liquidation Revenue</p>
-           <p className="text-2xl font-black text-emerald-600">₹{metrics.totalDisposal.toLocaleString()}</p>
-           <p className="text-[10px] font-bold text-emerald-400 italic">From Disposals</p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-           <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Net Realized P/L</p>
-           <p className={clsx("text-2xl font-black", metrics.totalProfitLoss >= 0 ? "text-emerald-600" : "text-red-600")}>
-              {metrics.totalProfitLoss >= 0 ? '+' : ''}₹{Math.abs(metrics.totalProfitLoss).toLocaleString()}
-           </p>
-           <p className="text-[10px] font-bold text-gray-400 italic">Liquidation Outcome</p>
-        </div>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <FinancialStatCard 
+          title="Net Book Value" 
+          value={`₹${metrics.totalCurrentValue.toLocaleString()}`} 
+          label="Global Asset Valuation"
+          icon={<IndianRupee size={22} />}
+          color="blue"
+        />
+        <FinancialStatCard 
+          title="Accumulated Dep." 
+          value={`₹${metrics.totalDepreciation.toLocaleString()}`} 
+          label="Total Value Loss"
+          icon={<TrendingDown size={22} />}
+          color="red"
+        />
+        <FinancialStatCard 
+          title="Liquidation Rev." 
+          value={`₹${metrics.totalDisposal.toLocaleString()}`} 
+          label="From Disposals"
+          icon={<PieChartIcon size={22} />}
+          color="emerald"
+        />
+        <FinancialStatCard 
+          title="Net Realized P/L" 
+          value={`${metrics.totalProfitLoss >= 0 ? '+' : ''}₹${Math.abs(metrics.totalProfitLoss).toLocaleString()}`} 
+          label="Liquidation Outcome"
+          icon={metrics.totalProfitLoss >= 0 ? <TrendingUp size={22} /> : <TrendingDown size={22} />}
+          color={metrics.totalProfitLoss >= 0 ? "emerald" : "red"}
+        />
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-[600px] hover:shadow-md transition-shadow">
         <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
            <div className="flex gap-4">
               <button 
@@ -490,6 +505,30 @@ function FinancialReportingModule({ assets, onExport }: { assets: Asset[], onExp
               </tbody>
            </table>
         </div>
+      </div>
+    </div>
+  );
+}
+function FinancialStatCard({ title, value, label, icon, color }: any) {
+  return (
+    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all group">
+      <div className="flex items-center justify-between mb-4">
+        <div className={clsx(
+          "w-12 h-12 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border",
+          color === 'blue' ? "bg-blue-50 text-blue-600 border-blue-100" : 
+          color === 'red' ? "bg-red-50 text-red-600 border-red-100" :
+          "bg-emerald-50 text-emerald-600 border-emerald-100"
+        )}>
+          {icon}
+        </div>
+        <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">{title}</span>
+      </div>
+      <div>
+        <p className={clsx(
+          "text-2xl font-black tracking-tight",
+          color === 'red' ? "text-red-600" : color === 'emerald' ? "text-emerald-600" : "text-gray-900"
+        )}>{value}</p>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 opacity-70">{label}</p>
       </div>
     </div>
   );

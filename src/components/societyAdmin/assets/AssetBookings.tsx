@@ -14,6 +14,80 @@ import { getAllBookings, updateBookingStatus, AssetBooking, recordHandover, veri
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// --- Shared Design System Components ---
+
+const StatCard = ({
+  title,
+  value,
+  icon: Icon,
+  trend,
+  trendValue,
+  color = 'blue'
+}: {
+  title: string;
+  value: string | number;
+  icon: any;
+  trend?: 'up' | 'down';
+  trendValue?: string;
+  color?: string;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all group"
+  >
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{title}</p>
+        <p className="text-2xl font-black text-gray-900 mt-2 tracking-tighter group-hover:text-blue-600 transition-colors">{value}</p>
+        {trendValue && (
+          <div className="flex items-center mt-2 text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full w-fit">
+            {trend === 'up' ? <TrendingUp size={10} className="mr-1" /> : <ArrowDownRight size={10} className="mr-1" />}
+            {trendValue}
+          </div>
+        )}
+      </div>
+      <div className={clsx(
+        "p-4 rounded-xl shadow-sm border transition-transform group-hover:scale-110",
+        color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+        color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+        color === 'yellow' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+        'bg-red-50 text-red-600 border-red-100'
+      )}>
+        <Icon className="w-5 h-5" />
+      </div>
+    </div>
+  </motion.div>
+);
+
+const FinancialStatCard = ({ title, value, label, icon, color }: any) => (
+   <motion.div 
+     initial={{ opacity: 0, scale: 0.95 }}
+     animate={{ opacity: 1, scale: 1 }}
+     className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all group"
+   >
+     <div className="flex items-center justify-between mb-4">
+       <div className={clsx(
+         "w-12 h-12 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border",
+         color === 'blue' ? "bg-blue-50 text-blue-600 border-blue-100" : 
+         color === 'red' ? "bg-red-50 text-red-600 border-red-100" :
+         "bg-emerald-50 text-emerald-600 border-emerald-100"
+       )}>
+         {icon}
+       </div>
+       <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">{title}</span>
+     </div>
+     <div>
+       <p className={clsx(
+         "text-2xl font-black tracking-tighter",
+         color === 'red' ? "text-red-600" : color === 'emerald' ? "text-emerald-600" : "text-gray-900"
+       )}>{value}</p>
+       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 opacity-70">{label}</p>
+     </div>
+   </motion.div>
+);
 
 // --- Helper Components & Functions ---
 
@@ -24,88 +98,18 @@ function formatDateSafe(date: any) {
    return format(d, 'MMM dd, HH:mm');
 }
 
-function MetricCard({ label, value, icon, color, status }: any) {
-   const colors: any = {
-      indigo: 'bg-indigo-600 text-white shadow-indigo-500/20',
-      blue: 'bg-blue-600 text-white shadow-blue-500/20',
-      emerald: 'bg-emerald-600 text-white shadow-emerald-500/20',
-      amber: 'bg-amber-600 text-white shadow-amber-500/20'
-   };
-   const badgeColors: any = {
-      indigo: 'text-indigo-600 bg-indigo-50 border-indigo-100',
-      blue: 'text-blue-600 bg-blue-50 border-blue-100',
-      emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      amber: 'text-amber-600 bg-amber-50 border-amber-100'
-   };
-   return (
-      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col gap-4 group hover:shadow-xl transition-all h-full">
-         <div className="flex items-center justify-between">
-            <div className={clsx("w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110 shadow-lg", colors[color])}>
-               {icon}
-            </div>
-            <div className={clsx("text-[8px] font-black uppercase tracking-[0.1em] px-2 py-1 rounded-md border", badgeColors[color])}>
-               {status}
-            </div>
-         </div>
-         <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 leading-none">{label}</p>
-            <h3 className="text-xl font-bold text-gray-900 tracking-tight leading-none uppercase">{value}</h3>
-         </div>
-      </div>
-   );
-}
-
 function HandoverInput({ label, value, onChange, color }: any) {
    const border = color === 'emerald' ? 'border-emerald-100 focus:ring-emerald-200' : 'border-blue-100 focus:ring-blue-200';
    const text = color === 'emerald' ? 'text-emerald-600' : 'text-blue-600';
    return (
-      <div className="space-y-1">
-         <label className={`text-[9px] font-black ${text} uppercase tracking-widest`}>{label}</label>
-         <input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))} className={`w-full px-3 py-2 bg-white border rounded-lg text-sm font-bold shadow-sm outline-none focus:ring-2 ${border}`} />
-      </div>
-   );
-}
-
-const TabButton = ({ active, onClick, icon, label }: any) => (
-   <button
-      onClick={onClick}
-      className={clsx(
-         "flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-         active ? "bg-white text-gray-900 shadow-lg border border-gray-100" : "text-gray-400 hover:text-gray-600"
-      )}
-   >
-      {icon} {label}
-   </button>
-);
-
-const RangeBtn = ({ onClick, label }: any) => (
-   <button onClick={onClick} className="px-3 py-1.5 hover:bg-white hover:shadow-sm rounded-lg text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-blue-600 transition-all">{label}</button>
-);
-
-const RevenueStat = ({ label, value, color }: any) => {
-   const colors: any = {
-      blue: 'bg-blue-600 text-white shadow-blue-500/20',
-      emerald: 'bg-emerald-600 text-white shadow-emerald-500/20',
-      indigo: 'bg-indigo-600 text-white shadow-indigo-500/20'
-   };
-   return (
-      <div className={clsx("p-5 rounded-2xl border flex flex-col items-end min-w-[150px] shadow-sm bg-white", colors[color])}>
-         <p className="text-[9px] font-bold uppercase tracking-widest mb-1 opacity-70">{label}</p>
-         <h4 className="text-xl font-bold leading-none uppercase tracking-tight">{value}</h4>
-      </div>
-   );
-}
-
-const MetricSquare = ({ label, value, color }: any) => {
-   const colors: any = {
-      blue: 'bg-blue-600 shadow-blue-500/30',
-      amber: 'bg-amber-600 shadow-amber-500/30',
-      emerald: 'bg-emerald-600 shadow-emerald-500/30'
-   };
-   return (
-      <div className={clsx("p-5 rounded-2xl shadow-lg flex flex-col items-end min-w-[150px]", colors[color])}>
-         <p className="text-[9px] font-bold text-white/70 uppercase tracking-widest mb-1">{label}</p>
-         <h4 className="text-xl font-bold text-white leading-none uppercase tracking-tight">{value}</h4>
+      <div className="space-y-1.5 flex flex-col">
+         <label className={`text-[10px] font-black ${text} uppercase tracking-widest pl-1`}>{label}</label>
+         <input 
+            type="number" 
+            value={value} 
+            onChange={(e) => onChange(Number(e.target.value))} 
+            className={`w-full px-4 py-2.5 bg-gray-50 border rounded-lg text-sm font-bold shadow-sm outline-none focus:bg-white focus:ring-4 transition-all ${border}`} 
+         />
       </div>
    );
 }
@@ -116,16 +120,16 @@ function BookingDetailDrawer({
    collectedPenalty, setCollectedPenalty
 }: any) {
    const timeline = [
-      { id: 'requested', label: 'Reservation Requested', date: booking.created_at, icon: <Clock size={14} />, status: 'completed' },
+      { id: 'requested', label: 'Reservation Requested', date: booking.created_at, icon: <Clock size={16} />, status: 'completed' },
       {
          id: 'approved',
          label: booking.status === 'cancelled' ? 'User Cancellation' : booking.status === 'rejected' ? 'Admin Rejection' : 'Admin Approval',
          date: booking.updated_at,
-         icon: <ShieldCheck size={14} />,
+         icon: <ShieldCheck size={16} />,
          status: ['confirmed', 'completed', 'approved'].includes(booking.status) ? 'completed' : ['rejected', 'cancelled'].includes(booking.status) ? 'failed' : 'pending'
       },
-      { id: 'outbound', label: 'Asset Handover (Checkout)', date: booking.checked_out_at, icon: <LogOut size={14} />, status: booking.checked_out_at ? 'completed' : (booking.status === 'cancelled' || booking.status === 'rejected') ? 'failed' : 'pending' },
-      { id: 'inbound', label: 'Asset Return (Checkin)', date: booking.checked_in_at, icon: <LogIn size={14} />, status: booking.checked_in_at ? 'completed' : (booking.status === 'cancelled' || booking.status === 'rejected') ? 'failed' : 'pending' }
+      { id: 'outbound', label: 'Asset Handover (Checkout)', date: booking.checked_out_at, icon: <LogOut size={16} />, status: booking.checked_out_at ? 'completed' : (booking.status === 'cancelled' || booking.status === 'rejected') ? 'failed' : 'pending' },
+      { id: 'inbound', label: 'Asset Return (Checkin)', date: booking.checked_in_at, icon: <LogIn size={16} />, status: booking.checked_in_at ? 'completed' : (booking.status === 'cancelled' || booking.status === 'rejected') ? 'failed' : 'pending' }
    ];
 
    const currentTime = new Date();
@@ -134,110 +138,139 @@ function BookingDetailDrawer({
    const calculatedPenalty = (diffMins > manualGracePeriod) ? Math.ceil((diffMins - manualGracePeriod) / 60) * manualPenaltyRate : 0;
 
    return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex justify-end overflow-hidden">
-         <div className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
-            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-               <div>
-                  <h3 className="text-xl font-bold text-gray-900 uppercase tracking-tighter">Reservation Control</h3>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase mt-1 tracking-widest">System Identifier: {booking.booking_id}</p>
+      <div className="fixed inset-0 z-[120] flex justify-end">
+         <motion.div 
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           exit={{ opacity: 0 }}
+           onClick={onClose}
+           className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
+         />
+         <motion.div 
+           initial={{ x: '100%' }}
+           animate={{ x: 0 }}
+           exit={{ x: '100%' }}
+           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+           className="w-full max-w-lg bg-gray-50 h-full shadow-2xl relative flex flex-col"
+         >
+            {/* Drawer Header */}
+            <div className="bg-white p-8 border-b border-gray-200 flex items-center justify-between">
+               <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
+                     <Calendar size={28} />
+                  </div>
+                  <div>
+                     <h2 className="text-xl font-extrabold text-gray-900 tracking-tight leading-none uppercase">Reservation Control</h2>
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Identifier: #{booking.booking_id}</p>
+                  </div>
                </div>
-               <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-all"><X size={20} className="text-gray-400" /></button>
+               <button 
+                 onClick={onClose} 
+                 className="p-3 hover:bg-gray-100 rounded-lg transition-all active:scale-90 text-gray-400 hover:text-gray-900"
+               >
+                 <X size={24} />
+               </button>
             </div>
 
-            <div className="p-8 flex-1 overflow-y-auto space-y-8 custom-scrollbar">
-               <div className="flex items-center gap-6 p-6 bg-blue-50 rounded-2xl border border-blue-100 shadow-sm">
-                  <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+               {/* Asset Status Strip */}
+               <div className="flex items-center gap-6 p-6 bg-white rounded-lg border border-gray-200 md:shadow-sm">
+                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center border border-blue-100">
                      <Package size={32} />
                   </div>
                   <div>
-                     <h4 className="text-2xl font-black text-gray-900 uppercase tracking-tight leading-none mb-2">{booking.asset_name}</h4>
-                     <p className="text-[10px] text-blue-600 font-black bg-white px-2 py-0.5 rounded shadow-sm w-fit uppercase tracking-tighter">Status: {(booking.status || 'Pending').toUpperCase()}</p>
+                     <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-1">{booking.asset_name}</h4>
+                     <p className={clsx(
+                       "px-3 py-1 rounded-lg text-[10px] font-black w-fit uppercase tracking-widest border",
+                       booking.status === 'confirmed' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                       booking.status === 'pending' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                       "bg-gray-100 text-gray-400 border-gray-200"
+                     )}>
+                       Current Status: {booking.status}
+                     </p>
                   </div>
                </div>
 
+               {/* Logistical Actions */}
                <div className="space-y-4">
                   <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Logistical Duty Operations</h4>
 
                   {booking.status === 'confirmed' && !booking.checked_out_at && (
-                     <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 space-y-6 shadow-lg">
+                     <div className="p-6 bg-emerald-50 rounded-lg border border-emerald-100 space-y-6 shadow-sm">
                         <p className="text-xs font-black text-emerald-900 uppercase tracking-tight flex items-center gap-2"><LogOut size={16} /> Handover Protocol</p>
                         <div className="grid grid-cols-2 gap-4">
                            <HandoverInput label="Late Rate (₹/hr)" value={manualPenaltyRate} onChange={setManualPenaltyRate} color="emerald" />
                            <HandoverInput label="Grace Window (min)" value={manualGracePeriod} onChange={setManualGracePeriod} color="emerald" />
                         </div>
-                        <textarea placeholder="Enter handover remarks..." value={handoverRemarks} onChange={(e) => setHandoverRemarks(e.target.value)} className="w-full px-4 py-3 bg-white border border-emerald-100 rounded-xl text-sm outline-none resize-none h-24" />
-                        <button onClick={() => onHandover(booking.id, 'checkout')} className="w-full py-4 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all">Record Asset Outflow</button>
+                        <textarea placeholder="Enter handover remarks..." value={handoverRemarks} onChange={(e) => setHandoverRemarks(e.target.value)} className="w-full px-4 py-3 bg-white border border-emerald-100 rounded-lg text-sm outline-none resize-none h-24 focus:ring-4 focus:ring-emerald-100 transition-all" />
+                        <button onClick={() => onHandover(booking.id, 'checkout')} className="w-full py-4 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">Record Asset Outflow</button>
                      </div>
                   )}
 
                   {booking.checked_out_at && !booking.checked_in_at && (
-                     <div className="p-6 bg-blue-50 rounded-2xl border border-blue-100 space-y-6 shadow-lg">
+                     <div className="space-y-6 animate-in slide-in-from-top-4">
                         <p className="text-xs font-black text-blue-900 uppercase tracking-tight flex items-center gap-2"><LogIn size={16} /> Return & Settle Account</p>
-                        <div className="bg-white p-6 rounded-2xl border border-blue-200 shadow-inner">
-                           <div className="flex justify-between items-center mb-6">
-                              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Calculated Late Liability</p>
-                              <p className="text-xl font-bold text-red-600 font-mono">₹{calculatedPenalty}</p>
+                        <div className="bg-white p-6 rounded-lg border border-blue-200 shadow-sm space-y-6">
+                           <div className="flex justify-between items-center">
+                              <div>
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Calculated Late Liability</p>
+                                 <p className="text-2xl font-black text-red-600 tracking-tighter">₹{calculatedPenalty}</p>
+                              </div>
+                              <label className="flex items-center gap-3 cursor-pointer bg-gray-50 p-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+                                 <input type="checkbox" checked={waivePenalty} onChange={(e) => {
+                                    setWaivePenalty(e.target.checked);
+                                    setCollectedPenalty(e.target.checked ? 0 : calculatedPenalty);
+                                 }} className="w-5 h-5 rounded-lg border-gray-300 text-blue-600 focus:ring-blue-500" />
+                                 <span className="text-[10px] font-black text-gray-700 uppercase tracking-tight">Waive Penalty</span>
+                              </label>
                            </div>
-                           <label className="flex items-center gap-3 cursor-pointer bg-gray-50 p-3 rounded-xl border border-gray-100">
-                              <input type="checkbox" checked={waivePenalty} onChange={(e) => {
-                                 setWaivePenalty(e.target.checked);
-                                 setCollectedPenalty(e.target.checked ? 0 : calculatedPenalty);
-                              }} className="w-5 h-5 rounded-lg border-gray-300 text-blue-600 focus:ring-blue-500" />
-                              <span className="text-xs font-black text-gray-700 uppercase">Waive Final Penalty Protocol</span>
-                           </label>
+                           
                            {!waivePenalty && (
-                              <div className="mt-6 space-y-2">
-                                 <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest">Adjusted Settlement (₹)</label>
-                                 <input type="number" value={collectedPenalty} onChange={(e) => setCollectedPenalty(Number(e.target.value))} className="w-full px-4 py-3 bg-white border-2 border-blue-600 rounded-xl text-lg font-black text-blue-600 shadow-sm outline-none" />
+                              <div className="pt-4 border-t border-gray-100 space-y-2">
+                                 <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest pl-1">Adjusted Settlement (₹)</label>
+                                 <input type="number" value={collectedPenalty} onChange={(e) => setCollectedPenalty(Number(e.target.value))} className="w-full px-5 py-3 bg-gray-50 border-2 border-blue-600 rounded-lg text-xl font-black text-blue-600 shadow-sm outline-none focus:bg-white transition-all" />
                               </div>
                            )}
                         </div>
-                        <textarea placeholder="Enter return condition remarks..." value={handoverRemarks} onChange={(e) => setHandoverRemarks(e.target.value)} className="w-full px-4 py-3 bg-white border border-blue-100 rounded-xl text-sm outline-none resize-none h-24" />
-                        <button onClick={() => onHandover(booking.id, 'checkin')} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 transition-all">Record Asset Return</button>
+                        <textarea placeholder="Enter return condition remarks..." value={handoverRemarks} onChange={(e) => setHandoverRemarks(e.target.value)} className="w-full px-4 py-3 bg-white border border-blue-100 rounded-lg text-sm outline-none resize-none h-24 focus:ring-4 focus:ring-blue-100 transition-all" />
+                        <button onClick={() => onHandover(booking.id, 'checkin')} className="w-full py-4 bg-blue-600 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-all">Record Asset Return</button>
                      </div>
                   )}
 
                   {booking.status === 'pending' && (
                      <div className="pt-4 space-y-6">
-                        <button onClick={() => onUpdate(booking.id, 'confirmed')} className="w-full py-4 bg-blue-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 transition-all">Authorize Reservation Protocol</button>
-                        <div className="p-6 bg-red-50 rounded-2xl border border-red-100 space-y-4">
-                           <label className="text-[9px] font-black text-red-500 uppercase tracking-widest">Formal Denial Justification</label>
-                           <textarea placeholder="State reason..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="w-full px-4 py-3 bg-white border border-red-200 rounded-xl text-sm font-bold outline-none h-24 focus:ring-4 focus:ring-red-100 transition-all uppercase" />
-                           <button disabled={!rejectionReason} onClick={() => onUpdate(booking.id, 'rejected', rejectionReason)} className="w-full py-3 bg-red-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">Execute Denial</button>
+                        <button onClick={() => onUpdate(booking.id, 'confirmed')} className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/25 active:scale-95 transition-all">Authorize Reservation</button>
+                        <div className="p-6 bg-red-50 rounded-lg border border-red-100 space-y-4">
+                           <label className="text-[10px] font-black text-red-500 uppercase tracking-widest pl-1">Formal Denial Justification</label>
+                           <textarea placeholder="State reason..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="w-full px-4 py-3 bg-white border border-red-200 rounded-lg text-sm font-bold outline-none h-24 focus:ring-4 focus:ring-red-100 transition-all" />
+                           <button disabled={!rejectionReason} onClick={() => onUpdate(booking.id, 'rejected', rejectionReason)} className="w-full py-3 bg-red-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50">Execute Denial</button>
                         </div>
                      </div>
                   )}
                </div>
 
-               {/* Full Timeline Restoration */}
+               {/* Timeline Restored with premium style */}
                <div className="space-y-6">
                   <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Reservation Lifecycle Audit</h4>
-                  <div className="relative pl-6 space-y-8 before:content-[''] before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-gray-100">
+                  <div className="relative space-y-8 pl-4">
+                     <div className="absolute left-[23px] top-2 bottom-2 w-[2px] bg-gray-200" />
                      {timeline.map((item, idx) => (
-                        <div key={idx} className="relative">
+                        <div key={idx} className="relative flex items-start gap-6">
                            <div className={clsx(
-                              "absolute left-[-21px] top-1 w-[12px] h-[12px] rounded-full border-2 border-white shadow-sm ring-4 ring-white z-10",
-                              item.status === 'completed' ? "bg-blue-600" : item.status === 'failed' ? "bg-red-500" : "bg-gray-200"
+                               "w-5 h-5 rounded-full border-4 border-white shadow-sm ring-2 z-10 shrink-0",
+                               item.status === 'completed' ? "bg-emerald-500 ring-emerald-100" : 
+                               item.status === 'failed' ? "bg-red-500 ring-red-100" : 
+                               "bg-gray-300 ring-gray-100"
                            )} />
-                           <div className="flex justify-between items-start">
+                           <div className="flex-1 bg-white p-4 rounded-lg border border-gray-100 shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
                               <div>
-                                 <p className="text-xs font-black text-gray-900 uppercase leading-none">{item.label}</p>
-                                 <p className="text-[10px] text-gray-400 font-bold mt-1 tracking-tight">{formatDateSafe(item.date)}</p>
-                                 {item.id === 'approved' && booking.checked_out_at && (
-                                    <div className="mt-2 p-3 bg-gray-50 rounded-xl border border-gray-100 flex gap-4">
-                                       <div>
-                                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Late Rate (₹/hr)</p>
-                                          <p className="text-[11px] font-black text-blue-600 uppercase tracking-tight leading-none">{booking.manual_penalty_rate || 10}</p>
-                                       </div>
-                                       <div className="w-[1px] bg-gray-200" />
-                                       <div>
-                                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Grace Window (min)</p>
-                                          <p className="text-[11px] font-black text-blue-600 uppercase tracking-tight leading-none">{booking.manual_grace_period || 15}</p>
-                                       </div>
-                                    </div>
-                                 )}
+                                 <p className="text-[11px] font-black text-gray-900 uppercase leading-none mb-1">{item.label}</p>
+                                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{formatDateSafe(item.date)}</p>
                               </div>
-                              <div className={clsx("p-1.5 rounded-lg", item.status === 'completed' ? "bg-blue-50 text-blue-600" : "bg-gray-50 text-gray-300")}>
+                              <div className={clsx(
+                                "p-2 rounded-lg",
+                                item.status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-gray-50 text-gray-400"
+                              )}>
                                  {item.icon}
                               </div>
                            </div>
@@ -246,45 +279,45 @@ function BookingDetailDrawer({
                   </div>
                </div>
 
-               {/* Member/Financial Breakdown Restoration */}
-               <div className="space-y-4">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Fiscal Components</h4>
-                  <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 space-y-4">
-                     <div className="flex justify-between">
-                        <span className="text-xs font-bold text-gray-500 uppercase">Base Fare</span>
-                        <span className="text-xs font-black text-gray-900">₹{booking.total_amount}</span>
+               {/* Fiscal Breakdown */}
+               <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm space-y-6">
+                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-4 w-full flex items-center gap-2">
+                     <IndianRupee size={14} /> Fiscal Components
+                  </h3>
+                  <div className="space-y-4">
+                     <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-gray-500">
+                        <span>Base Fare Protocol</span>
+                        <span className="text-gray-900">₹{booking.total_amount}</span>
                      </div>
-                     <div className="flex justify-between">
-                        <span className="text-xs font-bold text-gray-500 uppercase">Security Deposit</span>
-                        <span className="text-xs font-black text-gray-900">₹{booking.deposit_amount}</span>
+                     <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-gray-500">
+                        <span>Security Deposit Bond</span>
+                        <span className="text-gray-900">₹{booking.deposit_amount}</span>
                      </div>
                      {booking.final_penalty_amount > 0 && (
-                        <div className="flex justify-between">
-                           <span className="text-xs font-bold text-red-500 uppercase">Late Penalty</span>
-                           <span className="text-xs font-black text-red-600">₹{booking.final_penalty_amount}</span>
+                        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-red-500">
+                           <span>Late Return Liability</span>
+                           <span className="font-black">₹{booking.final_penalty_amount}</span>
                         </div>
                      )}
-                     <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
-                        <span className="text-[10px] font-black text-gray-900 uppercase">Gross Audit Value</span>
-                        <span className="text-lg font-black text-blue-600">₹{Number(booking.total_amount) + Number(booking.final_penalty_amount || 0)}</span>
+                     <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                        <span className="text-xs font-black text-gray-900 uppercase tracking-widest">Gross Settlement</span>
+                        <span className="text-2xl font-black text-blue-600 tracking-tighter">₹{Number(booking.total_amount) + Number(booking.final_penalty_amount || 0)}</span>
                      </div>
                   </div>
                </div>
 
-               <div className="space-y-4">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Member Identification</h4>
-                  <div className="flex items-center gap-4 p-4 border border-gray-100 rounded-2xl">
-                     <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center text-white font-black text-sm">
-                        {(booking.user_name || 'U').charAt(0)}
-                     </div>
-                     <div>
-                        <p className="text-sm font-black text-gray-900 uppercase leading-none">{booking.user_name || 'Resident Member'}</p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">Role: Community Participant</p>
-                     </div>
+               {/* Member Info */}
+               <div className="flex items-center gap-4 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
+                  <div className="w-12 h-12 bg-gray-900 text-white rounded-lg flex items-center justify-center font-black text-lg">
+                     {(booking.user_name || 'U').charAt(0)}
+                  </div>
+                  <div>
+                     <p className="text-sm font-black text-gray-900 uppercase leading-none tracking-tight">{booking.user_name || 'Resident Member'}</p>
+                     <p className="text-[10px] text-gray-400 font-bold uppercase mt-1.5 tracking-widest">Community Participant Pool</p>
                   </div>
                </div>
             </div>
-         </div>
+         </motion.div>
       </div>
    );
 }
@@ -453,90 +486,126 @@ export default function AssetBookings() {
    };
 
    return (
-      <div className="p-8 space-y-10 max-w-[1600px] mx-auto min-h-screen bg-[#F8FAFC]">
+      <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen bg-gray-50/50">
          {/* Header Section */}
-         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 shrink-0">
-            <div className="space-y-4">
-               <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-600 rounded-2xl shadow-xl shadow-blue-500/20 text-white">
-                     <Package size={28} strokeWidth={2.5} />
-                  </div>
-                  <div>
-                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight uppercase leading-none">Asset Booking Management</h1>
-                     <p className="text-[10px] text-blue-600 font-bold uppercase mt-1 tracking-widest flex items-center gap-2">
-                        <ShieldCheck size={12} /> Audit-Ready Cashflow & Deposit Reconciliation
-                     </p>
-                  </div>
+         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-200">
+            <div className="space-y-1">
+               <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Booking Management</h1>
+               <p className="text-gray-500 font-medium tracking-tight">Audit-ready asset logistical oversight</p>
+            </div>
+            <div className="flex items-center gap-3">
+               <div className="inline-flex p-1.5 bg-gray-200/50 rounded-lg border border-gray-200 backdrop-blur-sm">
+                  <button 
+                    onClick={() => router.push('/societyadmin/asset-list')}
+                    className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-white transition-all transform hover:scale-105 active:scale-95"
+                  >
+                    Registry View
+                  </button>
+                  <button 
+                    onClick={() => router.push('/societyadmin/asset-dashboard')}
+                    className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-white transition-all transform hover:scale-105 active:scale-95"
+                  >
+                    Diagnostic Center
+                  </button>
+                  <button 
+                    className="px-6 py-2.5 rounded-lg text-sm font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 transform hover:scale-105 active:scale-95 transition-all"
+                  >
+                    Bookings
+                  </button>
                </div>
+               <button 
+                  onClick={fetchData}
+                  className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all active:scale-90"
+               >
+                  <RefreshCw size={20} />
+               </button>
+            </div>
+         </div>
 
-               <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl w-fit border border-gray-200">
-                  <TabButton active={activeTab === 'roster'} onClick={() => setActiveTab('roster')} icon={<LogOut size={14} />} label="Duty Roster" />
-                  <TabButton active={activeTab === 'pending'} onClick={() => setActiveTab('pending')} icon={<Zap size={14} />} label="Pending Authorizations" />
-                  <TabButton active={activeTab === 'revenue'} onClick={() => setActiveTab('revenue')} icon={<IndianRupee size={14} />} label="Revenue Ledger" />
+         {/* Internal Navigation Tabs */}
+         <div className="flex items-center gap-4 bg-white p-2 rounded-lg border border-gray-100 shadow-sm w-fit">
+            {[
+               { id: 'roster', label: 'Duty Roster', icon: ListFilter },
+               { id: 'pending', label: 'Authorizations', icon: Zap },
+               { id: 'revenue', label: 'Ledger', icon: IndianRupee }
+            ].map(tab => (
+               <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={clsx(
+                     "px-6 py-2.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
+                     activeTab === tab.id ? "bg-gray-900 text-white shadow-lg" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                  )}
+               >
+                  <tab.icon size={14} />
+                  {tab.label}
+               </button>
+            ))}
+         </div>
+
+         {/* Search Bar */}
+         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="relative group flex-1 max-w-md">
+               <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 bg-gray-50 rounded-lg group-focus-within:bg-blue-50 transition-colors">
+                  <Search className="text-gray-400 group-focus-within:text-blue-500" size={16} />
                </div>
+               <input
+                  type="text"
+                  placeholder="Search by ID, Resident, or Asset..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-14 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder:text-gray-400"
+               />
             </div>
 
-            <div className="flex items-center gap-4">
-               <div className="relative group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={16} />
-                  <input
-                     type="text"
-                     placeholder="Search registry indices..."
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                     className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-sm focus:ring-4 focus:ring-blue-100 outline-none transition-all w-full md:w-[320px] placeholder:text-gray-300"
-                  />
-               </div>
+            <div className="flex items-center gap-3">
+               <button
+                  onClick={() => handleExport(filteredData, activeTab === 'revenue' ? 'Asset Financial Ledger' : 'Asset Booking Report')}
+                  className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-lg active:scale-95 transition-all"
+               >
+                  <Download size={16} /> Export CSV
+               </button>
             </div>
          </div>
 
          <div className="space-y-6">
-            {(activeTab === 'revenue' || activeTab === 'pending' || activeTab === 'roster') && (
-               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm animate-in slide-in-from-top duration-500">
-                  <div className="flex flex-wrap items-center gap-4">
-                     {(activeTab === 'revenue' || activeTab === 'roster') && (
-                        <>
-                           <div className="flex items-center gap-2">
-                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">From</label>
-                              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-1.5 bg-gray-50 border rounded-lg text-xs font-bold outline-none" />
-                           </div>
-                           <div className="flex items-center gap-2">
-                              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">To</label>
-                              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-1.5 bg-gray-50 border rounded-lg text-xs font-bold outline-none" />
-                           </div>
-                           <div className="flex gap-1 ml-4">
-                              <RangeBtn onClick={() => setRange('month')} label="This Month" />
-                              <RangeBtn onClick={() => setRange('3months')} label="3 Months" />
-                              <RangeBtn onClick={() => setRange('year')} label="This Year" />
-                              <button onClick={() => { setStartDate(''); setEndDate(''); }} className="p-2 hover:bg-red-50 text-red-400 rounded-lg transition-all"><Trash2 size={14} /></button>
-                           </div>
-                        </>
-                     )}
-                     {activeTab === 'pending' && <h2 className="text-xs font-black text-amber-600 uppercase tracking-widest flex items-center gap-2"><Zap size={14} /> High Priority: Authorizations Queue</h2>}
+            {(activeTab === 'revenue' || activeTab === 'roster') && (
+               <motion.div 
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex flex-wrap items-center gap-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm"
+               >
+                  <div className="flex items-center gap-3">
+                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Range Filter</span>
+                     <div className="flex items-center gap-2">
+                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold outline-none" />
+                        <span className="text-gray-300">to</span>
+                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold outline-none" />
+                     </div>
                   </div>
-
-                  <button
-                     onClick={() => handleExport(filteredData, activeTab === 'revenue' ? 'Asset Financial Ledger' : 'Asset Booking Report')}
-                     className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
-                  >
-                     <Download size={14} /> Generate Export
-                  </button>
-               </div>
+                  <div className="h-6 w-[1px] bg-gray-200" />
+                  <div className="flex gap-2">
+                     {['month', '3months', 'year'].map(r => (
+                        <button key={r} onClick={() => setRange(r as any)} className="px-4 py-1.5 hover:bg-gray-50 rounded-lg text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-blue-600 border border-transparent hover:border-blue-100 transition-all capitalize">{r === '3months' ? '90 Days' : r}</button>
+                     ))}
+                     <button onClick={() => { setStartDate(''); setEndDate(''); }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
+                  </div>
+               </motion.div>
             )}
 
             {activeTab === 'roster' && (
-               <div className="space-y-6 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                     <MetricCard label="Total Inflow" value={`₹${totals.paid + totals.penalty}`} icon={<IndianRupee size={18} />} color="indigo" status="Audit Sum" />
-                     <MetricCard label="Field Status" value={bookings.filter(b => b.checked_out_at && !b.checked_in_at).length} icon={<Activity size={18} />} color="blue" status="In-Session" />
-                     <MetricCard label="Risk Assessment" value={bookings.filter(b => b.status !== 'completed' && isPast(new Date(b.end_time))).length} icon={<AlertCircle size={18} />} color="amber" status="Overdue" />
-                     <MetricCard label="Completed Duty" value={bookings.filter(b => b.status === 'completed').length} icon={<ClipboardCheck size={18} />} color="emerald" status="Archive" />
+               <div className="space-y-8 animate-in fade-in duration-500">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                     <StatCard title="Total Cashflow" value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} icon={IndianRupee} color="blue" trend="up" trendValue="Accumulated Inflow" />
+                     <StatCard title="Active Handovers" value={bookings.filter(b => b.checked_out_at && !b.checked_in_at).length} icon={Activity} color="green" trendValue="Currently Dispatched" />
+                     <StatCard title="Overdue Returns" value={bookings.filter(b => b.status !== 'completed' && isPast(new Date(b.end_time))).length} icon={AlertCircle} color="red" trendValue="SLA Breach Risks" />
+                     <StatCard title="Completed Duties" value={bookings.filter(b => b.status === 'completed').length} icon={ClipboardCheck} color="blue" trendValue="Archived History" />
                   </div>
 
-                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
+                  <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
                      <div className="p-4 border-b border-gray-50 flex gap-2 overflow-x-auto bg-gray-50/20">
                         {['all', 'uncompleted', 'overdue', 'completed'].map((tab) => (
-                           <button key={tab} onClick={() => { setActiveSubTab(tab as any); setCurrentPage(1); }} className={clsx("px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === tab ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-gray-400 hover:bg-gray-100")}>
+                           <button key={tab} onClick={() => { setActiveSubTab(tab as any); setCurrentPage(1); }} className={clsx("px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === tab ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-gray-400 hover:bg-gray-100")}>
                               {tab}
                            </button>
                         ))}
@@ -566,7 +635,7 @@ export default function AssetBookings() {
             )}
 
             {activeTab === 'pending' && (
-               <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden animate-in fade-in zoom-in duration-500">
+               <div className="bg-white rounded-lg border border-gray-100 shadow-xl overflow-hidden animate-in fade-in zoom-in duration-500">
                   <div className="overflow-x-auto">
                      <table className="w-full text-left min-w-[900px]">
                         <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-wider">
@@ -589,22 +658,39 @@ export default function AssetBookings() {
             )}
 
             {activeTab === 'revenue' && (
-               <div className="space-y-10 animate-in fade-in duration-500">
-                  <div className="p-10 border-b border-gray-100 bg-white rounded-[32px] border border-gray-100 shadow-xl shadow-gray-200/50">
-                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-10">
-                        <div>
-                           <h3 className="text-xl font-bold text-gray-900 uppercase tracking-tight">Asset Financial Ledger</h3>
-                           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2">Audit-Ready Cashflow & Deposit Reconciliation</p>
-                        </div>
-                        <div className="flex flex-wrap gap-4">
-                           <RevenueStat label="Gross Collection" value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} color="blue" />
-                           <MetricSquare label="Security Held" value={`₹${totals.deposit.toLocaleString()}`} color="amber" />
-                           <RevenueStat label="Net Liquidity" value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} color="emerald" />
-                        </div>
-                     </div>
+               <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                     <FinancialStatCard 
+                       title="Gross Revenue" 
+                       value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} 
+                       label="Total Collected Liquidity"
+                       icon={<IndianRupee size={22} />}
+                       color="blue"
+                     />
+                     <FinancialStatCard 
+                       title="Security Bond Assets" 
+                       value={`₹${totals.deposit.toLocaleString()}`} 
+                       label="Currently Held Deposits"
+                       icon={<ShieldCheck size={22} />}
+                       color="emerald"
+                     />
+                     <FinancialStatCard 
+                       title="Accrued Penalties" 
+                       value={`₹${totals.penalty.toLocaleString()}`} 
+                       label="SLA Violation Inflow"
+                       icon={<TrendingUp size={22} />}
+                       color="red"
+                     />
+                     <FinancialStatCard 
+                       title="Net Settlement" 
+                       value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} 
+                       label="Auditable Balance"
+                       icon={<Activity size={22} />}
+                       color="blue"
+                     />
                   </div>
 
-                  <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                      <table className="w-full text-left">
                         <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-wider">
                            <tr>
@@ -618,13 +704,13 @@ export default function AssetBookings() {
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                            {filteredData.map((booking) => (
-                              <tr key={booking.id} className="hover:bg-gray-50 transition-colors group">
+                              <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors group">
                                  <td className="px-8 py-5">
                                     <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors uppercase tracking-widest">{booking.booking_id}</span>
                                  </td>
                                  <td className="px-8 py-5">
                                     <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{booking.asset_name}</p>
-                                    <p className="text-[9px] text-gray-400 font-bold uppercase mt-1">Ref: {booking.user_name}</p>
+                                    <p className="text-[9px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Ref: {booking.user_name}</p>
                                  </td>
                                  <td className="px-8 py-5 text-right text-xs font-bold text-gray-600">₹{booking.total_amount}</td>
                                  <td className="px-8 py-5 text-right text-xs font-bold text-red-500">₹{booking.final_penalty_amount || 0}</td>
@@ -637,7 +723,7 @@ export default function AssetBookings() {
                         </tbody>
                      </table>
                   </div>
-               </div>
+               </>
             )}
          </div>
 
@@ -673,16 +759,21 @@ function RegistryRow({ booking, onClick, mode = 'roster' }: any) {
    const isInSession = booking.checked_out_at && !booking.checked_in_at;
 
    return (
-      <tr className="hover:bg-blue-50/30 transition-all group cursor-pointer" onClick={onClick}>
+      <motion.tr 
+         initial={{ opacity: 0 }}
+         animate={{ opacity: 1 }}
+         className="hover:bg-blue-50/30 transition-all group cursor-pointer" 
+         onClick={onClick}
+      >
          <td className="px-8 py-5">
             <div className="flex items-center gap-4">
-               <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg group-hover:scale-110 transition-transform">
+               <div className="w-10 h-10 bg-gray-900 text-white rounded-lg flex items-center justify-center font-bold text-sm group-hover:scale-110 transition-transform shadow-sm">
                   {(booking.user_name || 'U').charAt(0)}
                </div>
                <div>
-                  <p className="text-sm font-black text-gray-900 uppercase leading-none">{booking.user_name || 'Resident Member'}</p>
+                  <p className="text-sm font-black text-gray-900 uppercase leading-none tracking-tight">{booking.user_name || 'Resident Member'}</p>
                   <p className="text-[9px] text-gray-400 font-bold uppercase mt-1.5 tracking-widest flex items-center gap-1.5">
-                     <Globe size={10} /> Community Node
+                     <MapPin size={10} className="text-blue-500" /> Community Sector
                   </p>
                </div>
             </div>
@@ -690,29 +781,30 @@ function RegistryRow({ booking, onClick, mode = 'roster' }: any) {
          <td className="px-8 py-5">
             <div className="flex flex-col">
                <span className="text-xs font-black text-gray-900 uppercase tracking-tight">{booking.asset_name}</span>
-               <span className="text-[9px] font-bold text-gray-400 uppercase mt-1 tracking-widest">{booking.booking_id}</span>
+               <span className="text-[9px] font-bold text-gray-400 uppercase mt-1 tracking-widest leading-none">#{booking.booking_id}</span>
             </div>
          </td>
          <td className="px-8 py-5">
             <div className="flex flex-col items-center">
-               <div className="flex items-center gap-2 text-[10px] font-black text-gray-900 uppercase tracking-tighter">
+               <div className="flex items-center gap-2 text-[10px] font-black text-gray-900 uppercase tracking-tighter bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">
                   <span>{booking.start_time ? format(new Date(booking.start_time), 'HH:mm') : '--:--'}</span>
                   <ChevronRight size={10} className="text-gray-300" />
                   <span>{booking.end_time ? format(new Date(booking.end_time), 'HH:mm') : '--:--'}</span>
                </div>
-               <span className="text-[9px] text-gray-400 font-bold uppercase mt-1 tracking-widest">{booking.start_time ? format(new Date(booking.start_time), 'MMM dd') : '---'}</span>
+               <span className="text-[9px] text-gray-400 font-bold uppercase mt-1.5 tracking-widest">{booking.start_time ? format(new Date(booking.start_time), 'MMM dd, yyyy') : '---'}</span>
             </div>
          </td>
          {mode === 'roster' ? (
             <>
                <td className="px-8 py-5">
-                  <div className="flex items-center gap-3">
-                     <StatusPill status={isInSession ? 'IN-SESSION' : booking.status} isOverdue={isOverdue} />
-                  </div>
+                  <StatusPill status={isInSession ? 'IN-SESSION' : booking.status} isOverdue={isOverdue} />
                </td>
                <td className="px-8 py-5 text-right">
-                  <p className="text-sm font-black text-gray-900 leading-none uppercase">₹{booking.total_amount}</p>
-                  <p className={clsx("text-[9px] font-black uppercase mt-1 tracking-widest", booking.payment_status === 'paid' || booking.payment_status === 'free' ? 'text-emerald-500' : 'text-amber-500')}>
+                  <p className="text-sm font-black text-gray-900 leading-none tracking-tighter">₹{booking.total_amount}</p>
+                  <p className={clsx(
+                    "text-[9px] font-black uppercase mt-1 tracking-widest", 
+                    booking.payment_status === 'paid' || booking.payment_status === 'free' ? 'text-emerald-500' : 'text-amber-500'
+                  )}>
                      {booking.payment_status}
                   </p>
                </td>
@@ -722,12 +814,12 @@ function RegistryRow({ booking, onClick, mode = 'roster' }: any) {
                <span className="text-sm font-black text-gray-900 uppercase tracking-tight">₹{booking.deposit_amount}</span>
             </td>
          )}
-         <td className="px-8 py-5">
-            <div className="flex justify-center">
-               <button className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/20 active:scale-95 transition-all">Execute Control</button>
-            </div>
+         <td className="px-8 py-5 text-right">
+            <button className="p-2 hover:bg-white border border-transparent hover:border-blue-200 rounded-xl shadow-sm transition-all text-gray-400 hover:text-blue-600 group-hover:translate-x-1">
+               <ChevronRight size={20} />
+            </button>
          </td>
-      </tr>
+      </motion.tr>
    );
 }
 

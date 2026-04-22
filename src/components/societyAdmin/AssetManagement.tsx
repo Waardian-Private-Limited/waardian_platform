@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import { 
   getAllAssets, createAsset, getAllBookings, updateBookingStatus, 
-  Asset, AssetBooking, checkOutAsset, checkInAsset, markAssetMissing 
+  Asset, AssetBooking, checkOutAsset, checkInAsset, markAssetMissing,
+  exportAssetsToExcel
 } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 
@@ -160,13 +161,22 @@ export default function AssetManagement({ activeSection = 'asset-list' }: { acti
             </div>
           </div>
         </div>
-        <button 
-           onClick={() => setIsModalOpen(true)}
-           className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl transition-all shadow-lg active:scale-95 font-bold"
-         >
-           <Plus className="w-4 h-4" />
-           <span>Provision New Asset</span>
-         </button>
+        <div className="flex items-center gap-3">
+          <button 
+             onClick={() => exportAssetsToExcel({})}
+             className="flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 text-gray-700 px-6 py-2.5 rounded-xl border border-gray-200 transition-all shadow-sm active:scale-95 font-bold"
+           >
+             <BarChart3 className="w-4 h-4 text-blue-600" />
+             <span>Export Registry</span>
+           </button>
+          <button 
+             onClick={() => setIsModalOpen(true)}
+             className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl transition-all shadow-lg active:scale-95 font-bold"
+           >
+             <Plus className="w-4 h-4" />
+             <span>Provision New Asset</span>
+           </button>
+        </div>
       </div>
 
       {isLoading ? (

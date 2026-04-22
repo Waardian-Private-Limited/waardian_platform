@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Home,
   Users,
@@ -375,20 +375,50 @@ export default function SocietyAdminSidebar({
   user,
 }: SocietyAdminSidebarProps) {
   const [mounted, setMounted] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([
-    'management',
-    'finance',
-    'community',
-    'work-management',
-    'invoices-collections',
-    'expenses',
-    'ledger',
-    'society',
-  ]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Helper to find all parent IDs of a target ID
+  const findParentIds = (items: NavigationItem[], targetId: string, parents: string[] = []): string[] | null => {
+    for (const item of items) {
+      if (item.id === targetId) return parents;
+      if (item.children) {
+        const result = findParentIds(item.children, targetId, [...parents, item.id]);
+        if (result) return result;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Update expanded categories when activeTab changes
+  useEffect(() => {
+    if (activeTab) {
+      const parents = findParentIds(navigationItems, activeTab);
+      if (parents) {
+        setExpandedCategories(parents);
+      }
+    }
+  }, [activeTab]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (mounted && activeTab && scrollContainerRef.current) {
+      setTimeout(() => {
+        const activeElement = scrollContainerRef.current?.querySelector(`[data-active="true"]`);
+        if (activeElement) {
+          activeElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest',
+          });
+        }
+      }, 300); // Wait for expansion animation
+    }
+  }, [activeTab, expandedCategories, mounted]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories((prev) =>
@@ -436,7 +466,10 @@ export default function SocietyAdminSidebar({
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav 
+        ref={scrollContainerRef}
+        className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar"
+      >
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -444,7 +477,11 @@ export default function SocietyAdminSidebar({
 
           if (item.isCategory) {
             return (
-              <div key={item.id} className="space-y-1">
+              <div 
+                key={item.id} 
+                className="space-y-1"
+                data-active={isActive || isExpanded}
+              >
                 <button
                   onClick={() => !isCollapsed && toggleCategory(item.id)}
                   className={`w-full flex items-center px-3 py-2.5 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-50 ${
@@ -478,7 +515,11 @@ export default function SocietyAdminSidebar({
 
                         if (isChildCategory) {
                           return (
-                            <div key={child.id} className="space-y-1">
+                            <div 
+                              key={child.id} 
+                              className="space-y-1"
+                              data-active={isChildActive || isChildExpanded}
+                            >
                               <button
                                 onClick={() => toggleCategory(child.id)}
                                 className="w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 text-gray-600 hover:bg-gray-50"
@@ -502,6 +543,7 @@ export default function SocietyAdminSidebar({
                                     return (
                                       <button
                                         key={subChild.id}
+                                        data-active={isSubChildActive}
                                         onClick={() => setActiveTab(subChild.href?.split('/').pop() || subChild.id)}
                                         className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
                                           isSubChildActive
@@ -527,6 +569,7 @@ export default function SocietyAdminSidebar({
                         return (
                           <button
                             key={child.id}
+                            data-active={isChildActive}
                             onClick={() => setActiveTab(child.href?.split('/').pop() || child.id)}
                             className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
                               isChildActive
@@ -548,6 +591,7 @@ export default function SocietyAdminSidebar({
           return (
             <button
               key={item.id}
+              data-active={isActive}
               onClick={() => setActiveTab(item.href?.split('/').pop() || item.id)}
               className={`w-full flex items-center px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
                 isActive

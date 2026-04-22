@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:3003/api/v1";
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3003/api/v1";
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 
@@ -9,6 +9,24 @@ interface RequestOptions {
   params?: Record<string, string>;
   withAuth?: boolean; // Adds Authorization header from localStorage
 }
+
+export const getAuthToken = () => {
+  if (typeof window === 'undefined') return null;
+  // 1. Check primary token key
+  const localToken = localStorage.getItem('token');
+  if (localToken && localToken !== 'undefined' && localToken !== 'null') return localToken;
+
+  // 2. Check Zustand store (Primary source of truth for this app)
+  try {
+    const userStorage = localStorage.getItem('user-storage');
+    if (userStorage) {
+      const parsed = JSON.parse(userStorage);
+      const storeToken = parsed.state?.user?.token || parsed.state?.token;
+      if (storeToken && storeToken !== 'undefined' && storeToken !== 'null') return storeToken;
+    }
+  } catch (err) { }
+  return null;
+};
 
 export async function apiClient<T = any>(
   path: string,
@@ -30,30 +48,9 @@ export async function apiClient<T = any>(
   };
 
   if (withAuth) {
-    const getToken = () => {
-      // 1. Check primary token key
-      const localToken = localStorage.getItem('token');
-      if (localToken && localToken !== 'undefined' && localToken !== 'null') return localToken;
-
-      // 2. Check Zustand store (Primary source of truth for this app)
-      try {
-        const userStorage = localStorage.getItem('user-storage');
-        if (userStorage) {
-          const parsed = JSON.parse(userStorage);
-          const storeToken = parsed.state?.user?.token || parsed.state?.token;
-          if (storeToken && storeToken !== 'undefined' && storeToken !== 'null') return storeToken;
-        }
-      } catch (err) { }
-
-      return null;
-    };
-
-    const token = getToken();
+    const token = getAuthToken();
     if (token) {
       allHeaders['Authorization'] = `Bearer ${token}`;
-      console.log('✅ apiClient: Authorization header attached');
-    } else {
-      console.log('⚠️ apiClient: No token found. Storage keys:', Object.keys(localStorage));
     }
   }
 
@@ -1134,25 +1131,7 @@ export const disposeAsset = async (assetId: number, data: {
 
 export const exportAssetsToExcel = async (filters: any): Promise<Blob> => {
   const query = new URLSearchParams(filters).toString();
-  const BASE_URL = "http://localhost:3003/api/v1";
-
-  // Robust token retrieval logic consistent with apiClient
-  const getToken = () => {
-    const localToken = localStorage.getItem('token');
-    if (localToken && localToken !== 'undefined' && localToken !== 'null') return localToken;
-    try {
-      const userStorage = localStorage.getItem('user-storage');
-      if (userStorage) {
-        const parsed = JSON.parse(userStorage);
-        return parsed.state?.user?.token || parsed.state?.token || null;
-      }
-    } catch { }
-    return null;
-  };
-
-  const token = getToken();
-  console.log(`🚀 Triggering Export: ${BASE_URL}/assets/admin/export-assets?${query}`);
-
+  const token = getAuthToken();
   const res = await fetch(`${BASE_URL}/assets/admin/export-assets?${query}`, {
     headers: {
       'Authorization': `Bearer ${token}`
@@ -1160,9 +1139,7 @@ export const exportAssetsToExcel = async (filters: any): Promise<Blob> => {
   });
 
   if (!res.ok) {
-    const errText = await res.text();
-    console.error('❌ Export HTTP Error:', res.status, errText);
-    throw new Error(`Export failed (${res.status}): ${errText}`);
+    throw new Error(`Export failed (${res.status})`);
   }
   return res.blob();
 };
@@ -1178,4 +1155,12 @@ export const getPropertyFloors = async (wingId: number): Promise<ApiResponse<any
 
 export const getPropertyFlats = async (wingId: number, floorId: number): Promise<ApiResponse<any[]>> => {
   return apiClient(`/useronboarding/flats?wingId=${wingId}&floorId=${floorId}`, { withAuth: true });
+};
+
+export const getSocietyStructure = async (): Promise<ApiResponse<{ wings: any[]; floors: any[]; amenities: any[] }>> => {
+   return apiClient('/onboarding/getSocietyStructure', {
+      method: 'GET',
+      withAuth: true,
+      headers: { 'Content-Type': 'application/json' },
+   });
 };

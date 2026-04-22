@@ -280,7 +280,7 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
               <div className="space-y-8 pb-10">
                  {/* Financial Overview Cards */}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-blue-600 p-5 rounded-2xl text-white shadow-xl shadow-blue-100 space-y-3">
+                    <div className="bg-blue-600 p-5 rounded-xl text-white shadow-xl shadow-blue-100 space-y-3">
                        <div className="flex justify-between items-start">
                           <DollarSign size={24} className="text-blue-200" />
                           <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-white/20 px-2 py-0.5 rounded">Asset Ledger</span>
@@ -290,7 +290,7 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
                           <p className="text-2xl font-black tracking-tight leading-none">₹{Number(asset.purchase_cost || 0).toLocaleString()}</p>
                        </div>
                     </div>
-                    <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+                    <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-3">
                        <div className="flex justify-between items-start">
                           <TrendingDown size={24} className="text-orange-500" />
                           <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-100">SLM Valuation</span>
@@ -326,9 +326,9 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
 
                  {/* Disposal Action Center */}
                  {!asset.is_disposed ? (
-                    <div className="p-6 bg-red-50 border border-red-100 rounded-2xl space-y-4">
+                    <div className="p-6 bg-red-50 border border-red-100 rounded-xl space-y-4">
                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center">
+                          <div className="w-10 h-10 bg-red-100 text-red-600 rounded-lg flex items-center justify-center">
                              <Trash2 size={24} />
                           </div>
                           <div>
@@ -339,15 +339,15 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
                        <p className="text-xs text-red-600 leading-relaxed font-medium">Marking this asset as sold will automatically deactivate all future bookings and move the record to the <span className="font-bold">Liquidation Report</span> for financial auditing.</p>
                        <button 
                           onClick={() => setShowDisposeModal(true)}
-                          className="w-full py-3 bg-red-600 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-[0.98]"
+                          className="w-full py-3 bg-red-600 text-white rounded-lg font-black text-xs uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-[0.98]"
                        >
                           Initialize Asset Disposal
                        </button>
                     </div>
                  ) : (
-                    <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl space-y-4">
+                    <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-xl space-y-4">
                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg">
+                          <div className="w-10 h-10 bg-emerald-600 text-white rounded-lg flex items-center justify-center shadow-lg">
                              <CheckCircle2 size={24} />
                           </div>
                           <div>
@@ -396,7 +396,7 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
         {/* Disposal Confirmation Modal (Nested) */}
         {showDisposeModal && (
            <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="bg-white w-full max-w-sm rounded-xl p-8 shadow-2xl animate-in zoom-in-95 duration-200">
                  <div className="text-center space-y-6">
                     <div className="w-20 h-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
                        <AlertCircle size={40} />
@@ -413,7 +413,7 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
                              type="date" 
                              value={disposalData.disposal_date}
                              onChange={(e) => setDisposalData({...disposalData, disposal_date: e.target.value})}
-                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all outline-none" 
+                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all outline-none" 
                           />
                        </div>
                        <div className="space-y-1.5">
@@ -423,7 +423,7 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
                              placeholder="0.00"
                              value={disposalData.disposal_amount}
                              onChange={(e) => setDisposalData({...disposalData, disposal_amount: e.target.value})}
-                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all outline-none" 
+                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all outline-none" 
                           />
                        </div>
                        <div className="space-y-1.5">
@@ -431,7 +431,7 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
                           <select 
                              value={disposalData.disposal_reason}
                              onChange={(e) => setDisposalData({...disposalData, disposal_reason: e.target.value})}
-                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white outline-none"
+                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold focus:bg-white outline-none"
                           >
                              <option value="Sold">Direct Sale</option>
                              <option value="Scrap">Liquidation / Scrap</option>
@@ -451,7 +451,7 @@ export default function AssetDetailsModal({ assetId, onClose, onEdit, onUpdate }
                        <button
                           onClick={handleDispose}
                           disabled={isDisposing}
-                          className="flex-1 py-3.5 px-4 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 hover:shadow-lg hover:shadow-red-200 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                          className="flex-1 py-3.5 px-4 bg-red-600 text-white rounded-lg font-bold text-sm hover:bg-red-700 hover:shadow-lg hover:shadow-red-200 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                        >
                           {isDisposing ? <Loader2 size={18} className="animate-spin" /> : 'Confirm Disposal'}
                        </button>
