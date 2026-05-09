@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Home, Building, Menu, ChevronDown, ChevronRight, Megaphone, Package, MapPin } from 'lucide-react';
+import { LogOut, Home, Building, Menu, ChevronDown, ChevronRight, Megaphone, Package, MapPin, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEffect, useState } from 'react';
@@ -27,6 +27,8 @@ const tabMapping: Record<string, { label: string; icon: React.ComponentType<{ cl
       'placement-management': { label: 'Placement Management', icon: MapPin }
     }
   },
+  'merchant-mapper': { label: 'Merchant & Salt Mapper', icon: ShieldCheck },
+  'app-version': { label: 'App Version', icon: Package },
 };
 
 export default function SuperadminSidebar({

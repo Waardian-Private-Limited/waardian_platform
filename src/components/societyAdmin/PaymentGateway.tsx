@@ -96,7 +96,7 @@ export default function PaymentGatewayPage() {
               ← Back to Gateway Selection
             </Button>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {selectedGateway === 'self' ? 'Integrate Your Gateway' : 'Waardian\'s Razorpay Setup'}
+              {selectedGateway === 'self' ? 'Integrate Your Gateway' : 'Waardian Gateway Setup'}
             </h1>
             <p className="text-gray-600">
               {selectedGateway === 'self' 
@@ -179,9 +179,9 @@ export default function PaymentGatewayPage() {
               <div className="mx-auto mb-4 p-3 bg-purple-100 rounded-full w-fit">
                 <CreditCard className="h-8 w-8 text-purple-600" />
               </div>
-              <CardTitle className="text-xl font-semibold">Waardian's Razorpay</CardTitle>
+              <CardTitle className="text-xl font-semibold">Waardian Gateway (Easebuzz)</CardTitle>
               <CardDescription className="text-sm text-gray-600">
-                Use Waardian's Razorpay integration via routes
+                Use Waardian's secure integration via Easebuzz
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -215,7 +215,7 @@ export default function PaymentGatewayPage() {
               <Button 
                 onClick={() => handleGatewaySelect('waardian')}
                 className="w-full bg-purple-600 hover:bg-purple-700 text-white">
-                Setup Waardian's Razorpay
+                Setup Waardian Gateway
               </Button>
             </CardContent>
           </Card>

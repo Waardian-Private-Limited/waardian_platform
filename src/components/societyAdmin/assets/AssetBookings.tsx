@@ -1,16 +1,16 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { format, isPast, isValid, startOfMonth, subMonths, startOfYear, isWithinInterval } from 'date-fns';
+import { format, isValid, startOfMonth, subMonths, startOfYear, isWithinInterval } from 'date-fns';
 import {
-   Calendar, Search, Clock, User, Check, X,
-   MapPin, IndianRupee, Info, Activity, History, ChevronRight,
-   ShieldCheck, ArrowUpRight, Globe, Layers, Zap, MoreHorizontal,
-   RefreshCw, Filter, Package, AlertCircle, FileText, ChevronLeft,
-   XCircle, CheckCircle, Clock4, LogOut, LogIn, ClipboardCheck, ArrowDownRight,
-   Download, FileSpreadsheet, ListFilter, Trash2, TrendingUp
+   Calendar, Search, Clock, User, X,
+   IndianRupee, History, ChevronRight,
+   ShieldCheck, ArrowUpRight, Zap,
+   RefreshCw, Package, AlertCircle, ChevronLeft,
+   XCircle, CheckCircle, LogOut, LogIn, ClipboardCheck, ArrowDownRight,
+   Download, ListFilter, Trash2, TrendingUp, Boxes
 } from 'lucide-react';
-import { getAllBookings, updateBookingStatus, AssetBooking, recordHandover, verifyBooking, ApiResponse } from '@/lib/apiClient';
+import { getAllBookings, updateBookingStatus, AssetBooking, recordHandover } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
@@ -19,845 +19,675 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- Shared Design System Components ---
 
 const StatCard = ({
-  title,
-  value,
-  icon: Icon,
-  trend,
-  trendValue,
-  color = 'blue'
+   title,
+   value,
+   icon: Icon,
+   trend,
+   trendValue,
+   color = 'blue'
 }: {
-  title: string;
-  value: string | number;
-  icon: any;
-  trend?: 'up' | 'down';
-  trendValue?: string;
-  color?: string;
+   title: string;
+   value: string | number;
+   icon: any;
+   trend?: 'up' | 'down';
+   trendValue?: string;
+   color?: string;
 }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all group"
-  >
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{title}</p>
-        <p className="text-2xl font-black text-gray-900 mt-2 tracking-tighter group-hover:text-blue-600 transition-colors">{value}</p>
-        {trendValue && (
-          <div className="flex items-center mt-2 text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-full w-fit">
-            {trend === 'up' ? <TrendingUp size={10} className="mr-1" /> : <ArrowDownRight size={10} className="mr-1" />}
-            {trendValue}
-          </div>
-        )}
+   <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-none border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group"
+   >
+      <div className="flex items-center justify-between">
+         <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1.5">{title}</p>
+            <p className="text-xl font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">{value}</p>
+            {trendValue && (
+               <div className="flex items-center mt-2 text-[9px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-0.5 rounded-none border border-emerald-100 w-fit">
+                  {trend === 'up' ? <TrendingUp size={10} className="mr-1" /> : <ArrowDownRight size={10} className="mr-1" />}
+                  {trendValue}
+               </div>
+            )}
+         </div>
+         <div className={clsx(
+            "p-3 rounded-none border shadow-sm transition-transform group-hover:scale-105",
+            color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+               color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                  color === 'yellow' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                     'bg-red-50 text-red-600 border-red-100'
+         )}>
+            <Icon className="w-5 h-5" />
+         </div>
       </div>
-      <div className={clsx(
-        "p-4 rounded-xl shadow-sm border transition-transform group-hover:scale-110",
-        color === 'blue' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-        color === 'green' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-        color === 'yellow' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-        'bg-red-50 text-red-600 border-red-100'
-      )}>
-        <Icon className="w-5 h-5" />
-      </div>
-    </div>
-  </motion.div>
+   </motion.div>
 );
 
-const FinancialStatCard = ({ title, value, label, icon, color }: any) => (
-   <motion.div 
-     initial={{ opacity: 0, scale: 0.95 }}
-     animate={{ opacity: 1, scale: 1 }}
-     className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all group"
+const FinancialStatCard = ({ title, value, label, icon, color }: { title: string; value: string; label: string; icon: React.ReactNode; color: string }) => (
+   <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white p-6 rounded-none border border-slate-200 shadow-sm hover:shadow-md transition-all group flex flex-col"
    >
-     <div className="flex items-center justify-between mb-4">
-       <div className={clsx(
-         "w-12 h-12 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border",
-         color === 'blue' ? "bg-blue-50 text-blue-600 border-blue-100" : 
-         color === 'red' ? "bg-red-50 text-red-600 border-red-100" :
-         "bg-emerald-50 text-emerald-600 border-emerald-100"
-       )}>
-         {icon}
-       </div>
-       <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">{title}</span>
-     </div>
-     <div>
-       <p className={clsx(
-         "text-2xl font-black tracking-tighter",
-         color === 'red' ? "text-red-600" : color === 'emerald' ? "text-emerald-600" : "text-gray-900"
-       )}>{value}</p>
-       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 opacity-70">{label}</p>
-     </div>
+      <div className="flex items-center justify-between mb-4">
+         <div className={clsx(
+            "w-10 h-10 rounded-none flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm border",
+            color === 'blue' ? "bg-blue-50 text-blue-600 border-blue-100" :
+               color === 'red' ? "bg-red-50 text-red-600 border-red-100" :
+                  "bg-emerald-50 text-emerald-600 border-emerald-100"
+         )}>
+            {icon}
+         </div>
+         <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{title}</span>
+      </div>
+      <div className="mt-auto">
+         <p className={clsx(
+            "text-xl font-bold tracking-tight",
+            color === 'red' ? "text-red-700" : color === 'emerald' ? "text-emerald-700" : "text-slate-900"
+         )}>{value}</p>
+         <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 opacity-80">{label}</p>
+      </div>
    </motion.div>
 );
 
 // --- Helper Components & Functions ---
 
-function formatDateSafe(date: any) {
+function formatDateSafe(date: string | Date | null | undefined) {
    if (!date) return 'Awaiting...';
    const d = new Date(date);
    if (!isValid(d)) return 'Invalid Date';
    return format(d, 'MMM dd, HH:mm');
 }
 
-function HandoverInput({ label, value, onChange, color }: any) {
-   const border = color === 'emerald' ? 'border-emerald-100 focus:ring-emerald-200' : 'border-blue-100 focus:ring-blue-200';
-   const text = color === 'emerald' ? 'text-emerald-600' : 'text-blue-600';
-   return (
-      <div className="space-y-1.5 flex flex-col">
-         <label className={`text-[10px] font-black ${text} uppercase tracking-widest pl-1`}>{label}</label>
-         <input 
-            type="number" 
-            value={value} 
-            onChange={(e) => onChange(Number(e.target.value))} 
-            className={`w-full px-4 py-2.5 bg-gray-50 border rounded-lg text-sm font-bold shadow-sm outline-none focus:bg-white focus:ring-4 transition-all ${border}`} 
-         />
-      </div>
-   );
-}
-
-function BookingDetailDrawer({
-   booking, onClose, onUpdate, onHandover, rejectionReason, setRejectionReason, handoverRemarks, setHandoverRemarks,
-   manualPenaltyRate, setManualPenaltyRate, manualGracePeriod, setManualGracePeriod, waivePenalty, setWaivePenalty,
-   collectedPenalty, setCollectedPenalty
-}: any) {
-   const timeline = [
-      { id: 'requested', label: 'Reservation Requested', date: booking.created_at, icon: <Clock size={16} />, status: 'completed' },
-      {
-         id: 'approved',
-         label: booking.status === 'cancelled' ? 'User Cancellation' : booking.status === 'rejected' ? 'Admin Rejection' : 'Admin Approval',
-         date: booking.updated_at,
-         icon: <ShieldCheck size={16} />,
-         status: ['confirmed', 'completed', 'approved'].includes(booking.status) ? 'completed' : ['rejected', 'cancelled'].includes(booking.status) ? 'failed' : 'pending'
-      },
-      { id: 'outbound', label: 'Asset Handover (Checkout)', date: booking.checked_out_at, icon: <LogOut size={16} />, status: booking.checked_out_at ? 'completed' : (booking.status === 'cancelled' || booking.status === 'rejected') ? 'failed' : 'pending' },
-      { id: 'inbound', label: 'Asset Return (Checkin)', date: booking.checked_in_at, icon: <LogIn size={16} />, status: booking.checked_in_at ? 'completed' : (booking.status === 'cancelled' || booking.status === 'rejected') ? 'failed' : 'pending' }
-   ];
-
-   const currentTime = new Date();
-   const endTime = new Date(booking.end_time);
-   const diffMins = Math.max(0, Math.floor((currentTime.getTime() - endTime.getTime()) / (1000 * 60)));
-   const calculatedPenalty = (diffMins > manualGracePeriod) ? Math.ceil((diffMins - manualGracePeriod) / 60) * manualPenaltyRate : 0;
-
-   return (
-      <div className="fixed inset-0 z-[120] flex justify-end">
-         <motion.div 
-           initial={{ opacity: 0 }}
-           animate={{ opacity: 1 }}
-           exit={{ opacity: 0 }}
-           onClick={onClose}
-           className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm"
-         />
-         <motion.div 
-           initial={{ x: '100%' }}
-           animate={{ x: 0 }}
-           exit={{ x: '100%' }}
-           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-           className="w-full max-w-lg bg-gray-50 h-full shadow-2xl relative flex flex-col"
-         >
-            {/* Drawer Header */}
-            <div className="bg-white p-8 border-b border-gray-200 flex items-center justify-between">
-               <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center text-white shadow-xl shadow-blue-500/20">
-                     <Calendar size={28} />
-                  </div>
-                  <div>
-                     <h2 className="text-xl font-extrabold text-gray-900 tracking-tight leading-none uppercase">Reservation Control</h2>
-                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-2">Identifier: #{booking.booking_id}</p>
-                  </div>
-               </div>
-               <button 
-                 onClick={onClose} 
-                 className="p-3 hover:bg-gray-100 rounded-lg transition-all active:scale-90 text-gray-400 hover:text-gray-900"
-               >
-                 <X size={24} />
-               </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-               {/* Asset Status Strip */}
-               <div className="flex items-center gap-6 p-6 bg-white rounded-lg border border-gray-200 md:shadow-sm">
-                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center border border-blue-100">
-                     <Package size={32} />
-                  </div>
-                  <div>
-                     <h4 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-1">{booking.asset_name}</h4>
-                     <p className={clsx(
-                       "px-3 py-1 rounded-lg text-[10px] font-black w-fit uppercase tracking-widest border",
-                       booking.status === 'confirmed' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                       booking.status === 'pending' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                       "bg-gray-100 text-gray-400 border-gray-200"
-                     )}>
-                       Current Status: {booking.status}
-                     </p>
-                  </div>
-               </div>
-
-               {/* Logistical Actions */}
-               <div className="space-y-4">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Logistical Duty Operations</h4>
-
-                  {booking.status === 'confirmed' && !booking.checked_out_at && (
-                     <div className="p-6 bg-emerald-50 rounded-lg border border-emerald-100 space-y-6 shadow-sm">
-                        <p className="text-xs font-black text-emerald-900 uppercase tracking-tight flex items-center gap-2"><LogOut size={16} /> Handover Protocol</p>
-                        <div className="grid grid-cols-2 gap-4">
-                           <HandoverInput label="Late Rate (₹/hr)" value={manualPenaltyRate} onChange={setManualPenaltyRate} color="emerald" />
-                           <HandoverInput label="Grace Window (min)" value={manualGracePeriod} onChange={setManualGracePeriod} color="emerald" />
-                        </div>
-                        <textarea placeholder="Enter handover remarks..." value={handoverRemarks} onChange={(e) => setHandoverRemarks(e.target.value)} className="w-full px-4 py-3 bg-white border border-emerald-100 rounded-lg text-sm outline-none resize-none h-24 focus:ring-4 focus:ring-emerald-100 transition-all" />
-                        <button onClick={() => onHandover(booking.id, 'checkout')} className="w-full py-4 bg-emerald-600 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">Record Asset Outflow</button>
-                     </div>
-                  )}
-
-                  {booking.checked_out_at && !booking.checked_in_at && (
-                     <div className="space-y-6 animate-in slide-in-from-top-4">
-                        <p className="text-xs font-black text-blue-900 uppercase tracking-tight flex items-center gap-2"><LogIn size={16} /> Return & Settle Account</p>
-                        <div className="bg-white p-6 rounded-lg border border-blue-200 shadow-sm space-y-6">
-                           <div className="flex justify-between items-center">
-                              <div>
-                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Calculated Late Liability</p>
-                                 <p className="text-2xl font-black text-red-600 tracking-tighter">₹{calculatedPenalty}</p>
-                              </div>
-                              <label className="flex items-center gap-3 cursor-pointer bg-gray-50 p-3 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
-                                 <input type="checkbox" checked={waivePenalty} onChange={(e) => {
-                                    setWaivePenalty(e.target.checked);
-                                    setCollectedPenalty(e.target.checked ? 0 : calculatedPenalty);
-                                 }} className="w-5 h-5 rounded-lg border-gray-300 text-blue-600 focus:ring-blue-500" />
-                                 <span className="text-[10px] font-black text-gray-700 uppercase tracking-tight">Waive Penalty</span>
-                              </label>
-                           </div>
-                           
-                           {!waivePenalty && (
-                              <div className="pt-4 border-t border-gray-100 space-y-2">
-                                 <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest pl-1">Adjusted Settlement (₹)</label>
-                                 <input type="number" value={collectedPenalty} onChange={(e) => setCollectedPenalty(Number(e.target.value))} className="w-full px-5 py-3 bg-gray-50 border-2 border-blue-600 rounded-lg text-xl font-black text-blue-600 shadow-sm outline-none focus:bg-white transition-all" />
-                              </div>
-                           )}
-                        </div>
-                        <textarea placeholder="Enter return condition remarks..." value={handoverRemarks} onChange={(e) => setHandoverRemarks(e.target.value)} className="w-full px-4 py-3 bg-white border border-blue-100 rounded-lg text-sm outline-none resize-none h-24 focus:ring-4 focus:ring-blue-100 transition-all" />
-                        <button onClick={() => onHandover(booking.id, 'checkin')} className="w-full py-4 bg-blue-600 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-all">Record Asset Return</button>
-                     </div>
-                  )}
-
-                  {booking.status === 'pending' && (
-                     <div className="pt-4 space-y-6">
-                        <button onClick={() => onUpdate(booking.id, 'confirmed')} className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-black text-xs uppercase tracking-widest shadow-xl shadow-blue-500/25 active:scale-95 transition-all">Authorize Reservation</button>
-                        <div className="p-6 bg-red-50 rounded-lg border border-red-100 space-y-4">
-                           <label className="text-[10px] font-black text-red-500 uppercase tracking-widest pl-1">Formal Denial Justification</label>
-                           <textarea placeholder="State reason..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="w-full px-4 py-3 bg-white border border-red-200 rounded-lg text-sm font-bold outline-none h-24 focus:ring-4 focus:ring-red-100 transition-all" />
-                           <button disabled={!rejectionReason} onClick={() => onUpdate(booking.id, 'rejected', rejectionReason)} className="w-full py-3 bg-red-600 text-white rounded-lg font-black text-[10px] uppercase tracking-widest shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50">Execute Denial</button>
-                        </div>
-                     </div>
-                  )}
-               </div>
-
-               {/* Timeline Restored with premium style */}
-               <div className="space-y-6">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] px-1">Reservation Lifecycle Audit</h4>
-                  <div className="relative space-y-8 pl-4">
-                     <div className="absolute left-[23px] top-2 bottom-2 w-[2px] bg-gray-200" />
-                     {timeline.map((item, idx) => (
-                        <div key={idx} className="relative flex items-start gap-6">
-                           <div className={clsx(
-                               "w-5 h-5 rounded-full border-4 border-white shadow-sm ring-2 z-10 shrink-0",
-                               item.status === 'completed' ? "bg-emerald-500 ring-emerald-100" : 
-                               item.status === 'failed' ? "bg-red-500 ring-red-100" : 
-                               "bg-gray-300 ring-gray-100"
-                           )} />
-                           <div className="flex-1 bg-white p-4 rounded-lg border border-gray-100 shadow-sm flex items-center justify-between group hover:border-blue-200 transition-all">
-                              <div>
-                                 <p className="text-[11px] font-black text-gray-900 uppercase leading-none mb-1">{item.label}</p>
-                                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{formatDateSafe(item.date)}</p>
-                              </div>
-                              <div className={clsx(
-                                "p-2 rounded-lg",
-                                item.status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-gray-50 text-gray-400"
-                              )}>
-                                 {item.icon}
-                              </div>
-                           </div>
-                        </div>
-                     ))}
-                  </div>
-               </div>
-
-               {/* Fiscal Breakdown */}
-               <div className="bg-white rounded-lg border border-gray-200 p-8 shadow-sm space-y-6">
-                  <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 pb-4 w-full flex items-center gap-2">
-                     <IndianRupee size={14} /> Fiscal Components
-                  </h3>
-                  <div className="space-y-4">
-                     <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-gray-500">
-                        <span>Base Fare Protocol</span>
-                        <span className="text-gray-900">₹{booking.total_amount}</span>
-                     </div>
-                     <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-gray-500">
-                        <span>Security Deposit Bond</span>
-                        <span className="text-gray-900">₹{booking.deposit_amount}</span>
-                     </div>
-                     {booking.final_penalty_amount > 0 && (
-                        <div className="flex justify-between items-center text-xs font-bold uppercase tracking-tight text-red-500">
-                           <span>Late Return Liability</span>
-                           <span className="font-black">₹{booking.final_penalty_amount}</span>
-                        </div>
-                     )}
-                     <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-                        <span className="text-xs font-black text-gray-900 uppercase tracking-widest">Gross Settlement</span>
-                        <span className="text-2xl font-black text-blue-600 tracking-tighter">₹{Number(booking.total_amount) + Number(booking.final_penalty_amount || 0)}</span>
-                     </div>
-                  </div>
-               </div>
-
-               {/* Member Info */}
-               <div className="flex items-center gap-4 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
-                  <div className="w-12 h-12 bg-gray-900 text-white rounded-lg flex items-center justify-center font-black text-lg">
-                     {(booking.user_name || 'U').charAt(0)}
-                  </div>
-                  <div>
-                     <p className="text-sm font-black text-gray-900 uppercase leading-none tracking-tight">{booking.user_name || 'Resident Member'}</p>
-                     <p className="text-[10px] text-gray-400 font-bold uppercase mt-1.5 tracking-widest">Community Participant Pool</p>
-                  </div>
-               </div>
-            </div>
-         </motion.div>
-      </div>
-   );
-}
-
-// --- Main Component ---
-
 export default function AssetBookings() {
    const [bookings, setBookings] = useState<AssetBooking[]>([]);
    const [isLoading, setIsLoading] = useState(true);
    const [searchQuery, setSearchQuery] = useState('');
-   const [activeSubTab, setActiveSubTab] = useState<'all' | 'uncompleted' | 'overdue' | 'completed'>('all');
-   const [filterStatus, setFilterStatus] = useState('all');
+   const [statusFilter, setStatusFilter] = useState('All');
+   const [selectedBooking, setSelectedBooking] = useState<AssetBooking | null>(null);
+   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+   const [activeView, setActiveView] = useState<'log' | 'financials'>('log');
+   const [reportPeriod, setReportPeriod] = useState<'month' | 'quarter' | 'year'>('month');
+   const router = useRouter();
+
    const [currentPage, setCurrentPage] = useState(1);
    const itemsPerPage = 10;
 
-   const [selectedBooking, setSelectedBooking] = useState<AssetBooking | null>(null);
-   const [rejectionReason, setRejectionReason] = useState('');
-   const [handoverRemarks, setHandoverRemarks] = useState('');
-
-   // Financial Filters
-   const [startDate, setStartDate] = useState<string>('');
-   const [endDate, setEndDate] = useState<string>('');
-
-   // Handover Overrides
-   const [manualPenaltyRate, setManualPenaltyRate] = useState(10);
-   const [manualGracePeriod, setManualGracePeriod] = useState(15);
-   const [waivePenalty, setWaivePenalty] = useState(false);
-   const [collectedPenalty, setCollectedPenalty] = useState(0);
-
-   const [activeTab, setActiveTab] = useState<'roster' | 'pending' | 'revenue'>('roster');
-   const router = useRouter();
-
-   const fetchData = async () => {
+   const fetchBookings = async () => {
       setIsLoading(true);
       try {
          const res = await getAllBookings();
          if (res.success) setBookings(res.data || []);
-      } catch (error) {
-         toast.error('Failed to load bookings');
+      } catch {
+         toast.error('Registry Access Denied');
       } finally {
          setIsLoading(false);
       }
    };
 
    useEffect(() => {
-      fetchData();
+      fetchBookings();
    }, []);
 
-   const handleUpdateStatus = async (bookingId: number, status: 'confirmed' | 'rejected', reason?: string) => {
+   const metrics = useMemo(() => {
+      const active = bookings.filter(b => b.status === 'confirmed').length;
+      const pending = bookings.filter(b => b.status === 'pending').length;
+      const canceled = bookings.filter(b => b.status === 'cancelled').length;
+      const totalRevenue = bookings.filter(b => b.status === 'confirmed').reduce((s, b) => s + Number(b.total_amount || 0), 0);
+      return { total: bookings.length, active, pending, canceled, totalRevenue };
+   }, [bookings]);
+
+   const filteredBookings = useMemo(() => {
+      return bookings.filter(b => {
+         const matchesSearch = b.asset_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            b.user_name?.toLowerCase().includes(searchQuery.toLowerCase());
+         const matchesStatus = statusFilter === 'All' || b.status === statusFilter.toLowerCase();
+         return matchesSearch && matchesStatus;
+      });
+   }, [bookings, searchQuery, statusFilter]);
+
+   const paginatedBookings = useMemo(() => {
+      const start = (currentPage - 1) * itemsPerPage;
+      return filteredBookings.slice(start, start + itemsPerPage);
+   }, [filteredBookings, currentPage]);
+
+   const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
+
+   const financialData = useMemo(() => {
+      const now = new Date();
+      let start: Date;
+      if (reportPeriod === 'month') start = startOfMonth(now);
+      else if (reportPeriod === 'quarter') start = subMonths(now, 3);
+      else start = startOfYear(now);
+
+      const periodBookings = bookings.filter(b => {
+         if (!b.created_at) return false;
+         const d = new Date(b.created_at);
+         return isValid(d) && isWithinInterval(d, { start, end: now });
+      });
+
+      const revenue = periodBookings.filter(b => b.status === 'confirmed').reduce((s, b) => s + Number(b.total_amount || 0), 0);
+      const deposits = periodBookings.filter(b => b.status === 'confirmed').reduce((s, b) => s + Number(b.deposit_amount || 0), 0);
+      const losses = periodBookings.filter(b => b.status === 'cancelled').reduce((s, b) => s + (Number(b.total_amount || 0) * 0.1), 0);
+
+      return { revenue, deposits, losses, count: periodBookings.length };
+   }, [bookings, reportPeriod]);
+
+   const handleStatusAction = async (id: number, status: 'confirmed' | 'rejected') => {
       try {
-         const res = await updateBookingStatus(bookingId, status, reason);
+         const res = await updateBookingStatus(id, status);
          if (res.success) {
-            toast.success(`Booking ${status}`);
-            fetchData();
-            setSelectedBooking(null);
-            setRejectionReason('');
-         } else {
-            toast.error(res.message || 'Update failed');
+            toast.success(`Protocol: Reservation ${status.toUpperCase()}`);
+            fetchBookings();
+            setIsDrawerOpen(false);
          }
-      } catch (error) {
-         toast.error('Operation failed');
+      } catch {
+         toast.error('System Transmission Error');
       }
    };
 
-   const handleHandover = async (bookingId: number, type: 'checkout' | 'checkin') => {
-      try {
-         const res = await recordHandover({
-            bookingId,
-            type,
-            remarks: handoverRemarks,
-            manualPenaltyRate,
-            manualGracePeriod,
-            waivePenalty,
-            collectedPenalty
-         });
-         if (res.success) {
-            toast.success(`Handover ${type} recorded`);
-            fetchData();
-            setSelectedBooking(null);
-            setHandoverRemarks('');
-         } else {
-            toast.error(res.message || 'Logistical record failed');
-         }
-      } catch (error) {
-         toast.error('Handover failed');
-      }
-   };
-
-   const setRange = (type: 'month' | '3months' | 'year') => {
-      const end = new Date();
-      let start = new Date();
-      if (type === 'month') start = startOfMonth(end);
-      else if (type === '3months') start = subMonths(end, 3);
-      else if (type === 'year') start = startOfYear(end);
-
-      setStartDate(format(start, 'yyyy-MM-dd'));
-      setEndDate(format(end, 'yyyy-MM-dd'));
-   };
-
-   const filteredData = useMemo(() => {
-      let data = bookings;
-
-      // Status Filter (Tabs)
-      if (activeTab === 'pending') data = data.filter(b => b.status === 'pending');
-
-      // Search
-      if (searchQuery) {
-         const q = searchQuery.toLowerCase();
-         data = data.filter(b =>
-            b.booking_id.toLowerCase().includes(q) ||
-            b.user_name?.toLowerCase().includes(q) ||
-            (b.asset_name || '').toLowerCase().includes(q)
-         );
-      }
-
-      // Date Range (Financial)
-      if (startDate && endDate) {
-         const start = new Date(startDate);
-         const end = new Date(endDate);
-         data = data.filter(b => b.created_at ? isWithinInterval(new Date(b.created_at), { start, end }) : false);
-      }
-
-      // Sub-Tabs for Roster
-      if (activeTab === 'roster') {
-         if (activeSubTab === 'uncompleted') data = data.filter(b => b.status !== 'completed' && b.status !== 'cancelled' && b.status !== 'rejected');
-         else if (activeSubTab === 'overdue') data = data.filter(b => b.status !== 'completed' && isPast(new Date(b.end_time)));
-         else if (activeSubTab === 'completed') data = data.filter(b => b.status === 'completed');
-      }
-
-      return data.sort((a, b) => (b.id || 0) - (a.id || 0));
-   }, [bookings, activeTab, activeSubTab, searchQuery, startDate, endDate]);
-
-   const totals = useMemo(() => {
-      return filteredData.reduce((acc, b) => ({
-         paid: acc.paid + Number(b.total_amount),
-         deposit: acc.deposit + Number(b.deposit_amount),
-         penalty: acc.penalty + (b.final_penalty_amount || 0)
-      }), { paid: 0, deposit: 0, penalty: 0 });
-   }, [filteredData]);
-
-   const handleExport = (data: any[], title: string) => {
-      const headers = ['Booking ID', 'Asset', 'Member', 'Date', 'Start', 'End', 'Status', 'Fee', 'Deposit', 'Penalty', 'Total'];
-      const csvData = data.map(b => [
-         b.booking_id,
-         b.asset_name || 'Unnamed Asset',
-         b.user_name || 'N/A',
-         b.created_at ? format(new Date(b.created_at), 'yyyy-MM-dd') : 'N/A',
-         b.start_time ? format(new Date(b.start_time), 'HH:mm') : 'N/A',
-         b.end_time ? format(new Date(b.end_time), 'HH:mm') : 'N/A',
-         b.status,
-         b.total_amount,
-         b.deposit_amount,
-         b.final_penalty_amount || 0,
-         Number(b.total_amount) + Number(b.final_penalty_amount || 0)
-      ]);
-
-      const rangeInfo = startDate && endDate ? ` Range: ${startDate} to ${endDate}` : '';
-      const fileHeader = `${title}\nAudit-Ready Cashflow & Deposit Reconciliation\nGenerated on: ${format(new Date(), 'yyyy-MM-dd HH:mm')}${rangeInfo}\n\n`;
-      const csvRows = [headers.join(','), ...csvData.map(row => row.join(','))].join('\n');
-      const blob = new Blob([fileHeader + csvRows], { type: 'text/csv' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${title.replace(/\s+/g, '_')}_${format(new Date(), 'yyyyMMdd')}.csv`;
-      a.click();
-   };
+   if (isLoading) {
+      return (
+         <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+            <RefreshCw className="animate-spin text-blue-600" size={40} />
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Syncing Allocation Matrix...</p>
+         </div>
+      );
+   }
 
    return (
-      <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen bg-gray-50/50">
-         {/* Header Section */}
-         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-200">
-            <div className="space-y-1">
-               <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Booking Management</h1>
-               <p className="text-gray-500 font-medium tracking-tight">Audit-ready asset logistical oversight</p>
-            </div>
-            <div className="flex items-center gap-3">
-               <div className="inline-flex p-1.5 bg-gray-200/50 rounded-lg border border-gray-200 backdrop-blur-sm">
-                  <button 
-                    onClick={() => router.push('/societyadmin/asset-list')}
-                    className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-white transition-all transform hover:scale-105 active:scale-95"
-                  >
-                    Registry View
-                  </button>
-                  <button 
-                    onClick={() => router.push('/societyadmin/asset-dashboard')}
-                    className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-white transition-all transform hover:scale-105 active:scale-95"
-                  >
-                    Diagnostic Center
-                  </button>
-                  <button 
-                    className="px-6 py-2.5 rounded-lg text-sm font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 transform hover:scale-105 active:scale-95 transition-all"
-                  >
-                    Bookings
-                  </button>
-               </div>
-               <button 
-                  onClick={fetchData}
-                  className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all active:scale-90"
-               >
-                  <RefreshCw size={20} />
-               </button>
-            </div>
-         </div>
-
-         {/* Internal Navigation Tabs */}
-         <div className="flex items-center gap-4 bg-white p-2 rounded-lg border border-gray-100 shadow-sm w-fit">
-            {[
-               { id: 'roster', label: 'Duty Roster', icon: ListFilter },
-               { id: 'pending', label: 'Authorizations', icon: Zap },
-               { id: 'revenue', label: 'Ledger', icon: IndianRupee }
-            ].map(tab => (
-               <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={clsx(
-                     "px-6 py-2.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all",
-                     activeTab === tab.id ? "bg-gray-900 text-white shadow-lg" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                  )}
-               >
-                  <tab.icon size={14} />
-                  {tab.label}
-               </button>
-            ))}
-         </div>
-
-         {/* Search Bar */}
-         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="relative group flex-1 max-w-md">
-               <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 bg-gray-50 rounded-lg group-focus-within:bg-blue-50 transition-colors">
-                  <Search className="text-gray-400 group-focus-within:text-blue-500" size={16} />
-               </div>
-               <input
-                  type="text"
-                  placeholder="Search by ID, Resident, or Asset..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-14 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 outline-none transition-all placeholder:text-gray-400"
+      <div className="space-y-6 animate-in fade-in duration-500 pb-20 font-sans">
+         <AnimatePresence>
+            {isDrawerOpen && selectedBooking && (
+               <ReservationDrawer
+                  booking={selectedBooking}
+                  onClose={() => setIsDrawerOpen(false)}
+                  onAction={handleStatusAction}
+                  onRefresh={fetchBookings}
                />
+            )}
+         </AnimatePresence>
+
+         {/* Header Section */}
+         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2">
+            <div className="flex items-center gap-3">
+
+               <div>
+                  <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">Resource Allocations</h1>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">Reservation & Utilization Logs</p>
+               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-               <button
-                  onClick={() => handleExport(filteredData, activeTab === 'revenue' ? 'Asset Financial Ledger' : 'Asset Booking Report')}
-                  className="flex items-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold shadow-lg active:scale-95 transition-all"
-               >
-                  <Download size={16} /> Export CSV
-               </button>
-            </div>
+
          </div>
 
-         <div className="space-y-6">
-            {(activeTab === 'revenue' || activeTab === 'roster') && (
-               <motion.div 
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-wrap items-center gap-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm"
-               >
-                  <div className="flex items-center gap-3">
-                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Range Filter</span>
-                     <div className="flex items-center gap-2">
-                        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold outline-none" />
-                        <span className="text-gray-300">to</span>
-                        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold outline-none" />
-                     </div>
-                  </div>
-                  <div className="h-6 w-[1px] bg-gray-200" />
-                  <div className="flex gap-2">
-                     {['month', '3months', 'year'].map(r => (
-                        <button key={r} onClick={() => setRange(r as any)} className="px-4 py-1.5 hover:bg-gray-50 rounded-lg text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-blue-600 border border-transparent hover:border-blue-100 transition-all capitalize">{r === '3months' ? '90 Days' : r}</button>
-                     ))}
-                     <button onClick={() => { setStartDate(''); setEndDate(''); }} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-all"><Trash2 size={14} /></button>
-                  </div>
-               </motion.div>
-            )}
+         {/* Tactical Switcher */}
+         <div className="flex gap-6 border-b border-slate-100">
+            <button
+               onClick={() => setActiveView('log')}
+               className={clsx("text-[10px] font-bold uppercase tracking-widest pb-3 border-b-2 transition-all px-4", activeView === 'log' ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600")}
+            >
+               Allocation Log
+            </button>
+            <button
+               onClick={() => setActiveView('financials')}
+               className={clsx("text-[10px] font-bold uppercase tracking-widest pb-3 border-b-2 transition-all px-4", activeView === 'financials' ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400 hover:text-slate-600")}
+            >
+               Revenue Audit
+            </button>
+         </div>
 
-            {activeTab === 'roster' && (
-               <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                     <StatCard title="Total Cashflow" value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} icon={IndianRupee} color="blue" trend="up" trendValue="Accumulated Inflow" />
-                     <StatCard title="Active Handovers" value={bookings.filter(b => b.checked_out_at && !b.checked_in_at).length} icon={Activity} color="green" trendValue="Currently Dispatched" />
-                     <StatCard title="Overdue Returns" value={bookings.filter(b => b.status !== 'completed' && isPast(new Date(b.end_time))).length} icon={AlertCircle} color="red" trendValue="SLA Breach Risks" />
-                     <StatCard title="Completed Duties" value={bookings.filter(b => b.status === 'completed').length} icon={ClipboardCheck} color="blue" trendValue="Archived History" />
-                  </div>
+         {activeView === 'log' ? (
+            <div className="space-y-6 animate-in fade-in duration-500">
+               {/* Performance Indicators */}
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard title="Total Requests" value={metrics.total} color="blue" icon={History} />
+                  <StatCard title="Confirmed" value={metrics.active} color="green" icon={CheckCircle} trend="up" trendValue={`${Math.round((metrics.active / (metrics.total || 1)) * 100)}% SUCCESS`} />
+                  <StatCard title="Pending Review" value={metrics.pending} color="yellow" icon={Clock} />
+                  <StatCard title="Total Proceeds" value={`₹${metrics.totalRevenue.toLocaleString()}`} color="red" icon={IndianRupee} />
+               </div>
 
-                  <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden min-h-[500px] flex flex-col">
-                     <div className="p-4 border-b border-gray-50 flex gap-2 overflow-x-auto bg-gray-50/20">
-                        {['all', 'uncompleted', 'overdue', 'completed'].map((tab) => (
-                           <button key={tab} onClick={() => { setActiveSubTab(tab as any); setCurrentPage(1); }} className={clsx("px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap", activeSubTab === tab ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-gray-400 hover:bg-gray-100")}>
-                              {tab}
+               {/* Table Module */}
+               <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+                  {/* Integrated Header */}
+                  <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-50/50">
+                     <div className="flex gap-2 p-1 bg-white rounded-none border border-slate-200 shadow-sm overflow-x-auto no-scrollbar">
+                        {['All', 'Confirmed', 'Pending', 'Cancelled'].map((s) => (
+                           <button
+                              key={s}
+                              onClick={() => { setStatusFilter(s); setCurrentPage(1); }}
+                              className={clsx(
+                                 "px-5 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-none transition-all whitespace-nowrap",
+                                 statusFilter === s ? "bg-slate-900 text-white" : "text-slate-400 hover:text-slate-900"
+                              )}
+                           >
+                              {s}
                            </button>
                         ))}
                      </div>
-                     <div className="overflow-x-auto flex-1">
-                        <table className="w-full text-left min-w-[900px]">
-                           <thead className="bg-gray-50/50 text-[10px] uppercase font-black text-gray-400 tracking-wider">
-                              <tr>
-                                 <th className="px-8 py-5">Resident/User</th>
-                                 <th className="px-8 py-5">Particulars</th>
-                                 <th className="px-8 py-5 text-center">Operational Window</th>
-                                 <th className="px-8 py-5">Internal Status</th>
-                                 <th className="px-8 py-5 text-right">Settlement</th>
-                                 <th className="px-8 py-5 text-center">Protocol</th>
-                              </tr>
-                           </thead>
-                           <tbody className="divide-y divide-gray-50">
-                              {filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking) => (
-                                 <RegistryRow key={booking.id} booking={booking} onClick={() => setSelectedBooking(booking)} />
-                              ))}
-                           </tbody>
-                        </table>
+
+                     <div className="flex items-center gap-4">
+                        <div className="relative group">
+                           <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                           <input
+                              type="text"
+                              placeholder="SEARCH ALLOCATIONS..."
+                              value={searchQuery}
+                              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-none text-[10px] font-bold uppercase tracking-widest outline-none focus:ring-1 focus:ring-blue-100 transition-all w-full md:w-56"
+                           />
+                        </div>
+                        <button className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 rounded-none transition-all shadow-sm active:scale-95"><Download size={16} /></button>
                      </div>
-                     <Pagination total={filteredData.length} current={currentPage} itemsPerPage={itemsPerPage} onChange={setCurrentPage} />
                   </div>
-               </div>
-            )}
 
-            {activeTab === 'pending' && (
-               <div className="bg-white rounded-lg border border-gray-100 shadow-xl overflow-hidden animate-in fade-in zoom-in duration-500">
-                  <div className="overflow-x-auto">
-                     <table className="w-full text-left min-w-[900px]">
-                        <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-wider">
-                           <tr>
-                              <th className="px-8 py-5">Resident/User</th>
-                              <th className="px-8 py-5">Particulars</th>
-                              <th className="px-8 py-5 text-center">Proposed Window</th>
-                              <th className="px-8 py-5 text-right">Security Bond</th>
-                              <th className="px-8 py-5 text-center">Protocol</th>
+                  <div className="overflow-x-auto flex-1">
+                     <table className="w-full text-left">
+                        <thead>
+                           <tr className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 tracking-wider border-b border-slate-100">
+                              <th className="px-8 py-4">Resident Descriptor</th>
+                              <th className="px-8 py-4">Resource Class</th>
+                              <th className="px-8 py-4">Protocol Status</th>
+                              <th className="px-8 py-4">Allocation Span</th>
+                              <th className="px-8 py-4 text-right">Operations</th>
                            </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
-                           {filteredData.map((booking) => (
-                              <RegistryRow key={booking.id} booking={booking} onClick={() => setSelectedBooking(booking)} mode="authorization" />
-                           ))}
+                        <tbody className="divide-y divide-slate-100">
+                           {paginatedBookings.length > 0 ? paginatedBookings.map((b, i) => (
+                              <motion.tr
+                                 key={b.id}
+                                 initial={{ opacity: 0 }}
+                                 animate={{ opacity: 1 }}
+                                 transition={{ delay: i * 0.02 }}
+                                 className="hover:bg-slate-50 transition-all cursor-pointer group"
+                                 onClick={() => { setSelectedBooking(b); setIsDrawerOpen(true); }}
+                              >
+                                 <td className="px-8 py-5">
+                                    <div className="flex items-center gap-4">
+                                       <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-none flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                                          <User size={18} />
+                                       </div>
+                                       <div>
+                                          <p className="text-sm font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">{b.user_name}</p>
+                                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">#ALC-{b.id.toString().padStart(4, '0')}</p>
+                                       </div>
+                                    </div>
+                                 </td>
+                                 <td className="px-8 py-5">
+                                    <div className="flex items-center gap-3">
+                                       <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-none group-hover:bg-white transition-colors shadow-sm">
+                                          <Package size={14} className="text-slate-400" />
+                                       </div>
+                                       <p className="text-xs font-bold text-slate-700 tracking-tight uppercase">{b.asset_name}</p>
+                                    </div>
+                                 </td>
+                                 <td className="px-8 py-5">
+                                    <div className="flex items-center gap-3">
+                                       <div className={clsx(
+                                          "w-2 h-2 rounded-none",
+                                          b.status === 'confirmed' ? "bg-emerald-500" :
+                                             b.status === 'pending' ? "bg-amber-500" :
+                                                "bg-slate-400"
+                                       )} />
+                                       <span className={clsx(
+                                          "px-2 py-0.5 rounded-none text-[9px] font-bold border uppercase tracking-wider",
+                                          b.status === 'confirmed' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                                             b.status === 'pending' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                                                "bg-slate-50 text-slate-600 border-slate-100"
+                                       )}>
+                                          {b.status}
+                                       </span>
+                                    </div>
+                                 </td>
+                                 <td className="px-8 py-5">
+                                    <div className="flex flex-col gap-1.5">
+                                       <div className="flex items-center gap-2 text-[10px] font-bold text-slate-900 uppercase">
+                                          <LogIn size={12} className="text-emerald-500" />
+                                          {formatDateSafe(b.start_time)}
+                                       </div>
+                                       <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+                                          <LogOut size={12} className="text-red-400" />
+                                          {formatDateSafe(b.end_time)}
+                                       </div>
+                                    </div>
+                                 </td>
+                                 <td className="px-8 py-5 text-right">
+                                    <button className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-none transition-all active:scale-95">
+                                       <ChevronRight size={18} />
+                                    </button>
+                                 </td>
+                              </motion.tr>
+                           )) : (
+                              <tr>
+                                 <td colSpan={5} className="py-32 text-center">
+                                    <History size={40} className="mx-auto mb-4 text-slate-100" />
+                                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No Allocation Intelligence Found</p>
+                                 </td>
+                              </tr>
+                           )}
                         </tbody>
                      </table>
                   </div>
-               </div>
-            )}
 
-            {activeTab === 'revenue' && (
-               <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                     <FinancialStatCard 
-                       title="Gross Revenue" 
-                       value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} 
-                       label="Total Collected Liquidity"
-                       icon={<IndianRupee size={22} />}
-                       color="blue"
-                     />
-                     <FinancialStatCard 
-                       title="Security Bond Assets" 
-                       value={`₹${totals.deposit.toLocaleString()}`} 
-                       label="Currently Held Deposits"
-                       icon={<ShieldCheck size={22} />}
-                       color="emerald"
-                     />
-                     <FinancialStatCard 
-                       title="Accrued Penalties" 
-                       value={`₹${totals.penalty.toLocaleString()}`} 
-                       label="SLA Violation Inflow"
-                       icon={<TrendingUp size={22} />}
-                       color="red"
-                     />
-                     <FinancialStatCard 
-                       title="Net Settlement" 
-                       value={`₹${(totals.paid + totals.penalty).toLocaleString()}`} 
-                       label="Auditable Balance"
-                       icon={<Activity size={22} />}
-                       color="blue"
-                     />
+                  <div className="px-8 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Page {currentPage} / {totalPages || 1} • {filteredBookings.length} TELEMETRY RECORDS</p>
+                     <div className="flex gap-2">
+                        <button
+                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                           disabled={currentPage === 1}
+                           className="p-2 bg-white border border-slate-200 rounded-none text-slate-400 hover:text-blue-600 disabled:opacity-30 transition-all shadow-sm"
+                        ><ChevronLeft size={16} /></button>
+                        <button
+                           onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                           disabled={currentPage === totalPages || totalPages === 0}
+                           className="p-2 bg-white border border-slate-200 rounded-none text-slate-400 hover:text-blue-600 disabled:opacity-30 transition-all shadow-sm"
+                        ><ChevronRight size={16} /></button>
+                     </div>
                   </div>
+               </div>
+            </div>
+         ) : (
+            <div className="space-y-8 animate-in fade-in duration-700">
+               {/* Financial Controls */}
+               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex gap-1 p-1 bg-slate-100 rounded-none border border-slate-200">
+                     {['month', 'quarter', 'year'].map((p) => (
+                        <button
+                           key={p}
+                           onClick={() => setReportPeriod(p as any)}
+                           className={clsx(
+                              "px-6 py-2 text-[10px] font-bold uppercase tracking-widest rounded-none transition-all",
+                              reportPeriod === p ? "bg-white text-blue-600 shadow-sm border border-slate-200" : "text-slate-500 hover:text-blue-600"
+                           )}
+                        >
+                           {p}ly Audit
+                        </button>
+                     ))}
+                  </div>
+                  <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-black transition-all active:scale-95">
+                     <Download size={14} />
+                     Export Fiscal Ledger
+                  </button>
+               </div>
 
-                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+               {/* Financial Stats */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <FinancialStatCard
+                     title="Gross Yield"
+                     value={`₹${financialData.revenue.toLocaleString()}`}
+                     label={`CONFIRMED REVENUE / ${reportPeriod.toUpperCase()}`}
+                     icon={<IndianRupee size={20} />}
+                     color="blue"
+                  />
+                  <FinancialStatCard
+                     title="Escrowed Bonds"
+                     value={`₹${financialData.deposits.toLocaleString()}`}
+                     label="SECURITY DEPOSITS IN CUSTODY"
+                     icon={<ShieldCheck size={20} />}
+                     color="emerald"
+                  />
+                  <FinancialStatCard
+                     title="CXL Penalties"
+                     value={`₹${financialData.losses.toLocaleString()}`}
+                     label="RECOVERED FROM CANCELLATIONS"
+                     icon={<TrendingUp size={20} />}
+                     color="red"
+                  />
+               </div>
+
+               {/* Transaction Ledger */}
+               <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                     <div>
+                        <h3 className="text-sm font-bold text-slate-900 tracking-tight uppercase mb-1">Fiscal Transaction Ledger</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Audited financial events for selected lifecycle</p>
+                     </div>
+                     <div className="flex items-center gap-3">
+                        <span className="text-[9px] font-bold text-blue-600 bg-white border border-blue-100 px-3 py-1 rounded-none uppercase tracking-widest shadow-sm">
+                           {financialData.count} TELEMETRY EVENTS
+                        </span>
+                     </div>
+                  </div>
+                  <div className="overflow-x-auto">
                      <table className="w-full text-left">
-                        <thead className="bg-gray-50 text-[10px] uppercase font-black text-gray-400 tracking-wider">
-                           <tr>
-                              <th className="px-8 py-5">Registry ID</th>
-                              <th className="px-8 py-5">Particulars</th>
-                              <th className="px-8 py-5 text-right">Booking Fee</th>
-                              <th className="px-8 py-5 text-right">Late Penalty</th>
-                              <th className="px-8 py-5 text-right">Total Collection</th>
-                              <th className="px-8 py-5 text-center">Payment Status</th>
+                        <thead>
+                           <tr className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 tracking-widest border-b border-slate-100">
+                              <th className="px-8 py-5">Transaction ID</th>
+                              <th className="px-8 py-5">Allocation Identity</th>
+                              <th className="px-8 py-5">Resident</th>
+                              <th className="px-8 py-5 text-right">Net Proceeds</th>
+                              <th className="px-8 py-5 text-right">Audit Status</th>
                            </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-50">
-                           {filteredData.map((booking) => (
-                              <tr key={booking.id} className="hover:bg-blue-50/30 transition-colors group">
+                        <tbody className="divide-y divide-slate-100">
+                           {bookings.slice(0, 10).map((b, i) => (
+                              <tr key={b.id} className="hover:bg-slate-50 transition-all group">
                                  <td className="px-8 py-5">
-                                    <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-600 transition-colors uppercase tracking-widest">{booking.booking_id}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest tabular-nums">#TX-{b.id.toString().padStart(6, '0')}</span>
                                  </td>
-                                 <td className="px-8 py-5">
-                                    <p className="text-xs font-black text-gray-900 uppercase tracking-tight">{booking.asset_name}</p>
-                                    <p className="text-[9px] text-gray-400 font-bold uppercase mt-1 tracking-widest">Ref: {booking.user_name}</p>
-                                 </td>
-                                 <td className="px-8 py-5 text-right text-xs font-bold text-gray-600">₹{booking.total_amount}</td>
-                                 <td className="px-8 py-5 text-right text-xs font-bold text-red-500">₹{booking.final_penalty_amount || 0}</td>
-                                 <td className="px-8 py-5 text-right text-sm font-black text-gray-900 font-mono">₹{Number(booking.total_amount) + Number(booking.final_penalty_amount || 0)}</td>
-                                 <td className="px-8 py-5 text-center">
-                                    <StatusPill status={booking.payment_status} type="payment" />
+                                 <td className="px-8 py-5 font-bold text-xs text-slate-900 uppercase tracking-tight">{b.asset_name}</td>
+                                 <td className="px-8 py-5 font-bold text-xs text-slate-500 uppercase tracking-tight opacity-70 group-hover:opacity-100">{b.user_name}</td>
+                                 <td className="px-8 py-5 text-right font-bold text-xs text-slate-900 tabular-nums">₹{Number(b.total_amount).toLocaleString()}</td>
+                                 <td className="px-8 py-5 text-right">
+                                    <span className={clsx(
+                                       "px-2 py-0.5 rounded-none text-[9px] font-bold uppercase border tracking-widest",
+                                       b.status === 'confirmed' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
+                                    )}>
+                                       {b.status === 'confirmed' ? 'SETTLED' : 'VOIDED'}
+                                    </span>
                                  </td>
                               </tr>
                            ))}
                         </tbody>
                      </table>
                   </div>
-               </>
-            )}
-         </div>
-
-         {/* Booking Detail Drawer */}
-         {selectedBooking && (
-            <BookingDetailDrawer
-               booking={selectedBooking}
-               onClose={() => setSelectedBooking(null)}
-               onUpdate={handleUpdateStatus}
-               onHandover={handleHandover}
-               rejectionReason={rejectionReason}
-               setRejectionReason={setRejectionReason}
-               handoverRemarks={handoverRemarks}
-               setHandoverRemarks={setHandoverRemarks}
-               manualPenaltyRate={manualPenaltyRate}
-               setManualPenaltyRate={setManualPenaltyRate}
-               manualGracePeriod={manualGracePeriod}
-               setManualGracePeriod={setManualGracePeriod}
-               waivePenalty={waivePenalty}
-               setWaivePenalty={setWaivePenalty}
-               collectedPenalty={collectedPenalty}
-               setCollectedPenalty={setCollectedPenalty}
-            />
+               </div>
+            </div>
          )}
       </div>
    );
 }
 
-// --- Specific Table/List Components ---
+function ReservationDrawer({ booking, onClose, onAction, onRefresh }: { booking: AssetBooking, onClose: () => void, onAction: (id: number, status: 'confirmed' | 'rejected') => void, onRefresh: () => void }) {
+   const [isProcessing, setIsProcessing] = useState(false);
 
-function RegistryRow({ booking, onClick, mode = 'roster' }: any) {
-   const isOverdue = booking.status !== 'completed' && isPast(new Date(booking.end_time));
-   const isInSession = booking.checked_out_at && !booking.checked_in_at;
-
-   return (
-      <motion.tr 
-         initial={{ opacity: 0 }}
-         animate={{ opacity: 1 }}
-         className="hover:bg-blue-50/30 transition-all group cursor-pointer" 
-         onClick={onClick}
-      >
-         <td className="px-8 py-5">
-            <div className="flex items-center gap-4">
-               <div className="w-10 h-10 bg-gray-900 text-white rounded-lg flex items-center justify-center font-bold text-sm group-hover:scale-110 transition-transform shadow-sm">
-                  {(booking.user_name || 'U').charAt(0)}
-               </div>
-               <div>
-                  <p className="text-sm font-black text-gray-900 uppercase leading-none tracking-tight">{booking.user_name || 'Resident Member'}</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase mt-1.5 tracking-widest flex items-center gap-1.5">
-                     <MapPin size={10} className="text-blue-500" /> Community Sector
-                  </p>
-               </div>
-            </div>
-         </td>
-         <td className="px-8 py-5">
-            <div className="flex flex-col">
-               <span className="text-xs font-black text-gray-900 uppercase tracking-tight">{booking.asset_name}</span>
-               <span className="text-[9px] font-bold text-gray-400 uppercase mt-1 tracking-widest leading-none">#{booking.booking_id}</span>
-            </div>
-         </td>
-         <td className="px-8 py-5">
-            <div className="flex flex-col items-center">
-               <div className="flex items-center gap-2 text-[10px] font-black text-gray-900 uppercase tracking-tighter bg-gray-50 px-2 py-0.5 rounded-lg border border-gray-100">
-                  <span>{booking.start_time ? format(new Date(booking.start_time), 'HH:mm') : '--:--'}</span>
-                  <ChevronRight size={10} className="text-gray-300" />
-                  <span>{booking.end_time ? format(new Date(booking.end_time), 'HH:mm') : '--:--'}</span>
-               </div>
-               <span className="text-[9px] text-gray-400 font-bold uppercase mt-1.5 tracking-widest">{booking.start_time ? format(new Date(booking.start_time), 'MMM dd, yyyy') : '---'}</span>
-            </div>
-         </td>
-         {mode === 'roster' ? (
-            <>
-               <td className="px-8 py-5">
-                  <StatusPill status={isInSession ? 'IN-SESSION' : booking.status} isOverdue={isOverdue} />
-               </td>
-               <td className="px-8 py-5 text-right">
-                  <p className="text-sm font-black text-gray-900 leading-none tracking-tighter">₹{booking.total_amount}</p>
-                  <p className={clsx(
-                    "text-[9px] font-black uppercase mt-1 tracking-widest", 
-                    booking.payment_status === 'paid' || booking.payment_status === 'free' ? 'text-emerald-500' : 'text-amber-500'
-                  )}>
-                     {booking.payment_status}
-                  </p>
-               </td>
-            </>
-         ) : (
-            <td className="px-8 py-5 text-right">
-               <span className="text-sm font-black text-gray-900 uppercase tracking-tight">₹{booking.deposit_amount}</span>
-            </td>
-         )}
-         <td className="px-8 py-5 text-right">
-            <button className="p-2 hover:bg-white border border-transparent hover:border-blue-200 rounded-xl shadow-sm transition-all text-gray-400 hover:text-blue-600 group-hover:translate-x-1">
-               <ChevronRight size={20} />
-            </button>
-         </td>
-      </motion.tr>
-   );
-}
-
-function StatusPill({ status, isOverdue, type = 'booking' }: any) {
-   const getStyles = () => {
-      const s = status?.toLowerCase();
-      if (type === 'payment') {
-         if (s === 'paid' || s === 'free') return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-         return 'bg-amber-50 text-amber-600 border-amber-100';
+   const handleHandoverAction = async (type: 'checkout' | 'checkin') => {
+      setIsProcessing(true);
+      try {
+         const res = await recordHandover({
+            bookingId: booking.id,
+            type: type,
+            remarks: 'Protocol condition assessment: Optimal'
+         });
+         if (res.success) {
+            toast.success(`Protocol: Asset ${type === 'checkout' ? 'Deployed' : 'Secured'}`);
+            onRefresh();
+            onClose();
+         }
+      } catch {
+         toast.error('Handover Transmission Failure');
+      } finally {
+         setIsProcessing(false);
       }
-
-      if (isOverdue) return 'bg-red-50 text-red-600 border-red-100 shadow-sm shadow-red-100';
-      if (s === 'in-session') return 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20';
-      if (s === 'confirmed' || s === 'approved') return 'bg-blue-50 text-blue-600 border-blue-100';
-      if (s === 'completed') return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-      if (s === 'pending') return 'bg-amber-50 text-amber-600 border-amber-100';
-      return 'bg-gray-50 text-gray-400 border-gray-100';
    };
 
    return (
-      <div className={clsx("px-3 py-1.5 rounded-lg text-[9px] font-black uppercase border tracking-widest flex items-center gap-1.5", getStyles())}>
-         {isOverdue && <AlertCircle size={10} />}
-         {status?.toUpperCase()}
-      </div>
-   );
-}
+      <div className="fixed inset-0 z-[120] flex justify-end">
+         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md" />
+         <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }} className="w-full max-w-xl bg-white h-full shadow-2xl relative flex flex-col border-l border-slate-200">
+            {/* Drawer Header */}
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-slate-900 text-white rounded-none flex items-center justify-center border border-slate-800 shadow-xl">
+                     <Calendar size={24} />
+                  </div>
+                  <div>
+                     <h2 className="text-lg font-bold text-slate-900 tracking-tight uppercase">Reservation Audit</h2>
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">PROTOCOL ID: #{booking.id}</p>
+                  </div>
+               </div>
+               <button onClick={onClose} className="p-2.5 hover:bg-slate-50 rounded-none transition-all active:scale-90 border border-transparent hover:border-slate-100 text-slate-400"><X size={24} /></button>
+            </div>
 
-function Pagination({ total, current, itemsPerPage, onChange }: any) {
-   const totalPages = Math.ceil(total / itemsPerPage);
-   if (totalPages <= 1) return null;
-   return (
-      <div className="p-8 border-t border-gray-50 flex items-center justify-between bg-gray-50/30">
-         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Displaying {Math.min(itemsPerPage, total)} of {total} Records</p>
-         <div className="flex items-center gap-3">
-            <button onClick={() => onChange(Math.max(1, current - 1))} disabled={current === 1} className="p-2 border rounded-lg bg-white disabled:opacity-30 transition-all"><ChevronLeft size={16} /></button>
-            <span className="text-[10px] font-black text-gray-900 uppercase">Page {current} / {totalPages}</span>
-            <button onClick={() => onChange(Math.min(total, current + 1))} disabled={current >= totalPages} className="p-2 border rounded-lg bg-white disabled:opacity-30 transition-all"><ChevronRight size={16} /></button>
-         </div>
+            <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar pb-32">
+               {/* Status Module */}
+               <div className={clsx(
+                  "p-6 rounded-none border flex items-center justify-between shadow-sm relative overflow-hidden group",
+                  booking.status === 'confirmed' ? "bg-emerald-50 border-emerald-100" :
+                     booking.status === 'pending' ? "bg-amber-50 border-amber-100" : "bg-red-50 border-red-100"
+               )}>
+                  <div className="flex items-center gap-5 relative z-10">
+                     <div className={clsx(
+                        "w-10 h-10 rounded-none flex items-center justify-center border shadow-sm transition-transform group-hover:scale-105",
+                        booking.status === 'confirmed' ? "bg-white text-emerald-600 border-emerald-100" :
+                           booking.status === 'pending' ? "bg-white text-amber-600 border-amber-100" : "bg-white text-red-600 border-red-100"
+                     )}>
+                        {booking.status === 'confirmed' ? <CheckCircle size={22} /> : booking.status === 'pending' ? <Clock size={22} /> : <XCircle size={22} />}
+                     </div>
+                     <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">ALLOCATION PROTOCOL</p>
+                        <p className={clsx("text-lg font-bold uppercase tracking-tight",
+                           booking.status === 'confirmed' ? "text-emerald-700" :
+                              booking.status === 'pending' ? "text-amber-700" : "text-red-700")}>{booking.status}</p>
+                     </div>
+                  </div>
+                  <Zap size={64} className="absolute -right-4 -bottom-4 opacity-5 rotate-12" />
+               </div>
+
+               {/* Primary Attributes */}
+               <div className="grid grid-cols-2 gap-6">
+                  <div className="p-6 bg-slate-50 border border-slate-100 rounded-none space-y-4 hover:bg-white hover:border-blue-100 transition-all group">
+                     <div className="w-10 h-10 bg-white border border-slate-100 rounded-none flex items-center justify-center text-blue-600 shadow-sm group-hover:bg-blue-600 group-hover:text-white transition-all">
+                        <Package size={18} />
+                     </div>
+                     <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">RESOURCE</p>
+                        <p className="text-xs font-bold text-slate-900 uppercase tracking-tight truncate">{booking.asset_name}</p>
+                     </div>
+                  </div>
+                  <div className="p-6 bg-slate-50 border border-slate-100 rounded-none space-y-4 hover:bg-white hover:border-blue-100 transition-all group">
+                     <div className="w-10 h-10 bg-white border border-slate-100 rounded-none flex items-center justify-center text-indigo-600 shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                        <User size={18} />
+                     </div>
+                     <div>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">RESIDENT</p>
+                        <p className="text-xs font-bold text-slate-900 uppercase tracking-tight truncate">{booking.user_name}</p>
+                     </div>
+                  </div>
+               </div>
+
+               {/* Chrono Timeline */}
+               <div className="bg-white rounded-none border border-slate-200 p-8 space-y-8 shadow-sm">
+                  <div className="flex items-center gap-3 pb-6 border-b border-slate-100">
+                     <Clock size={16} className="text-blue-600" />
+                     <h3 className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">Allocation Timeline</h3>
+                  </div>
+
+                  <div className="space-y-12 relative">
+                     <div className="absolute left-5 top-2 bottom-2 w-px bg-slate-100" />
+
+                     <div className="flex items-start gap-6 relative group">
+                        <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-none flex items-center justify-center border border-emerald-100 z-10 group-hover:bg-emerald-500 group-hover:text-white transition-all shadow-sm">
+                           <LogIn size={18} />
+                        </div>
+                        <div>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">CHECK-IN PROTOCOL</p>
+                           <p className="text-sm font-bold text-slate-900 uppercase tracking-tight">{formatDateSafe(booking.start_time)}</p>
+                        </div>
+                     </div>
+
+                     <div className="flex items-start gap-6 relative group">
+                        <div className="w-10 h-10 bg-red-50 text-red-400 rounded-none flex items-center justify-center border border-red-100 z-10 group-hover:bg-red-500 group-hover:text-white transition-all shadow-sm">
+                           <LogOut size={18} />
+                        </div>
+                        <div>
+                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">CHECK-OUT PROTOCOL</p>
+                           <p className="text-sm font-bold text-slate-900 uppercase tracking-tight">{formatDateSafe(booking.end_time)}</p>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               {/* Financial Audit */}
+               <div className="bg-slate-900 p-10 rounded-none text-white shadow-2xl relative overflow-hidden group border border-slate-800">
+                  <div className="absolute -right-10 -top-10 p-12 opacity-5 transform group-hover:scale-110 group-hover:rotate-12 transition-transform">
+                     <IndianRupee size={120} />
+                  </div>
+                  <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-6">
+                     <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">FINANCIAL LEDGER</p>
+                     <Zap size={16} className="text-amber-400 fill-amber-400" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-10">
+                     <div className="space-y-2">
+                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest leading-none">Net Proceeds</p>
+                        <p className="text-2xl font-bold tracking-tight tabular-nums text-white group-hover:text-blue-400 transition-colors">₹{Number(booking.total_amount).toLocaleString()}</p>
+                     </div>
+                     <div className="space-y-2">
+                        <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest leading-none">Security Bond</p>
+                        <p className="text-2xl font-bold tracking-tight tabular-nums text-emerald-400">₹{Number(booking.deposit_amount).toLocaleString()}</p>
+                     </div>
+                  </div>
+               </div>
+
+               {/* Operational Actions */}
+               <div className="space-y-4">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Strategic Operations</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                     {booking.status === 'confirmed' && !booking.checked_out_at && (
+                        <button
+                           onClick={() => handleHandoverAction('checkout')}
+                           disabled={isProcessing}
+                           className="flex flex-col items-center justify-center p-6 bg-white border border-slate-200 rounded-none hover:border-blue-600 hover:shadow-xl transition-all group"
+                        >
+                           <ArrowUpRight size={20} className="text-slate-400 group-hover:text-blue-600 mb-2.5" />
+                           <p className="text-[9px] font-bold text-slate-900 uppercase tracking-widest">Mark Deployed</p>
+                        </button>
+                     )}
+                     {booking.status === 'confirmed' && booking.checked_out_at && !booking.checked_in_at && (
+                        <button
+                           onClick={() => handleHandoverAction('checkin')}
+                           disabled={isProcessing}
+                           className="flex flex-col items-center justify-center p-6 bg-white border border-slate-200 rounded-none hover:border-emerald-600 hover:shadow-xl transition-all group"
+                        >
+                           <ClipboardCheck size={20} className="text-slate-400 group-hover:text-emerald-600 mb-2.5" />
+                           <p className="text-[9px] font-bold text-slate-900 uppercase tracking-widest">Secure Return</p>
+                        </button>
+                     )}
+                     <button className="flex flex-col items-center justify-center p-6 bg-white border border-slate-200 rounded-none hover:border-slate-900 hover:shadow-xl transition-all group col-span-1">
+                        <ListFilter size={20} className="text-slate-400 group-hover:text-slate-900 mb-2.5" />
+                        <p className="text-[9px] font-bold text-slate-900 uppercase tracking-widest">Audit Trails</p>
+                     </button>
+                  </div>
+               </div>
+            </div>
+
+            {/* Strategy Controls */}
+            <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex gap-4 absolute bottom-0 left-0 right-0">
+               {booking.status === 'pending' ? (
+                  <>
+                     <button
+                        onClick={() => onAction(booking.id, 'rejected')}
+                        className="flex-1 py-3 bg-white text-red-500 rounded-none font-bold uppercase text-[10px] tracking-widest border border-red-100 hover:bg-red-50 transition-all shadow-sm active:scale-95"
+                     >
+                        Abort Request
+                     </button>
+                     <button
+                        onClick={() => onAction(booking.id, 'confirmed')}
+                        className="flex-[2] py-3 bg-slate-900 text-white rounded-none font-bold uppercase text-[10px] tracking-widest shadow-xl hover:bg-blue-600 active:scale-95 transition-all flex items-center justify-center gap-2"
+                     >
+                        <CheckCircle size={16} />
+                        Authorize Allocation
+                     </button>
+                  </>
+               ) : (
+                  <button
+                     onClick={onClose}
+                     className="w-full py-3 bg-white text-slate-900 rounded-none font-bold uppercase text-[10px] tracking-widest border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+                  >
+                     Close Audit
+                  </button>
+               )}
+            </div>
+         </motion.div>
       </div>
    );
 }

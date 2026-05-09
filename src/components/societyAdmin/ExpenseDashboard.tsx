@@ -22,7 +22,6 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Calendar,
   Users,
   FileText,
   BarChart3,
@@ -44,8 +43,15 @@ import {
   Coffee,
   Fuel,
   Wrench,
-  Paperclip
+  Check,
+  ArrowLeft,
+  ArrowRight,
+  Upload,
+  Plus,
+  Trash2,
+  X
 } from 'lucide-react';
+import clsx from 'clsx';
 
 interface ExpenseAnalytics {
   totalExpenses: number;
@@ -91,10 +97,10 @@ interface ExpenseAnalytics {
   }>;
 }
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+const COLORS = ['#004ac6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
 
-const getCategoryIcon = (category: string) => {
-  const iconMap: Record<string, any> = {
+const getCategoryIcon = (category: string): React.ElementType => {
+  const iconMap: Record<string, React.ElementType> = {
     'Maintenance': Wrench,
     'Utilities': Zap,
     'Security': Users,
@@ -147,7 +153,6 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
   useEffect(() => {
     fetchAnalytics();
   }, []);
-
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
@@ -167,13 +172,13 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
             ? ((apiData.summary.thisMonthAmount - apiData.summary.lastMonthAmount) / apiData.summary.lastMonthAmount) * 100
             : 0,
           topCategories: apiData.topCategories || [],
-          monthlyTrends: Object.entries(apiData.monthlyTrends || {}).map(([month, data]: [string, any]) => ({
+          monthlyTrends: Object.entries(apiData.monthlyTrends || {}).map(([month, data]: any) => ({
             month,
             amount: data.totalAmount || 0,
             count: data.expenseCount || 0
           })),
           categoryWiseBreakdown: apiData.categoryWiseBreakdown || {},
-          paymentMethodBreakdown: Object.entries(apiData.paymentMethodBreakdown || {}).map(([method, data]: [string, any]) => ({
+          paymentMethodBreakdown: Object.entries(apiData.paymentMethodBreakdown || {}).map(([method, data]: any) => ({
             method,
             amount: data.totalAmount || 0,
             count: data.expenseCount || 0,
@@ -228,235 +233,165 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Expense Dashboard</h1>
+      <div className="flex justify-between items-end">
+        <div>
+          <nav className="flex gap-2 text-[12px] font-bold text-[#565e74] mb-2 uppercase tracking-wide">
+            <span>Management</span>
+            <span>/</span>
+            <span className="text-[#004ac6]">Expenses</span>
+          </nav>
+          <h2 className="text-[32px] font-bold leading-tight tracking-tight text-[#0b1c30]">Expense Analytics</h2>
+        </div>
         <button
           onClick={fetchAnalytics}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-white border border-slate-200 text-[#565e74] px-5 py-2 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px] hover:bg-slate-50 shadow-sm"
         >
-          Refresh Data
+          <Activity className="w-4 h-4" /> Refresh Data
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-              <p className="text-2xl font-bold text-gray-900">{analytics.totalExpenses}</p>
+        {[
+          { label: 'Total Expenses', value: analytics.totalExpenses, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-500' },
+          { label: 'Total Amount', value: formatCurrency(analytics.totalAmount), icon: DollarSign, color: 'text-green-600', bg: 'bg-green-500' },
+          { label: 'Average Expense', value: formatCurrency(analytics.averageExpense), icon: BarChart3, color: 'text-orange-600', bg: 'bg-orange-500' },
+          { label: 'Monthly Growth', value: `${analytics.monthlyGrowth > 0 ? '+' : ''}${analytics.monthlyGrowth.toFixed(1)}%`, icon: analytics.monthlyGrowth >= 0 ? TrendingUp : TrendingDown, color: analytics.monthlyGrowth >= 0 ? 'text-green-600' : 'text-red-600', bg: analytics.monthlyGrowth >= 0 ? 'bg-green-500' : 'bg-red-500' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <div className={clsx("w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg", stat.bg)}>
+                <stat.icon className="w-5 h-5" />
+              </div>
+              <div className={clsx("text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider", stat.bg.replace('bg-', 'bg-').replace('500', '50'))}>
+                <span className={stat.color}>{stat.label === 'Monthly Growth' ? 'Growth' : 'Live'}</span>
+              </div>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FileText className="h-6 w-6 text-blue-600" />
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">{stat.label}</p>
+              <h3 className="text-2xl font-bold text-[#0b1c30] tracking-tight">{stat.value}</h3>
             </div>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Amount</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(analytics.totalAmount)}</p>
-            </div>
-            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Average Expense</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(analytics.averageExpense)}</p>
-            </div>
-            <div className="h-12 w-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <BarChart3 className="h-6 w-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Monthly Growth</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {analytics.monthlyGrowth > 0 ? '+' : ''}{analytics.monthlyGrowth.toFixed(1)}%
-              </p>
-            </div>
-            <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${analytics.monthlyGrowth >= 0 ? 'bg-green-100' : 'bg-red-100'
-              }`}>
-              {analytics.monthlyGrowth >= 0 ? (
-                <TrendingUp className="h-6 w-6 text-green-600" />
-              ) : (
-                <TrendingDown className="h-6 w-6 text-red-600" />
-              )}
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg shadow-sm border">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
-            {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
-              { id: 'categories', label: 'Categories', icon: PieChartIcon },
-              { id: 'trends', label: 'Trends', icon: TrendingUp },
-              { id: 'recent', label: 'Recent', icon: Activity }
-            ].map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="bg-slate-50/50 p-1 flex gap-1 border-b border-slate-100">
+          {[
+            { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'categories', label: 'Categories', icon: PieChartIcon },
+            { id: 'trends', label: 'Trends', icon: TrendingUp },
+            { id: 'recent', label: 'Recent', icon: Activity }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={clsx(
+                "flex items-center gap-2 px-6 py-2 text-[13px] font-bold rounded-lg transition-all",
+                activeTab === tab.id ? "bg-white text-[#004ac6] shadow-sm border border-slate-100" : "text-slate-500 hover:bg-white/50"
+              )}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-8">
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div
                 key="overview"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
               >
-                {/* Charts Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Monthly Trends Chart */}
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Monthly Expense Trends</h3>
-                    <div className="h-64">
+                {/* Main Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                    <h3 className="text-[14px] font-bold text-[#0b1c30] mb-6 flex items-center gap-2 uppercase tracking-wider">
+                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                      Monthly Expense Trends
+                    </h3>
+                    <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={monthlyTrendData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                          <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-                          <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                          <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} dy={10} />
+                          <YAxis stroke="#94a3b8" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                            labelStyle={{ fontWeight: 800, color: '#0b1c30', marginBottom: '4px' }}
+                            formatter={(value) => [formatCurrency(value as number), 'Amount']}
+                          />
                           <Line
                             type="monotone"
                             dataKey="amount"
-                            stroke="#3b82f6"
-                            strokeWidth={3}
-                            dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
-                            activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
+                            stroke="#004ac6"
+                            strokeWidth={4}
+                            dot={{ fill: '#004ac6', strokeWidth: 2, r: 4 }}
+                            activeDot={{ r: 6, stroke: '#fff', strokeWidth: 3 }}
                           />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
-                  {/* Category Distribution */}
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Category Distribution</h3>
-                    <div className="h-64">
+                  <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                    <h3 className="text-[14px] font-bold text-[#0b1c30] mb-6 flex items-center gap-2 uppercase tracking-wider">
+                      <PieChartIcon className="w-4 h-4 text-green-600" />
+                      Category Distribution
+                    </h3>
+                    <div className="h-[300px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={categoryData}
                             cx="50%"
                             cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
-                            outerRadius={80}
-                            fill="#8884d8"
+                            innerRadius={60}
+                            outerRadius={100}
+                            paddingAngle={5}
+                            cornerRadius={4}
                             dataKey="value"
                           >
                             {categoryData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value) => formatCurrency(value as number)} />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                            formatter={(value) => formatCurrency(value as number)}
+                          />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
                 </div>
 
-                {/* Payment Methods Chart */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Method Breakdown</h3>
-                  <div className="h-64">
+                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                  <h3 className="text-[14px] font-bold text-[#0b1c30] mb-6 flex items-center gap-2 uppercase tracking-wider">
+                    <CreditCard className="w-4 h-4 text-orange-600" />
+                    Payment Method Breakdown
+                  </h3>
+                  <div className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={paymentMethodData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="method" stroke="#6b7280" fontSize={12} />
-                        <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-                        <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                        <Bar dataKey="amount" fill="#3b82f6" />
+                      <BarChart data={paymentMethodData} barGap={8}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="method" stroke="#94a3b8" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} dy={10} />
+                        <YAxis stroke="#94a3b8" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}
+                          formatter={(value) => formatCurrency(value as number)}
+                        />
+                        <Bar dataKey="amount" fill="#004ac6" radius={[6, 6, 0, 0]} barSize={40} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Additional Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Monthly Expense Line Chart */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm border">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <TrendingUp className="h-5 w-5 mr-2 text-blue-600" />
-                      Monthly Expense Trends
-                    </h3>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={monthlyTrendData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                          <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-                          <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                          <Line
-                            type="monotone"
-                            dataKey="amount"
-                            stroke="#3b82f6"
-                            strokeWidth={3}
-                            dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
-                            activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* Category Stacked Bar Chart */}
-                  <div className="bg-white p-6 rounded-lg shadow-sm border">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-                      <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
-                      Category Analysis
-                    </h3>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={categoryData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis
-                            dataKey="name"
-                            stroke="#6b7280"
-                            fontSize={12}
-                            angle={-45}
-                            textAnchor="end"
-                            height={60}
-                          />
-                          <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-                          <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                          <Legend />
-                          <Bar dataKey="value" stackId="a" fill="#10b981" name="Amount" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -465,64 +400,37 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
             {activeTab === 'categories' && (
               <motion.div
                 key="categories"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
               >
-                {/* Top Categories */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Top Expense Categories</h3>
-                  <div className="space-y-3">
-                    {analytics.topCategories.map((category, index) => {
-                      const Icon = getCategoryIcon(category.category);
-                      return (
-                        <div key={category.category} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center`} style={{ backgroundColor: COLORS[index % COLORS.length] + '20' }}>
-                              <Icon className="h-5 w-5" style={{ color: COLORS[index % COLORS.length] }} />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{category.category}</p>
-                              <p className="text-sm text-gray-500">{category.count} expenses</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium text-gray-900">{formatCurrency(category.amount)}</p>
-                            <p className="text-sm text-gray-500">{category.percentage.toFixed(1)}%</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Object.entries(analytics.categoryWiseBreakdown).map(([category, data]) => {
+                  {Object.entries(analytics.categoryWiseBreakdown).map(([category, data], index) => {
                     const Icon = getCategoryIcon(category);
                     return (
-                      <div key={category} className="bg-gray-50 p-6 rounded-lg">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <Icon className="h-6 w-6 text-blue-600" />
+                      <div key={category} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all">
+                        <div className="flex items-center gap-4 mb-6">
+                          <div className={clsx("w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg", `bg-[${COLORS[index % COLORS.length]}]`)} style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+                            <Icon className="w-6 h-6" />
                           </div>
                           <div>
-                            <h3 className="font-medium text-gray-900">{category}</h3>
-                            <p className="text-sm text-gray-500">{data.expenseCount} expenses</p>
+                            <h3 className="font-bold text-[#0b1c30] text-[15px]">{category}</h3>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{data.expenseCount} Transactions</p>
                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Total Amount</span>
-                            <span className="font-medium">{formatCurrency(data.totalAmount)}</span>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                            <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Total</span>
+                            <span className="text-[14px] font-bold text-[#0b1c30]">{formatCurrency(data.totalAmount)}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Average</span>
-                            <span className="font-medium">{formatCurrency(data.averageAmount)}</span>
+                          <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                            <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Average</span>
+                            <span className="text-[14px] font-bold text-[#0b1c30]">{formatCurrency(data.averageAmount)}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Percentage</span>
-                            <span className="font-medium">{data.percentage.toFixed(1)}%</span>
+                          <div className="flex justify-between items-center pt-2">
+                            <span className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">Share</span>
+                            <span className="text-[14px] font-bold text-blue-600">{data.percentage.toFixed(1)}%</span>
                           </div>
                         </div>
                       </div>
@@ -535,165 +443,27 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
             {activeTab === 'trends' && (
               <motion.div
                 key="trends"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
               >
-                {/* Dual-Axis Line Chart - Monthly Trends */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Monthly Expense Trends - Dual Axis</h3>
-                  <div className="h-80">
+                <div className="bg-slate-50/50 p-8 rounded-2xl border border-slate-100">
+                  <h3 className="text-[14px] font-bold text-[#0b1c30] mb-8 flex items-center gap-2 uppercase tracking-wider">
+                    <Activity className="w-4 h-4 text-purple-600" />
+                    Growth Analysis
+                  </h3>
+                  <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={monthlyTrendData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis
-                          dataKey="month"
-                          stroke="#6b7280"
-                          fontSize={12}
-                        />
-                        <YAxis
-                          yAxisId="amount"
-                          orientation="left"
-                          stroke="#3b82f6"
-                          fontSize={12}
-                          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
-                        />
-                        <YAxis
-                          yAxisId="count"
-                          orientation="right"
-                          stroke="#10b981"
-                          fontSize={12}
-                        />
-                        <Tooltip
-                          formatter={(value, name) => [
-                            name === 'amount' ? formatCurrency(value as number) : value,
-                            name === 'amount' ? 'Amount' : 'Count'
-                          ]}
-                        />
-                        <Legend />
-                        <Line
-                          yAxisId="amount"
-                          type="monotone"
-                          dataKey="amount"
-                          stroke="#3b82f6"
-                          strokeWidth={3}
-                          dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
-                          activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
-                          name="Amount"
-                        />
-                        <Line
-                          yAxisId="count"
-                          type="monotone"
-                          dataKey="count"
-                          stroke="#10b981"
-                          strokeWidth={3}
-                          dot={{ fill: '#10b981', strokeWidth: 2, r: 5 }}
-                          activeDot={{ r: 7, stroke: '#10b981', strokeWidth: 2 }}
-                          name="Count"
-                        />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} dy={10} />
+                        <YAxis yAxisId="left" stroke="#94a3b8" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v/1000).toFixed(0)}K`} />
+                        <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} fontWeight={700} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                        <Bar yAxisId="left" dataKey="amount" fill="#004ac6" radius={[4, 4, 0, 0]} barSize={30} />
+                        <Line yAxisId="right" type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
                       </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Category Performance - Dual Axis */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Category Performance - Dual Axis</h3>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={categoryData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis
-                          dataKey="name"
-                          stroke="#6b7280"
-                          fontSize={12}
-                          angle={-45}
-                          textAnchor="end"
-                          height={60}
-                        />
-                        <YAxis
-                          yAxisId="amount"
-                          orientation="left"
-                          stroke="#3b82f6"
-                          fontSize={12}
-                          tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
-                        />
-                        <YAxis
-                          yAxisId="count"
-                          orientation="right"
-                          stroke="#10b981"
-                          fontSize={12}
-                        />
-                        <Tooltip
-                          formatter={(value, name) => [
-                            name === 'value' ? formatCurrency(value as number) : value,
-                            name === 'value' ? 'Amount' : 'Count'
-                          ]}
-                        />
-                        <Legend />
-                        <Line
-                          yAxisId="amount"
-                          type="monotone"
-                          dataKey="value"
-                          stroke="#3b82f6"
-                          strokeWidth={3}
-                          dot={{ fill: '#3b82f6', strokeWidth: 2, r: 5 }}
-                          activeDot={{ r: 7, stroke: '#3b82f6', strokeWidth: 2 }}
-                          name="Amount"
-                        />
-                        <Line
-                          yAxisId="count"
-                          type="monotone"
-                          dataKey="count"
-                          stroke="#10b981"
-                          strokeWidth={3}
-                          dot={{ fill: '#10b981', strokeWidth: 2, r: 5 }}
-                          activeDot={{ r: 7, stroke: '#10b981', strokeWidth: 2 }}
-                          name="Count"
-                        />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Monthly Expense Amount Trend */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Monthly Expense Amount Trend</h3>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={monthlyTrendData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
-                        <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-                        <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                        <Line
-                          type="monotone"
-                          dataKey="amount"
-                          stroke="#8b5cf6"
-                          strokeWidth={3}
-                          dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 5 }}
-                          activeDot={{ r: 7, stroke: '#8b5cf6', strokeWidth: 2 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Payment Method Distribution - Stacked Bar Chart */}
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Method Distribution</h3>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={paymentMethodData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="method" stroke="#6b7280" fontSize={12} />
-                        <YAxis stroke="#6b7280" tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`} />
-                        <Tooltip formatter={(value) => formatCurrency(value as number)} />
-                        <Legend />
-                        <Bar dataKey="amount" stackId="a" fill="#3b82f6" name="Amount" />
-                        <Bar dataKey="count" stackId="b" fill="#10b981" name="Count" />
-                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
@@ -703,76 +473,43 @@ const ExpenseDashboard: React.FC<ExpenseDashboardProps> = ({ societyId }) => {
             {activeTab === 'recent' && (
               <motion.div
                 key="recent"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="space-y-6"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-4"
               >
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Expenses</h3>
-                  <div className="space-y-4">
-                    {analytics.recentExpenses.map((expense) => {
-                      const Icon = getCategoryIcon(expense.category);
-                      return (
-                        <div key={expense.id} className="bg-white p-4 rounded-lg border">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <Icon className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{expense.description}</h4>
-                                <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                                  <span className="flex items-center gap-1">
-                                    <FileText className="h-4 w-4" />
-                                    {expense.category}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <CreditCard className="h-4 w-4" />
-                                    {expense.paymentMethod}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4" />
-                                    {new Date(expense.date).toLocaleDateString()}
-                                  </span>
-                                  {expense.wing && expense.flatNumber && (
-                                    <span className="flex items-center gap-1">
-                                      <Home className="h-4 w-4" />
-                                      {expense.wing}-{expense.flatNumber}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-semibold text-gray-900">{formatCurrency(expense.amount)}</p>
-                            </div>
-                          </div>
-                          {expense.attachments && expense.attachments.length > 0 && (
-                            <div className="mt-3 pt-3 border-t border-gray-100">
-                              <p className="text-sm text-gray-600 mb-2 flex items-center gap-1">
-                                <Paperclip className="h-4 w-4" />
-                                Attachments ({expense.attachments.length})
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {expense.attachments.map((attachment, index) => (
-                                  <a
-                                    key={index}
-                                    href={attachment.fileUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-                                  >
-                                    {attachment.fileName}
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                  <table className="min-w-full divide-y divide-slate-50">
+                    <thead className="bg-slate-50/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Category</th>
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-4 text-right text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {analytics.recentExpenses.map((expense) => (
+                        <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <p className="font-bold text-[#0b1c30] text-[13px]">{expense.description}</p>
+                            <p className="text-[11px] text-slate-400 font-medium">{expense.paymentMethod}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold uppercase">
+                              {expense.category}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-[12px] font-bold text-slate-600">{new Date(expense.date).toLocaleDateString()}</p>
+                          </td>
+                          <td className="px-6 py-4 text-right text-[14px] font-bold text-[#0b1c30]">
+                            {formatCurrency(expense.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </motion.div>
             )}

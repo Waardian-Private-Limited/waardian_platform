@@ -817,7 +817,7 @@ export interface Asset {
   description: string;
   category: string;
   image_url: string;
-  status: 'active' | 'in_use' | 'under_maintenance' | 'missing' | 'decommissioned' | 'available';
+  status: 'active' | 'in_use' | 'under_maintenance' | 'missing' | 'decommissioned' | 'available' | 'operational' | 'maintenance';
   is_bookable: boolean;
   pricing_model: 'free' | 'paid_hourly' | 'paid_daily';
   price: number;
@@ -881,6 +881,11 @@ export interface AssetBooking {
   first_name?: string;
   last_name?: string;
   asset_name?: string;
+  resident_name?: string;
+  asset_category?: string;
+  block_wing?: string;
+  unit_number?: string;
+  charge_amount?: number;
   rejection_reason?: string;
   checked_out_at?: string;
   checked_in_at?: string;
@@ -1000,6 +1005,14 @@ export const getMaintenanceFinancials = async (): Promise<ApiResponse<any>> => {
 
 export const markAssetAsServiced = async (data: any): Promise<ApiResponse<any>> => {
   return apiClient('/assets/admin/maintenance/service', {
+    method: 'POST',
+    withAuth: true,
+    body: data,
+  });
+};
+
+export const scheduleMaintenance = async (data: any): Promise<ApiResponse<any>> => {
+  return apiClient('/assets/admin/maintenance/schedule', {
     method: 'POST',
     withAuth: true,
     body: data,

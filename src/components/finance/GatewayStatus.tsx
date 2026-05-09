@@ -15,7 +15,8 @@ import {
   EyeOff,
   CreditCard,
   Building2,
-  RefreshCw
+  RefreshCw,
+  Shield
 } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 
@@ -74,6 +75,26 @@ export default function GatewayStatus({ onEdit }: GatewayStatusProps) {
       setError(error.message || 'Failed to fetch gateway status');
     } finally {
       setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleCompleteKYC = async () => {
+    try {
+      setRefreshing(true);
+      const response = await apiClient('/payment/generate_kyc_link', {
+        method: 'GET',
+        withAuth: true,
+      });
+
+      if (response.status === 'success' && response.data.kyc_url) {
+        window.open(response.data.kyc_url, '_blank');
+      } else {
+        setError(response.message || 'Failed to generate KYC link');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Failed to generate KYC link');
+    } finally {
       setRefreshing(false);
     }
   };
@@ -351,6 +372,16 @@ export default function GatewayStatus({ onEdit }: GatewayStatusProps) {
                   Your account registration is being reviewed by our team. This process typically takes 1-2 business days.
                   You'll receive an email notification once the review is complete.
                 </p>
+                {gatewayInfo.type === 'waardian' && (
+                  <Button 
+                    onClick={handleCompleteKYC} 
+                    className="mt-4 bg-yellow-600 hover:bg-yellow-700 text-white"
+                    disabled={refreshing}
+                  >
+                    {refreshing ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : <Shield className="h-4 w-4 mr-2" />}
+                    Complete KYC Verification
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

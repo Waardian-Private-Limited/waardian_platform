@@ -24,23 +24,23 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-  icon: [
-    { url: '/favicon.ico' },
-  ],
-  shortcut: [
-    { url: '/favicon.ico' },
-  ],
-  apple: [
-    { url: '/apple-icon.png' },
-  ],
-  other: [
-    {
-      rel: 'mask-icon',
-      url: '/safari-pinned-tab.svg',
-      color: '#000000',
-    },
-  ],
-},
+    icon: [
+      { url: '/favicon.ico' },
+    ],
+    shortcut: [
+      { url: '/favicon.ico' },
+    ],
+    apple: [
+      { url: '/apple-icon.png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/safari-pinned-tab.svg',
+        color: '#000000',
+      },
+    ],
+  },
 
   openGraph: {
     type: 'website',
@@ -80,9 +80,9 @@ export const metadata: Metadata = {
 if (typeof window === 'undefined') {
   (global as any).localStorage = {
     getItem: () => null,
-    setItem: () => {},
-    removeItem: () => {},
-    clear: () => {},
+    setItem: () => { },
+    removeItem: () => { },
+    clear: () => { },
     key: () => null,
     length: 0,
   };

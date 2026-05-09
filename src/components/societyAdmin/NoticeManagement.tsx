@@ -1,43 +1,40 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bell,
   Search,
-  Filter,
   Plus,
   Edit,
   Trash2,
   Eye,
-  MoreVertical,
   Calendar,
-  User,
   Clock,
-  AlertCircle,
   CheckCircle,
-  Archive,
   Download,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
-  History,
-  Settings,
   X,
+  FileText,
+  ArrowUpRight,
+  Activity,
+  TrendingUp,
+  BarChart3,
+  PieChart as PieChartIcon
 } from 'lucide-react';
-import { getAllNotices, updateNoticeStatus, deleteNotice, getNoticeAuditLog, getNoticeById, exportNoticesPDF, exportNoticesExcel } from '@/lib/apiClient';
+import { 
+  getAllNotices, 
+  updateNoticeStatus, 
+  deleteNotice, 
+  exportNoticesPDF, 
+  exportNoticesExcel,
+  getNoticeAnalytics 
+} from '@/lib/apiClient';
 import NoticeForm from './NoticeForm';
-
-interface NoticeManagementProps {
-  societyId: string;
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-    role?: string;
-    societyId?: string;
-    societyName?: string;
-  };
-}
+import { motion, AnimatePresence } from 'framer-motion';
+import clsx from 'clsx';
+import { toast } from 'react-hot-toast';
 
 interface Notice {
   id: number;
@@ -45,14 +42,11 @@ interface Notice {
   description: string;
   category: string;
   audience_type: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published' | 'archived' | 'scheduled';
   views: number;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   created_at: string;
   updated_at: string;
-  created_by_id: string | null;
-  created_by_name: string | null;
-  created_by_role: string | null;
-  createdBy: string | null;
   createdByName: string;
   is_scheduled: number;
   scheduled_datetime: string | null;
@@ -61,74 +55,69 @@ interface Notice {
     file_name: string;
     file_type: string;
     file_url: string;
-    file_size: number;
   }>;
 }
 
-interface AuditEntry {
-  id: string;
-  action: string;
-  performedBy: string;
-  performedByName: string;
-  timestamp: string;
-  details: string;
+interface NoticeStats {
+  totalNotices: number;
+  activeNotices: number;
+  totalViews: number;
+  avgEngagement: number;
+  monthlyGrowth: number;
+  categoryDistribution?: Array<{ label: string; pct: number; count: number }>;
+  audienceDistribution?: Array<{ label: string; pct: number; count: number }>;
 }
 
-const NoticeManagement = ({ societyId, user }: NoticeManagementProps) => {
-  const [notices, setNotices] = useState<Notice[]>([]);
+const NoticeManagement = ({ societyId, user }: { societyId: string, user?: any }) => {
+  // Navigation & UI State
+  const [activeTab, setActiveTab] = useState<'insights' | 'broadcaster'>('insights');
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Dashboard State
+  const [stats, setStats] = useState<NoticeStats>({
+    totalNotices: 0,
+    activeNotices: 0,
+    totalViews: 0,
+    avgEngagement: 0,
+    monthlyGrowth: 0,
+  });
+  const [timeRange, setTimeRange] = useState('30d');
+
+  // Management State
+  const [notices, setNotices] = useState<Notice[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
-  const [showAuditModal, setShowAuditModal] = useState(false);
-  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  
-  // State for modals
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  
-  // State for export functionality
   const [exporting, setExporting] = useState(false);
-  const [showExportDropdown, setShowExportDropdown] = useState(false);
 
   const itemsPerPage = 10;
 
-  // Debounced search effect
+  // Effects
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchNotices();
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
-  // Effect for other filters (immediate)
-  useEffect(() => {
-    fetchNotices();
-  }, [societyId, currentPage, statusFilter, typeFilter, priorityFilter]);
-
-  // Click outside handler for export dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.export-dropdown-container')) {
-        setShowExportDropdown(false);
-      }
-    };
-
-    if (showExportDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
+    if (activeTab === 'insights') {
+      fetchDashboardData();
+    } else {
+      const timeoutId = setTimeout(() => fetchNotices(), 500);
+      return () => clearTimeout(timeoutId);
     }
+  }, [activeTab, societyId, timeRange, searchTerm, statusFilter, currentPage]);
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showExportDropdown]);
+  // Data Fetching
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const response = await getNoticeAnalytics({ timeRange });
+      if (response.success) {
+        setStats(response.stats);
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
 
   const fetchNotices = async () => {
     try {
@@ -138,844 +127,473 @@ const NoticeManagement = ({ societyId, user }: NoticeManagementProps) => {
         limit: itemsPerPage,
         search: searchTerm || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        type: typeFilter !== 'all' ? typeFilter : undefined,
-        priority: priorityFilter !== 'all' ? priorityFilter : undefined,
       });
-      
-      setNotices(response.notices || []);
-      setTotalPages(Math.ceil((response.total || 0) / itemsPerPage));
-    } catch (error) {
-      console.error('Failed to fetch notices:', error);
-    } finally {
-      setLoading(false);
-    }
+      if (response.success) {
+        setNotices(response.notices || []);
+        setTotalPages(Math.ceil((response.total || 0) / itemsPerPage));
+      }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  const handleStatusChange = async (noticeId: string, newStatus: string) => {
+  // Actions
+  const handleDelete = async (id: string) => {
+    if (!confirm('Permanent deletion of this bulletin?')) return;
     try {
-      setActionLoading(noticeId);
-      await updateNoticeStatus(noticeId, newStatus);
-      await fetchNotices();
-    } catch (error) {
-      console.error('Failed to update notice status:', error);
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleDelete = async (noticeId: string) => {
-    if (!confirm('Are you sure you want to delete this notice? This action cannot be undone.')) {
-      return;
-    }
-    
-    try {
-      setActionLoading(noticeId);
-      const isLocalStorageAvailable = typeof window !== 'undefined' && 
-                                     typeof window.localStorage !== 'undefined' && 
-                                     typeof window.localStorage.getItem === 'function';
-      const token = isLocalStorageAvailable ? localStorage.getItem('token') : null;
-      await deleteNotice(noticeId);
-      await fetchNotices();
-      
-      // Modern notification instead of alert
-      const notificationContainer = document.getElementById('notification-container') || createNotificationContainer();
-      showNotification(notificationContainer, 'Notice deleted successfully', 'success');
-    } catch (error: any) {
-      console.error('Failed to delete notice:', error);
-      
-      // Modern notification with error details
-      const notificationContainer = document.getElementById('notification-container') || createNotificationContainer();
-      const errorMessage = error.response?.data?.error || 'Failed to delete notice. Please try again.';
-      showNotification(notificationContainer, errorMessage, 'error');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-  
-  // Helper functions for modern notifications
-  const createNotificationContainer = () => {
-    const container = document.createElement('div');
-    container.id = 'notification-container';
-    container.style.position = 'fixed';
-    container.style.top = '20px';
-    container.style.right = '20px';
-    container.style.zIndex = '9999';
-    document.body.appendChild(container);
-    return container;
-  };
-  
-  const showNotification = (container: HTMLElement, message: string, type: 'success' | 'error') => {
-    const notification = document.createElement('div');
-    notification.className = `p-4 mb-3 rounded-lg shadow-lg flex items-center space-x-3 ${
-      type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-    }`;
-    
-    const icon = document.createElement('div');
-    icon.className = `p-2 rounded-full ${type === 'success' ? 'bg-green-100' : 'bg-red-100'}`;
-    icon.innerHTML = type === 'success' 
-      ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>'
-      : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-600"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
-    
-    const content = document.createElement('div');
-    content.className = 'flex-1';
-    content.innerHTML = `<p class="${type === 'success' ? 'text-green-800' : 'text-red-800'} font-medium">${message}</p>`;
-    
-    notification.appendChild(icon);
-    notification.appendChild(content);
-    container.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.style.opacity = '0';
-      notification.style.transition = 'opacity 0.5s ease';
-      setTimeout(() => container.removeChild(notification), 500);
-    }, 5000);
-  };
-
-  const handleViewAudit = async (notice: Notice) => {
-    try {
-      setSelectedNotice(notice);
-      const isLocalStorageAvailable = typeof window !== 'undefined' && 
-                                     typeof window.localStorage !== 'undefined' && 
-                                     typeof window.localStorage.getItem === 'function';
-      const token = isLocalStorageAvailable ? localStorage.getItem('token') : null;
-      const response = await getNoticeAuditLog(String(notice.id));
-      setAuditLog(response.auditLog || []);
-      setShowAuditModal(true);
-    } catch (error: any) {
-      console.error('Failed to fetch audit log:', error);
-      const notificationContainer = document.getElementById('notification-container') || createNotificationContainer();
-      const errorMessage = error.response?.data?.error || 'Failed to fetch audit log. Please try again.';
-      showNotification(notificationContainer, errorMessage, 'error');
-    }
+      setActionLoading(id);
+      await deleteNotice(id);
+      toast.success('Bulletin purged');
+      fetchNotices();
+    } catch (e) { toast.error('Purge failed'); } finally { setActionLoading(null); }
   };
 
   const handleExport = async (format: 'pdf' | 'excel') => {
+    const email = prompt('Enter recipient email for serialization:');
+    if (!email) return;
     try {
-      setShowExportDropdown(false);
-      
-      // Prompt for email address
-      const email = prompt('Please enter your email address to receive the exported file:');
-      if (!email) {
-        return; // User cancelled or didn't provide email
-      }
-      
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        const notificationContainer = document.getElementById('notification-container') || createNotificationContainer();
-        showNotification(notificationContainer, 'Please enter a valid email address.', 'error');
-        return;
-      }
-      
       setExporting(true);
-      
-      const notificationContainer = document.getElementById('notification-container') || createNotificationContainer();
-      showNotification(notificationContainer, `Exporting notices to ${format.toUpperCase()}...`, 'success');
-      
-      if (format === 'pdf') {
-        await exportNoticesPDF(email);
-      } else {
-        await exportNoticesExcel(email);
-      }
-      
-      showNotification(notificationContainer, `Notices exported to ${format.toUpperCase()} successfully! Check your email (${email}) for the file.`, 'success');
-    } catch (error: any) {
-      console.error(`Failed to export notices to ${format}:`, error);
-      const notificationContainer = document.getElementById('notification-container') || createNotificationContainer();
-      const errorMessage = error.response?.data?.error || `Failed to export notices to ${format.toUpperCase()}. Please try again.`;
-      showNotification(notificationContainer, errorMessage, 'error');
-    } finally {
-      setExporting(false);
-    }
+      toast.loading(`Serializing registry to ${format.toUpperCase()}...`);
+      if (format === 'pdf') await exportNoticesPDF(email);
+      else await exportNoticesExcel(email);
+      toast.dismiss();
+      toast.success('Serialization finalized. Check email.');
+    } catch (e) { toast.dismiss(); toast.error('Serialization failed'); } finally { setExporting(false); }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'Emergency': return 'text-red-600 bg-red-50 border-red-200';
-      case 'Maintenance': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'General': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'Events': return 'text-green-600 bg-green-50 border-green-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'published': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'draft': return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'archived': return <Archive className="w-4 h-4 text-gray-500" />;
-      default: return <Clock className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'published': return 'text-green-600 bg-green-50';
-      case 'draft': return 'text-yellow-600 bg-yellow-50';
-      case 'archived': return 'text-gray-600 bg-gray-50';
-      default: return 'text-gray-600 bg-gray-50';
-    }
-  };
-
-  const ActionDropdown = ({ notice }: { notice: Notice }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-          setIsOpen(false);
-        }
-      };
-
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }, []);
-
+  if (loading && stats.totalNotices === 0 && notices.length === 0) {
     return (
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-          disabled={actionLoading === String(notice.id)}
-        >
-          {actionLoading === String(notice.id) ? (
-            <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />
-          ) : (
-            <MoreVertical className="w-4 h-4 text-gray-600" />
-          )}
-        </button>
-        
-        {isOpen && (
-          <>
-            <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
-              <div className="py-1">
-                <button
-                  onClick={async () => {
-                    try {
-                      setActionLoading(String(notice.id));
-                      const response = await getNoticeById(String(notice.id));
-                      const fullNotice = response.notice || response;
-                      setSelectedNotice(fullNotice);
-                      setShowViewModal(true);
-                      setIsOpen(false);
-                    } catch (error) {
-                      console.error('Error fetching notice details:', error);
-                      setSelectedNotice(notice);
-                      setShowViewModal(true);
-                      setIsOpen(false);
-                    } finally {
-                      setActionLoading(null);
-                    }
-                  }}
-                  className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>View Details</span>
-                </button>
-                
-                <button
-                  onClick={async () => {
-                    try {
-                      setActionLoading(String(notice.id));
-                      const response = await getNoticeById(String(notice.id));
-                      const fullNotice = response.notice || response;
-                      setSelectedNotice(fullNotice);
-                      setShowEditModal(true);
-                      setIsOpen(false);
-                    } catch (error) {
-                      console.error('Error fetching notice details:', error);
-                      setSelectedNotice(notice);
-                      setShowEditModal(true);
-                      setIsOpen(false);
-                    } finally {
-                      setActionLoading(null);
-                    }
-                  }}
-                  className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span>Edit</span>
-                </button>
-                
-                <button
-                  onClick={() => {
-                    handleViewAudit(notice);
-                    setIsOpen(false);
-                  }}
-                  className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <History className="w-4 h-4" />
-                  <span>View Audit Log</span>
-                </button>
-                
-                <div className="border-t border-gray-100 my-1" />
-                
-                {notice.status === 'draft' && (
-                  <button
-                    onClick={() => {
-                      handleStatusChange(String(notice.id), 'published');
-                    setIsOpen(false);
-                    }}
-                    className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-green-700 hover:bg-green-50"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Publish</span>
-                  </button>
-                )}
-                
-                {notice.status === 'published' && (
-                  <button
-                    onClick={() => {
-                      handleStatusChange(String(notice.id), 'archived');
-                      setIsOpen(false);
-                    }}
-                    className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  >
-                    <Archive className="w-4 h-4" />
-                    <span>Archive</span>
-                  </button>
-                )}
-                
-                <button
-                  onClick={() => {
-                    handleDelete(String(notice.id));
-                    setIsOpen(false);
-                  }}
-                  className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
-
-  const AuditModal = () => {
-    if (!showAuditModal || !selectedNotice) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Audit Log</h3>
-                <p className="text-sm text-gray-600 mt-1">{selectedNotice.title}</p>
-              </div>
-              <button
-                onClick={() => setShowAuditModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="p-6 overflow-y-auto max-h-96">
-            {auditLog.length > 0 ? (
-              <div className="space-y-4">
-                {auditLog.map((entry) => (
-                  <div key={entry.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <History className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-gray-900">{entry.action}</p>
-                        <span className="text-xs text-gray-500">
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{entry.details}</p>
-                      <p className="text-xs text-gray-500 mt-1">by {entry.performedByName}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <History className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No audit log entries found</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Notice Management</h1>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="animate-pulse space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-pulse text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing Communication Hub...</div>
       </div>
     );
   }
 
-  // View Notice Modal
-  const ViewNoticeModal = () => {
-    if (!showViewModal || !selectedNotice) return null;
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">Notice Details</h3>
-              <button
-                onClick={() => setShowViewModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-            <div className="space-y-6">
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Title</h4>
-                <p className="text-lg font-medium mt-1">{selectedNotice.title}</p>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium text-gray-500">Description</h4>
-                <div className="mt-1 prose max-w-none" dangerouslySetInnerHTML={{ __html: selectedNotice.description }} />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Category</h4>
-                  <p className="mt-1">{selectedNotice.category}</p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Audience</h4>
-                  <p className="mt-1">{selectedNotice.audience_type}</p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Status</h4>
-                  <div className="mt-1 flex items-center space-x-2">
-                    {getStatusIcon(selectedNotice.status)}
-                    <span className="capitalize">{selectedNotice.status}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Created By</h4>
-                  <p className="mt-1">{selectedNotice.createdByName || 'Unknown'}</p>
-                </div>
-                
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Created At</h4>
-                  <p className="mt-1">{new Date(selectedNotice.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-              
-              {selectedNotice.is_scheduled === 1 && selectedNotice.scheduled_datetime && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500">Scheduled For</h4>
-                  <p className="mt-1">{new Date(selectedNotice.scheduled_datetime).toLocaleString()}</p>
-                </div>
-              )}
-              
-              {selectedNotice.attachments && selectedNotice.attachments.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">Attachments ({selectedNotice.attachments.length})</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {selectedNotice.attachments.map((attachment: any, index: number) => (
-                      <div key={index} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center space-x-3">
-                          <div className="flex-shrink-0">
-                            {attachment.file_type?.startsWith('image/') ? (
-                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                              </div>
-                            ) : attachment.file_type?.includes('pdf') ? (
-                              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                              </div>
-                            ) : (
-                              <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {attachment.file_name || `Attachment ${index + 1}`}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {attachment.file_type || 'Unknown type'}
-                            </p>
-                          </div>
-                          {attachment.file_url && (
-                            <a
-                              href={attachment.file_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-shrink-0 p-1 text-blue-600 hover:text-blue-800 transition-colors"
-                              title="Open attachment"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
-            <button
-              onClick={() => {
-                setShowViewModal(false);
-                setSelectedNotice(selectedNotice);
-                setShowEditModal(true);
-              }}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Edit Notice
-            </button>
-            <button
-              onClick={() => setShowViewModal(false)}
-              className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  // Edit Notice Modal - This would include the NoticeForm component
-  const EditNoticeModal = () => {
-    if (!showEditModal || !selectedNotice) return null;
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">Edit Notice</h3>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-            <NoticeForm 
-              societyId={societyId}
-              editMode={true}
-              noticeId={String(selectedNotice.id)}
-              initialData={selectedNotice}
-              onSuccess={() => {
-                setShowEditModal(false);
-                fetchNotices();
-              }}
-              onCancel={() => setShowEditModal(false)}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-  
-  // Create Notice Modal - This would include the NoticeForm component
-  const CreateNoticeModal = () => {
-    if (!showCreateModal) return null;
-    
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-          <div className="p-6 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-gray-900">Create Notice</h3>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-            <NoticeForm 
-              societyId={societyId}
-              onSuccess={() => {
-                setShowCreateModal(false);
-                fetchNotices();
-              }}
-              onCancel={() => setShowCreateModal(false)}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Render modals */}
-      <ViewNoticeModal />
-      <EditNoticeModal />
-      <CreateNoticeModal />
-      
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notice Management</h1>
-          <p className="text-gray-600 mt-1">Manage and monitor all society notices</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          {/* Export Button with Dropdown */}
-          <div className="relative export-dropdown-container">
-            <button
-              onClick={() => setShowExportDropdown(!showExportDropdown)}
-              disabled={exporting}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              <span>{exporting ? 'Exporting...' : 'Export'}</span>
-            </button>
-            
-            {showExportDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                <div className="py-1">
-                  <button
-                    onClick={() => handleExport('pdf')}
-                    disabled={exporting}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    <span>📄</span>
-                    <span>Export as PDF</span>
-                  </button>
-                  <button
-                    onClick={() => handleExport('excel')}
-                    disabled={exporting}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    <span>📊</span>
-                    <span>Export as Excel</span>
-                  </button>
-                </div>
+    <main className="flex-1 bg-white text-[#0b1c30] antialiased p-8 font-['Manrope',_sans-serif]">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="flex justify-between items-end">
+          <div>
+            <nav className="flex gap-2 text-[12px] font-bold text-[#565e74] mb-2 uppercase tracking-wide">
+              <span>Management</span>
+              <span>/</span>
+              <span className="text-[#004ac6]">Notice Hub</span>
+            </nav>
+            <div className="flex items-center gap-4">
+              <h2 className="text-[32px] font-bold leading-tight tracking-tight text-[#0b1c30]">Communication Center</h2>
+              <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl">
+                <button
+                  onClick={() => setActiveTab('insights')}
+                  className={clsx(
+                    "px-4 py-1.5 text-[12px] font-bold rounded-lg transition-all flex items-center gap-2",
+                    activeTab === 'insights' ? "bg-white text-[#004ac6] shadow-sm border border-slate-100" : "text-[#565e74] hover:text-[#004ac6]"
+                  )}
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  Insights
+                </button>
+                <button
+                  onClick={() => setActiveTab('broadcaster')}
+                  className={clsx(
+                    "px-4 py-1.5 text-[12px] font-bold rounded-lg transition-all flex items-center gap-2",
+                    activeTab === 'broadcaster' ? "bg-white text-[#004ac6] shadow-sm border border-slate-100" : "text-[#565e74] hover:text-[#004ac6]"
+                  )}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  Broadcaster
+                </button>
               </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            {activeTab === 'insights' ? (
+              <>
+                <select
+                  value={timeRange}
+                  onChange={(e) => setTimeRange(e.target.value)}
+                  className="bg-white border border-slate-200 text-[#565e74] px-4 py-2 rounded-lg font-bold text-[13px] outline-none hover:border-slate-300 transition-all cursor-pointer"
+                >
+                  <option value="7d">Last 7 Days</option>
+                  <option value="30d">Last 30 Days</option>
+                  <option value="90d">Last 3 Months</option>
+                  <option value="1y">Last Year</option>
+                </select>
+                <button 
+                  onClick={() => fetchDashboardData()}
+                  className="bg-white border border-slate-200 text-[#565e74] px-5 py-2 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px] hover:bg-slate-50"
+                >
+                  <RefreshCw className={clsx("w-4 h-4", loading && "animate-spin")} />
+                  Sync
+                </button>
+              </>
+            ) : (
+              <>
+                <button 
+                  onClick={() => handleExport('pdf')}
+                  className="bg-white border border-slate-200 text-[#565e74] px-5 py-2 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px] hover:bg-slate-50"
+                >
+                  <Download className="w-4 h-4" />
+                  Export
+                </button>
+                <button 
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-[#004ac6] hover:bg-[#003ea8] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px]"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Notice
+                </button>
+              </>
             )}
           </div>
-          
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2">
-            <Plus className="w-4 h-4" />
-            <span>Create Notice</span>
-          </button>
         </div>
+
+        <AnimatePresence mode="wait">
+          {activeTab === 'insights' ? (
+            <motion.div
+              key="insights"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-8"
+            >
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Total Notices", value: stats.totalNotices, icon: Bell, color: "text-blue-600", bg: "bg-blue-50", trend: stats.monthlyGrowth },
+                  { label: "Active Notices", value: stats.activeNotices, icon: Activity, color: "text-green-600", bg: "bg-green-50" },
+                  { label: "Total Reach", value: stats.totalViews.toLocaleString(), icon: Eye, color: "text-amber-600", bg: "bg-amber-50" },
+                  { label: "Engagement Velocity", value: `${stats.avgEngagement}%`, icon: TrendingUp, color: "text-purple-600", bg: "bg-purple-50" }
+                ].map((stat, idx) => (
+                  <div key={idx} className="bg-white rounded-xl border border-slate-100 p-6 group transition-all hover:border-slate-200">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className={clsx("p-2 rounded-lg", stat.bg)}>
+                        <stat.icon className={clsx("w-4 h-4", stat.color)} />
+                      </div>
+                      <ArrowUpRight className="w-3 h-3 text-slate-300 group-hover:text-slate-400" />
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                    <div className="flex items-baseline gap-2">
+                      <h3 className="text-2xl font-bold text-[#0b1c30]">{stat.value}</h3>
+                      {stat.trend !== undefined && (
+                        <span className={clsx("text-[10px] font-bold", stat.trend > 0 ? "text-green-600" : "text-red-600")}>
+                          {stat.trend > 0 ? "+" : ""}{stat.trend}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Analytics Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl border border-slate-100 p-6">
+                  <h3 className="text-[14px] font-bold text-[#0b1c30] mb-6 flex items-center gap-2">
+                    <PieChartIcon className="w-4 h-4 text-[#004ac6]" />
+                    Distribution Matrix
+                  </h3>
+                  <div className="space-y-4">
+                    {(stats.categoryDistribution && stats.categoryDistribution.length > 0) ? (
+                      stats.categoryDistribution.map((item, i) => {
+                        const colors = [
+                          'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-slate-500',
+                          'bg-pink-500', 'bg-indigo-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-orange-500'
+                        ];
+                        const color = colors[i % colors.length];
+                        return (
+                          <div key={i}>
+                            <div className="flex justify-between text-[12px] font-bold mb-1.5">
+                              <span className="text-slate-500">{item.label}</span>
+                              <span className="text-[#0b1c30]">{item.pct}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }} animate={{ width: `${item.pct}%` }}
+                                className={clsx("h-full rounded-full", color)} 
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">No Category Data</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-100 p-6">
+                  <h3 className="text-[14px] font-bold text-[#0b1c30] mb-6 flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-[#004ac6]" />
+                    Audience Segment Analytics
+                  </h3>
+                  <div className="space-y-6">
+                    {(stats.audienceDistribution && stats.audienceDistribution.length > 0) ? (
+                      stats.audienceDistribution.map((item, i) => {
+                        const colors = ['bg-[#004ac6]', 'bg-emerald-600', 'bg-amber-500', 'bg-purple-600', 'bg-rose-500'];
+                        const color = colors[i % colors.length];
+                        return (
+                          <div key={i}>
+                            <div className="flex justify-between text-[12px] font-bold mb-2">
+                              <span className="text-slate-500 uppercase tracking-tight">{item.label}</span>
+                              <span className="text-[#0b1c30]">{item.pct}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-50 rounded-lg overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }} animate={{ width: `${item.pct}%` }}
+                                className={clsx("h-full rounded-lg", color)} 
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">No Audience Data</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="broadcaster"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              {/* Control Bar */}
+              <div className="bg-white rounded-xl border border-slate-100 p-3 flex flex-col md:flex-row items-center gap-4">
+                <div className="relative flex-grow">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search by title, category or audience segment..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-[#004ac6] transition-all"
+                  />
+                </div>
+                <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-100 rounded-lg">
+                  {['all', 'draft', 'published', 'scheduled', 'archived'].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setStatusFilter(f)}
+                      className={clsx(
+                        "px-4 py-1.5 text-[12px] font-bold rounded-md transition-all capitalize",
+                        statusFilter === f ? "bg-white text-[#004ac6] shadow-sm border border-slate-100" : "text-[#565e74] hover:text-[#004ac6]"
+                      )}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Registry Table */}
+              <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-50">
+                    <thead className="bg-slate-50/50">
+                      <tr>
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Bulletin Information</th>
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Targeting</th>
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Node Status</th>
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Temporal Data</th>
+                        <th className="px-6 py-4 text-right text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {notices.map((notice) => (
+                        <tr key={notice.id} className="hover:bg-slate-50/50 transition-all group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[#004ac6]">
+                                <Bell className="w-5 h-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[14px] font-bold text-[#0b1c30] truncate max-w-[300px]">{notice.title}</p>
+                                <p className="text-[11px] text-slate-500 font-medium uppercase tracking-tighter">{notice.category}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded text-[10px] font-bold uppercase tracking-tighter border border-slate-100">
+                              {notice.audience_type}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={clsx(
+                              "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter",
+                              notice.status === 'published' ? "bg-green-50 text-green-700" :
+                              notice.status === 'scheduled' ? "bg-blue-50 text-blue-700" :
+                              notice.status === 'draft' ? "bg-yellow-50 text-yellow-700" : "bg-slate-50 text-slate-500"
+                            )}>
+                              {notice.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-[12px] font-bold text-[#0b1c30]">{new Date(notice.created_at).toLocaleDateString()}</p>
+                            <p className="text-[10px] text-slate-400 font-medium tracking-tighter">Verified by {notice.createdByName}</p>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => { setSelectedNotice(notice); setShowViewModal(true); }}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-[#004ac6]"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => { setSelectedNotice(notice); setShowEditModal(true); }}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-[#004ac6]"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(String(notice.id))}
+                                className="p-2 hover:bg-red-50 rounded-lg transition-all text-slate-400 hover:text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Pagination */}
+                <div className="px-6 py-4 bg-slate-50/50 flex items-center justify-between border-t border-slate-50">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Page {currentPage} of {totalPages}</p>
+                  <div className="flex gap-2">
+                    <button 
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-slate-600" />
+                    </button>
+                    <button 
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      <ChevronRight className="w-4 h-4 text-slate-600" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search notices..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-          </select>
-          
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Types</option>
-            <option value="general">General</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="event">Event</option>
-            <option value="emergency">Emergency</option>
-          </select>
-          
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Priorities</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
-        </div>
-      </div>
+      {/* Modals Pattern */}
+      <AnimatePresence>
+        {(showViewModal || showEditModal || showCreateModal) && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0b1c30]/10 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]"
+            >
+              <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                <div>
+                  <h3 className="text-[20px] font-bold text-[#0b1c30]">
+                    {showCreateModal ? 'Create Notice' : showEditModal ? 'Edit Notice' : 'Notice Details'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
+                    {selectedNotice ? `Notice ID: #${selectedNotice.id}` : 'Draft Protocol'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => { setShowViewModal(false); setShowEditModal(false); setShowCreateModal(false); }} 
+                  className="p-2 hover:bg-white rounded-lg transition-all"
+                >
+                  <X className="w-5 h-5 text-slate-300" />
+                </button>
+              </div>
 
-      {/* Notices Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notice</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Audience</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {notices.map((notice) => (
-                <tr key={notice.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 line-clamp-1">{notice.title}</div>
-                      <div className="text-sm text-gray-500">by {notice.createdByName || 'Unknown'}</div>
+              <div className="p-8 overflow-y-auto custom-scrollbar">
+                {showViewModal && selectedNotice && (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-3 gap-6">
+                       <div className="col-span-2 space-y-6">
+                         <div>
+                            <h4 className="text-[24px] font-black text-[#0b1c30] tracking-tight">{selectedNotice.title}</h4>
+                            <div className="flex gap-2 mt-2">
+                               <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded uppercase border border-blue-100">{selectedNotice.category}</span>
+                               <span className="px-2 py-0.5 bg-slate-50 text-slate-600 text-[10px] font-bold rounded uppercase border border-slate-100">{selectedNotice.audience_type}</span>
+                               {selectedNotice.priority && (
+                                 <span className={clsx(
+                                   "px-2 py-0.5 rounded text-[10px] font-bold uppercase border",
+                                   selectedNotice.priority === 'urgent' ? "bg-red-50 text-red-700 border-red-100" :
+                                   selectedNotice.priority === 'high' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                                   selectedNotice.priority === 'medium' ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-green-50 text-green-700 border-green-100"
+                                 )}>
+                                   {selectedNotice.priority}
+                                 </span>
+                               )}
+                            </div>
+                         </div>
+                         <div className="prose prose-slate max-w-none text-[14px] leading-relaxed text-slate-600 font-medium" dangerouslySetInnerHTML={{ __html: selectedNotice.description }} />
+                       </div>
+                       <div className="space-y-6 bg-slate-50/50 p-6 rounded-2xl border border-slate-100 h-fit">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Metrics</p>
+                            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100">
+                               <Eye className="w-4 h-4 text-blue-600" />
+                               <div>
+                                  <p className="text-[14px] font-bold text-[#0b1c30]">{selectedNotice.views}</p>
+                                  <p className="text-[9px] text-slate-400 font-bold uppercase">Subscriber Reach</p>
+                               </div>
+                            </div>
+                          </div>
+                          <div className="space-y-3">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Authorization</p>
+                            <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-[11px]">{selectedNotice.createdByName?.[0]}</div>
+                               <div>
+                                  <p className="text-[12px] font-bold text-[#0b1c30]">{selectedNotice.createdByName}</p>
+                                  <p className="text-[10px] text-slate-400 font-medium">{new Date(selectedNotice.created_at).toLocaleDateString()}</p>
+                               </div>
+                            </div>
+                          </div>
+                       </div>
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(notice.category)} capitalize`}>
-                      {notice.category || 'General'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                      {notice.audience_type || 'All Residents'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(notice.status)}
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(notice.status)} capitalize`}>
-                        {notice.status}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span>{notice.created_at ? new Date(notice.created_at).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <ActionDropdown notice={notice} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        {notices.length === 0 && (
-          <div className="text-center py-12">
-            <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No notices found</h3>
-            <p className="text-gray-500 mb-4">No notices match your current filters.</p>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto">
-              <Plus className="w-4 h-4" />
-              <span>Create First Notice</span>
-            </button>
+                    {selectedNotice.attachments && selectedNotice.attachments.length > 0 && (
+                      <div className="space-y-4">
+                        <h5 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Artifacts ({selectedNotice.attachments.length})</h5>
+                        <div className="grid grid-cols-2 gap-4">
+                          {selectedNotice.attachments.map((file, i) => (
+                            <a key={i} href={file.file_url} target="_blank" className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between group hover:border-[#004ac6]/20 transition-all shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-all"><FileText className="w-4 h-4 text-[#004ac6]" /></div>
+                                <p className="text-[13px] font-bold text-slate-700 truncate max-w-[200px]">{file.file_name}</p>
+                              </div>
+                              <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-[#004ac6]" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(showEditModal || showCreateModal) && (
+                  <NoticeForm 
+                    societyId={societyId}
+                    editMode={showEditModal}
+                    noticeId={selectedNotice ? String(selectedNotice.id) : undefined}
+                    initialData={selectedNotice}
+                    onSuccess={() => { setShowEditModal(false); setShowCreateModal(false); fetchNotices(); }}
+                    onCancel={() => { setShowEditModal(false); setShowCreateModal(false); }}
+                  />
+                )}
+              </div>
+            </motion.div>
           </div>
         )}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-700">
-            Showing page {currentPage} of {totalPages}
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            
-            <div className="flex items-center space-x-1">
-              {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                const page = i + 1;
-                return (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-2 rounded-lg transition-colors ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <AuditModal />
-    </div>
+      </AnimatePresence>
+    </main>
   );
 };
 

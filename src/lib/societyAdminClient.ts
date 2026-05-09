@@ -2,20 +2,21 @@ import { apiClient, ApiResponse } from './apiClient';
 
 export interface SocietyMember {
   id: number;
-  user_id: number; // Added to match backend response and handle promotion
-  name: string;
+  user_id?: number; 
+  name?: string;
   firstName: string;
   lastName: string;
   email: string;
-  flat_number: string;
+  flat_number?: string;
   phoneNumber: string;
   userType: string;
-  status: string;
-  createdAt: string;
+  memberType?: string;
+  status?: string;
+  createdAt?: string;
   wingId: string;
   floorId: string;
   flatId: string;
-  IAM: string; // Added IAM field
+  IAM?: string;
   wing_id?: string | number; // Added to support mapping in modal
   floor_id?: string | number; // Added to support mapping in modal
   flat_id?: string | number; // Added to support mapping in modal
@@ -105,7 +106,42 @@ export const getSocietyMembers = async (params: {
       filter: params.filter || 'primary',
     },
   });
-  // console.log('getSocietyMembers response:', response);
+
+  if (response.success && response.data) {
+    // Backend might return the array directly in 'data' OR nested in 'data.data'
+    const rawData = Array.isArray(response.data) 
+      ? response.data 
+      : (response.data as any).data || [];
+
+    const members = (rawData as any[]).map((member: any): SocietyMember => ({
+      id: member.id || member.user_id, // Ensure we have a numeric ID for internal use
+      user_id: member.user_id,
+      name: member.name || `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.email,
+      firstName: member.first_name || '',
+      lastName: member.last_name || '',
+      email: member.email || '',
+      flat_number: member.flat_number,
+      phoneNumber: member.phone_number,
+      userType: member.userType || 'member',
+      memberType: member.member_type,
+      status: member.status,
+      createdAt: member.created_at,
+      wingId: member.wing_id,
+      floorId: member.floor_id,
+      flatId: member.flat_id,
+      wing_name: member.wing_name,
+      IAM: member.IAM || 'owner',
+    }));
+
+    return {
+      ...response,
+      data: {
+        data: members,
+        total: response.total || (response.data as any).total || members.length
+      }
+    };
+  }
+
   return response;
 };
 
@@ -148,48 +184,43 @@ export const deleteSocietyMember = async (id: number): Promise<ApiResponse<Socie
   return response;
 };
 
-export async function getWings(): Promise<Wing[]> {
+export async function getWings(): Promise<ApiResponse<Wing[]>> {
   const response: ApiResponse<RawWing[]> = await apiClient('/society-admin/members/wings', {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   });
-  // console.log('getWings response:', response);
-  if (!response.success) {
-    throw new Error(response.message || 'Failed to fetch wings');
+  
+  if (response.success && response.data) {
+    return {
+      ...response,
+      data: response.data.map((raw: RawWing) => ({
+        id: raw.wing_id.toString(),
+        name: raw.wing_name,
+        societyId: raw.society_id,
+        createdAt: raw.created_at,
+        floors: [],
+      }))
+    };
   }
-  return (response.data ?? []).map((raw: RawWing) => ({
-    id: raw.wing_id.toString(),
-    name: raw.wing_name,
-    societyId: raw.society_id,
-    createdAt: raw.created_at,
-    floors: [],
-  }));
+  return { ...response, data: [] };
 }
 
-export async function getFloors(wingId: string): Promise<Floor[]> {
+export async function getFloors(wingId: string): Promise<ApiResponse<Floor[]>> {
   const response: ApiResponse<Floor[]> = await apiClient('/society-admin/members/floors', {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     params: { wingId },
   });
-  // console.log('getFloors response:', response);
-  if (!response.success) {
-    throw new Error(response.message || 'Failed to fetch floors');
-  }
-  return response.data ?? [];
+  return response;
 }
 
-export async function getFlats(wingId: string, floorId: string): Promise<Flat[]> {
+export async function getFlats(wingId: string, floorId: string): Promise<ApiResponse<Flat[]>> {
   const response: ApiResponse<Flat[]> = await apiClient('/society-admin/members/flats', {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
     params: { wingId, floorId },
   });
-  // console.log('getFlats response:', response);
-  if (!response.success) {
-    throw new Error(response.message || 'Failed to fetch flats');
-  }
-  return response.data ?? [];
+  return response;
 }
 
 export async function getAllFlats(): Promise<FlatWithLocation[]> {

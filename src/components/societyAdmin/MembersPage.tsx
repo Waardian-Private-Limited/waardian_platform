@@ -5,8 +5,6 @@ import {
   getSocietyMembers,
   addSocietyMember,
   updateSocietyMember,
-  // deleteSocietyMember,
-  // updateMemberStatus,
   getWings,
   getFloors,
   getFlats,
@@ -16,51 +14,35 @@ import {
   importMembers,
   getMembersDashboardStats,
   makeMemberSocietyAdmin,
+  SocietyMember,
+  MembersDashboardStats,
 } from '@/lib/societyAdminClient';
 import {
   Search,
-  Filter,
   Plus,
-  Edit,
-  // Trash,
-  // ToggleLeft,
-  // ToggleRight,
   Upload,
   Download,
   Shield,
+  ChevronLeft,
+  ChevronRight,
+  XCircle,
+  Users,
+  X,
+  ShieldPlus,
 } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
-import { debounce } from 'lodash';
+import { motion, AnimatePresence } from 'framer-motion';
+import debounce from 'lodash/debounce';
 
-// Define the SocietyMember type to match the API response
-interface SocietyMember {
-  user_id: number;
-  first_name?: string;
-  last_name?: string;
-  email: string;
-  phone_number: string;
-  status: 'active' | 'pending_onboarding' | 'inactive';
-  userType: 'member' | 'societyAdmin';
-  wing_id: string | number;
-  floor_id: string | number;
-  flat_id: string | number;
-  flat_number: string;
-  wing_name?: string;
-  floor_number?: number;
-  IAM?: string;
-  member_type?: string;
-  total?: number;
-}
-
-type Filters = {
+interface Filters {
   search: string;
   wing: string;
   floor: string;
   flat: string;
-};
+}
 
-type FormErrors = {
+interface FormErrors {
   firstName?: string;
   lastName?: string;
   email?: string;
@@ -69,7 +51,7 @@ type FormErrors = {
   floor?: string;
   flat?: string;
   role?: string;
-};
+}
 
 interface Props {
   societyId: string;
@@ -96,33 +78,25 @@ const MembersPage = ({ societyId }: Props) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
-  // New: Tab state for Members and Dashboard
+  
+  // Tab state
   const [activeTab, setActiveTab] = useState<'members' | 'dashboard'>('members');
-  // New: Backend dashboard stats
-  const [membersStats, setMembersStats] = useState<{
-    totalUsers: number;
-    newUsers: number;
-    activeUsers: number;
-    pendingApprovals: number;
-    trends?: {
-      totalUsers: number;
-      newUsers: number;
-      activeUsers: number;
-      pendingApprovals: number;
-    };
-  } | null>(null);
+  
+  // Stats
+  const [membersStats, setMembersStats] = useState<MembersDashboardStats | null>(null);
+
   const [wings, setWings] = useState<Wing[]>([]);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [flats, setFlats] = useState<Flat[]>([]);
 
-  // Modal filter data
+  // Modal filters
   const [modalWing, setModalWing] = useState('');
   const [modalFloor, setModalFloor] = useState('');
   const [modalFlat, setModalFlat] = useState('');
   const [modalFloors, setModalFloors] = useState<Floor[]>([]);
   const [modalFlats, setModalFlats] = useState<Flat[]>([]);
+  const [role, setRole] = useState<'member' | 'societyAdmin'>('member');
 
-  // Debounced fetchData
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -137,25 +111,9 @@ const MembersPage = ({ societyId }: Props) => {
         sortOrder,
       });
 
-      if (response.success) {
-        let membersData: SocietyMember[] = [];
-        let totalCount = 0;
-        const payload = response.data as unknown;
-        if (Array.isArray(payload)) {
-          membersData = payload as SocietyMember[];
-          totalCount = response.total || 0;
-        } else if (
-          payload &&
-          typeof payload === 'object' &&
-          'data' in (payload as { data?: SocietyMember[]; total?: number }) &&
-          Array.isArray((payload as { data?: SocietyMember[]; total?: number }).data)
-        ) {
-          const obj = payload as { data?: SocietyMember[]; total?: number };
-          membersData = obj.data || [];
-          totalCount = typeof obj.total === 'number' ? obj.total : (response.total || 0);
-        }
-        setMembers(membersData);
-        setTotalItems(totalCount);
+      if (response.success && response.data) {
+        setMembers(response.data.data);
+        setTotalItems(response.data.total);
       }
     } catch (err) {
       toast.error('Failed to load members');
@@ -165,204 +123,121 @@ const MembersPage = ({ societyId }: Props) => {
     }
   }, [currentPage, filters, sortField, sortOrder, itemsPerPage]);
 
-  // Debounced search handler
-  const debouncedFetchData = useCallback(
-    debounce(() => {
-      fetchData();
-    }, 500),
-    [fetchData]
-  );
-
-  const fetchWings = async () => {
-    try {
-      const wingsData = await getWings();
-      setWings(wingsData);
-    } catch (err) {
-      toast.error('Failed to load wings');
-      console.error('Error fetching wings:', err);
-    }
-  };
-
-  const fetchFloors = async (wingId: string) => {
-    try {
-      if (!wingId) {
-        setFloors([]);
-        setFlats([]);
-        return;
-      }
-      const floorsData = await getFloors(wingId);
-      setFloors(floorsData);
-    } catch (err) {
-      toast.error('Failed to load floors');
-      console.error('Error fetching floors:', err);
-    }
-  };
-
-  const fetchFlats = async (wingId: string, floorId: string) => {
-    try {
-      if (!wingId || !floorId) {
-        setFlats([]);
-        return;
-      }
-      const flatsData = await getFlats(wingId, floorId);
-      setFlats(flatsData);
-    } catch (err) {
-      toast.error('Failed to load flats');
-      console.error('Error fetching flats:', err);
-    }
-  };
-
   const fetchModalFloors = async (wingId: string) => {
     try {
-      if (!wingId) {
-        setModalFloors([]);
-        setModalFlats([]);
-        setModalFloor('');
-        setModalFlat('');
-        return [];
+      const response = await getFloors(wingId);
+      if (response.success && response.data) {
+        setModalFloors(response.data);
       }
-      const floorsData = await getFloors(wingId);
-      setModalFloors(floorsData);
-      return floorsData;
     } catch (err) {
-      toast.error('Failed to load floors');
-      console.error('Error fetching floors:', err);
-      return [];
+      console.error('Failed to load modal floors:', err);
     }
   };
 
   const fetchModalFlats = async (wingId: string, floorId: string) => {
     try {
-      if (!wingId || !floorId) {
-        setModalFlats([]);
-        setModalFlat('');
-        return [];
+      const response = await getFlats(wingId, floorId);
+      if (response.success && response.data) {
+        setModalFlats(response.data);
       }
-      const flatsData = await getFlats(wingId, floorId);
-      setModalFlats(flatsData);
-      return flatsData;
     } catch (err) {
-      toast.error('Failed to load flats');
-      console.error('Error fetching flats:', err);
-      return [];
+      console.error('Failed to load modal flats:', err);
     }
   };
 
   useEffect(() => {
-    fetchWings();
-  }, []);
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const response = await getWings();
+        if (response.success && response.data) {
+          setWings(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to load initial wings:', err);
+      }
+    };
+    loadInitialData();
+  }, [societyId]);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      if (activeTab === 'dashboard' && !membersStats) {
+        try {
+          const res = await getMembersDashboardStats(societyId);
+          if (res?.success && res.data) setMembersStats(res.data);
+        } catch (err) {
+          console.error('Failed to load stats:', err);
+        }
+      }
+    };
+    loadStats();
+  }, [activeTab, societyId, membersStats]);
 
   useEffect(() => {
     if (filters.wing) {
-      fetchFloors(filters.wing);
+      const fetchFloorsData = async () => {
+        try {
+          const response = await getFloors(filters.wing);
+          if (response.success && response.data) {
+            setFloors(response.data);
+          }
+        } catch (err) {
+          console.error('Failed to load floors:', err);
+        }
+      };
+      fetchFloorsData();
+      setFilters(prev => ({ ...prev, floor: '', flat: '' }));
     } else {
       setFloors([]);
-      setFlats([]);
+      setFilters(prev => ({ ...prev, floor: '', flat: '' }));
     }
   }, [filters.wing]);
 
   useEffect(() => {
     if (filters.wing && filters.floor) {
-      fetchFlats(filters.wing, filters.floor);
+      const fetchFlatsData = async () => {
+        try {
+          const response = await getFlats(filters.wing, filters.floor);
+          if (response.success && response.data) {
+            setFlats(response.data);
+          }
+        } catch (err) {
+          console.error('Failed to load flats:', err);
+        }
+      };
+      fetchFlatsData();
+      setFilters(prev => ({ ...prev, flat: '' }));
     } else {
       setFlats([]);
+      setFilters(prev => ({ ...prev, flat: '' }));
     }
   }, [filters.floor]);
 
-  useEffect(() => {
-    debouncedFetchData();
-    return () => debouncedFetchData.cancel();
-  }, [filters, currentPage, sortField, sortOrder, debouncedFetchData]);
-
-  useEffect(() => {
-    if (isModalOpen && editingMember) {
-      setModalLoading(true);
-      const loadMemberData = async () => {
-        try {
-          const wingId = String(editingMember.wing_id);
-          setModalWing(wingId);
-          if (wingId) {
-            const floors = await fetchModalFloors(wingId);
-            const floorId = String(editingMember.floor_id);
-            setModalFloor(floorId);
-            if (floorId && floors.some(f => String(f.floor_id) === floorId)) {
-              await fetchModalFlats(wingId, floorId);
-              setModalFlat(String(editingMember.flat_id));
-            }
-          }
-        } catch (error) {
-          console.error('Error loading member data:', error);
-        } finally {
-          setModalLoading(false);
-        }
-      };
-      loadMemberData();
-    } else if (isModalOpen) {
-      setModalWing('');
-      setModalFloor('');
-      setModalFlat('');
-      setModalFloors([]);
-      setModalFlats([]);
-      setFormErrors({});
-      setModalLoading(false);
-    }
-  }, [isModalOpen, editingMember]);
-
   const handleFilterChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value,
-      ...(name === 'wing' && { floor: '', flat: '' }),
-      ...(name === 'floor' && { flat: '' }),
-    }));
+    setFilters(prev => ({ ...prev, [name]: value }));
     setCurrentPage(0);
   };
 
   const handleSort = (field: 'name' | 'email') => {
     if (sortField === field) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
       setSortOrder('asc');
     }
   };
 
-  // Removed: handleDelete (delete functionality disabled)
-  // const handleDelete = async (user_id: number) => {
-  //   if (confirm('Are you sure you want to delete this member?')) {
-  //     try {
-  //       const response = await deleteSocietyMember(user_id);
-  //       if (response.success) {
-  //         toast.success('Member deleted successfully');
-  //         fetchData();
-  //       }
-  //     } catch (error) {
-  //       toast.error('Failed to delete member');
-  //       console.error('Failed to delete member:', error);
-  //     }
-  //   }
-  // };
-
-  // Removed: handleStatusToggle (status toggle disabled)
-  // const handleStatusToggle = async (user_id: number) => {
-  //   const member = members.find((m) => m.user_id === user_id);
-  //   if (!member) return;
-  //   const newStatus = member.status === 'active' ? 'inactive' : 'active';
-  //   try {
-  //     const response = await updateMemberStatus(user_id, newStatus);
-  //     if (response.success) {
-  //       toast.success(`Member ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
-  //       fetchData();
-  //     }
-  //   } catch (error) {
-  //     toast.error('Failed to update status');
-  //     console.error('Status toggle failed:', error);
-  //   }
-  // };
-
   const handleAdd = () => {
     setEditingMember(null);
+    setRole('member');
+    setModalWing('');
+    setModalFloor('');
+    setModalFlat('');
     setIsModalOpen(true);
   };
 
@@ -372,1032 +247,420 @@ const MembersPage = ({ societyId }: Props) => {
     setModalFloor('');
     setModalFlat('');
     setModalFlats([]);
-    setFormErrors(prev => ({ ...prev, wing: wingId ? '' : 'Wing is required', floor: '', flat: '' }));
-    if (wingId) {
-      await fetchModalFloors(wingId);
-    }
+    if (wingId) fetchModalFloors(wingId);
   };
 
-
-
-  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && (file.type === 'text/csv' || file.name.endsWith('.csv') || 
-                 file.type.includes('spreadsheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
-      setSelectedFile(file);
-    } else {
-      toast.error('Please upload a valid CSV or Excel file');
-    }
-  };
-
-  const handleImportSubmit = async () => {
-    if (!selectedFile) return;
-
-    try {
-      setIsProcessing(true);
-      const response = await importMembers(selectedFile);
-      if (response.success) {
-        toast.success('Members imported successfully!');
-        setIsImportModalOpen(false);
-        setSelectedFile(null);
-        fetchData();
-      } else {
-        toast.error(response.message || 'Import failed');
-      }
-    } catch (error) {
-      toast.error('Import failed. Please check the file format and try again.');
-      console.error('Import error:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const downloadTemplate = async () => {
-    try {
-      const response = await fetch('/templates/member-import-template.csv');
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'member-import-template.csv';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      toast.error('Failed to download template');
-      console.error('Template download error:', error);
-    }
-  };
-
-  // Fetch backend dashboard stats when opening dashboard tab (once per session)
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        if (!membersStats && activeTab === 'dashboard') {
-          const res = await getMembersDashboardStats(societyId);
-          if (res?.success && res?.data) {
-            setMembersStats(res.data);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load members dashboard stats:', err);
-      }
-    };
-    loadStats();
-  }, [activeTab, societyId, membersStats]);
-
-  // New: track which user is being promoted
   const [promotingUserId, setPromotingUserId] = useState<number | null>(null);
-  
-  // New: handler to promote a member to Society Admin
+
   const handleMakeAdmin = async (member: SocietyMember) => {
-    if (promotingUserId) return;
+    if (promotingUserId || !member.user_id) return;
     setPromotingUserId(member.user_id);
     try {
       const response = await makeMemberSocietyAdmin(member.user_id);
       if (response.success) {
         toast.success('Member promoted to Society Admin successfully');
-        setMembers(prev => prev.map(m => m.user_id === member.user_id ? { ...m, userType: 'societyAdmin' } : m));
+        fetchData();
       } else {
         toast.error(response.message || 'Failed to promote member');
       }
     } catch (error: any) {
-      console.error('Failed to promote member:', error);
       toast.error(error?.message || 'Failed to promote member');
     } finally {
       setPromotingUserId(null);
     }
   };
-  const handleModalFloorChange = async (e: ChangeEvent<HTMLSelectElement>) => {
-    const floorId = e.target.value;
-    setModalFloor(floorId);
-    setModalFlat('');
-    setModalFlats([]);
-    setFormErrors(prev => ({ ...prev, floor: floorId ? '' : 'Floor is required', flat: '' }));
-    if (modalWing && floorId) {
-      await fetchModalFlats(modalWing, floorId);
-    }
-  };
-
-  const handleModalFlatChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    const flatId = e.target.value;
-    setModalFlat(flatId);
-    setFormErrors(prev => ({ ...prev, flat: flatId ? '' : 'Flat is required' }));
-  };
-
-  const validateForm = (formData: FormData) => {
-    const errors: FormErrors = {};
-    const firstName = formData.get('firstName') as string;
-    const lastName = formData.get('lastName') as string;
-    const email = formData.get('email') as string;
-    const phone = formData.get('phone') as string;
-    const role = formData.get('role') as string;
-
-    if (!firstName || firstName.trim().length < 2) {
-      errors.firstName = 'First name must be at least 2 characters';
-    }
-    if (!lastName || lastName.trim().length < 2) {
-      errors.lastName = 'Last name must be at least 2 characters';
-    }
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = 'Valid email is required';
-    }
-    if (!phone || !/^\+?\d{10,15}$/.test(phone.replace(/\s/g, ''))) {
-      errors.phone = 'Valid phone number is required (10-15 digits)';
-    }
-    if (!modalWing) {
-      errors.wing = 'Wing is required';
-    }
-    if (!modalFloor) {
-      errors.floor = 'Floor is required';
-    }
-    if (!modalFlat) {
-      errors.flat = 'Flat is required';
-    }
-    if (!role || !['member', 'societyAdmin'].includes(role)) {
-      errors.role = 'Role is required';
-    }
-
-    return errors;
-  };
 
   const handleSave = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const errors = validateForm(formData);
-    setFormErrors(errors);
-
-    if (Object.keys(errors).length > 0) {
-      toast.error('Please correct the form errors');
-      return;
-    }
-
-    const memberData = {
-      first_name: formData.get('firstName') as string,
-      last_name: formData.get('lastName') as string,
+    const data = {
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
       email: formData.get('email') as string,
-      phone_number: formData.get('phone') as string,
-      userType: formData.get('role') as string,
-      wing_id: modalWing,
-      floor_id: modalFloor,
-      flat_id: modalFlat,
-      IAM: formData.get('IAM') as string || 'owner',
-      flat_number: `${wings.find(w => String(w.id) === String(modalWing))?.name || 'Unknown'}-${modalFlats.find(f => String(f.flat_id) === String(modalFlat))?.flat_number || ''}`,
+      phoneNumber: formData.get('phone') as string,
+      wingId: modalWing,
+      floorId: modalFloor,
+      flatId: modalFlat,
+      userType: role,
     };
 
+    setIsProcessing(true);
     try {
-      setIsProcessing(true);
+      let response;
       if (editingMember) {
-        const response = await updateSocietyMember(editingMember.user_id, {
-          name: `${memberData.first_name} ${memberData.last_name}`.trim(),
-          firstName: memberData.first_name,
-          lastName: memberData.last_name,
-          email: memberData.email,
-          phoneNumber: memberData.phone_number,
-          status: editingMember.status,
-          userType: memberData.userType === 'member' ? 'member' : 'societyAdmin',
-          wingId: String(memberData.wing_id),
-          floorId: String(memberData.floor_id),
-          flatId: String(memberData.flat_id),
-          flat_number: String(memberData.flat_number),
-          IAM: memberData.IAM,
-          user_id: editingMember.user_id,
-        });
-        if (response.success) {
-          toast.success('Member updated successfully');
-          setIsModalOpen(false);
-          fetchData();
-        }
+        response = await updateSocietyMember(editingMember.user_id!, data as any);
       } else {
-        const response = await addSocietyMember({
-          name: `${memberData.first_name} ${memberData.last_name}`.trim(),
-          firstName: memberData.first_name,
-          lastName: memberData.last_name,
-          email: memberData.email,
-          phoneNumber: memberData.phone_number,
-          userType: memberData.userType === 'member' ? 'member' : 'societyAdmin',
-          status: 'active',
-          wingId: String(memberData.wing_id),
-          floorId: String(memberData.floor_id),
-          flatId: String(memberData.flat_id),
-          flat_number: String(memberData.flat_number),
-          IAM: memberData.IAM,
-          user_id: 0,
-        });
-        if (response.success) {
-          toast.success('Member added successfully');
-          setIsModalOpen(false);
-          fetchData();
-        }
+        response = await addSocietyMember(data as any);
+      }
+
+      if (response.success) {
+        toast.success(editingMember ? 'Member updated!' : 'Member added!');
+        setIsModalOpen(false);
+        fetchData();
+      } else {
+        toast.error(response.message || 'Failed to save');
       }
     } catch (error: any) {
-      // Handle specific error for flat already having an owner
-      if (error.message.includes('A flat can only have one owner')) {
-        setFormErrors(prev => ({
-          ...prev,
-          flat: 'This flat already has an owner. Please select a different flat.',
-        }));
-        toast.error('This flat already has an owner. Please select a different flat.');
-      } else {
-        toast.error(error.message || 'Failed to save member');
-      }
-      console.error('Failed to save member:', error);
+      toast.error(error.message || 'Error saving member');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Fetch backend dashboard stats when opening dashboard tab (once per session)
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        if (!membersStats && activeTab === 'dashboard') {
-          const res = await getMembersDashboardStats(societyId);
-          if (res?.success && res?.data) {
-            setMembersStats(res.data);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load members dashboard stats:', err);
-      }
-    };
-    loadStats();
-  }, [activeTab, societyId, membersStats]);
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setSelectedFile(file);
+  };
 
-  // New: Derived stats for Dashboard tab
-  const totalMembers = (membersStats?.totalUsers ?? members.length);
-  const activeMembers = (membersStats?.activeUsers ?? members.filter(m => m.status === 'active').length);
-  const pendingMembers = (membersStats?.pendingApprovals ?? members.filter(m => m.status === 'pending_onboarding').length);
+  const handleImportSubmit = async () => {
+    if (!selectedFile) return;
+    setIsProcessing(true);
+    try {
+      const response = await importMembers(selectedFile);
+      if (response.success) {
+        toast.success('Import successful!');
+        setIsImportModalOpen(false);
+        fetchData();
+      } else {
+        toast.error(response.message || 'Import failed');
+      }
+    } catch (err) {
+      toast.error('Import failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    window.open('/templates/member-import-template.csv', '_blank');
+  };
+
+  const totalMembers = membersStats?.totalUsers ?? members.length;
+  const activeMembers = membersStats?.activeUsers ?? members.filter(m => (m.status || 'inactive') === 'active').length;
+  const pendingMembers = membersStats?.pendingApprovals ?? members.filter(m => (m.status || 'inactive') === 'pending_onboarding').length;
   const inactiveMembers = members.filter(m => m.status === 'inactive').length;
   const adminCount = members.filter(m => m.userType === 'societyAdmin').length;
   const memberCount = members.filter(m => m.userType === 'member').length;
+
   const wingStats = members.reduce<Record<string, number>>((acc, m) => {
-    const wingName = m.wing_name || (wings.find(w => String(w.id) === String(m.wing_id))?.name) || 'Unknown';
-    acc[wingName] = (acc[wingName] || 0) + 1;
+    const name = m.wing_name || 'Unknown';
+    acc[name] = (acc[name] || 0) + 1;
     return acc;
   }, {});
 
-  if (loading) {
+  if (loading && members.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-600 text-base font-medium animate-pulse">Loading members...</div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-pulse text-slate-400 font-medium">Initializing Workspace...</div>
       </div>
     );
   }
 
   return (
-    <main className="flex-1 bg-gray-50 min-h-[calc(100vh-4rem)] p-4">
-      <div className="space-y-4">
-        {/* Tab Navigation */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-2 shadow-sm">
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setActiveTab('members')}
-              className={clsx(
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
-                activeTab === 'members' ? 'bg-blue-500 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              )}
+    <main className="flex-1 bg-white text-[#0b1c30] antialiased p-8 font-['Manrope',_sans-serif]">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex justify-between items-end">
+          <div>
+            <nav className="flex gap-2 text-[12px] font-bold text-[#565e74] mb-2 uppercase tracking-wide">
+              <span>Management</span>
+              <span>/</span>
+              <span className="text-[#004ac6]">Members</span>
+            </nav>
+            <h2 className="text-[32px] font-bold leading-tight tracking-tight text-[#0b1c30]">Society Members</h2>
+          </div>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setIsImportModalOpen(true)}
+              className="bg-white border border-slate-200 text-[#565e74] px-5 py-2 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px] hover:bg-slate-50"
             >
-              Members
+              <Upload className="w-4 h-4" /> Import
             </button>
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={clsx(
-                'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
-                activeTab === 'dashboard' ? 'bg-blue-500 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              )}
+            <button 
+              onClick={handleAdd}
+              className="bg-[#004ac6] hover:bg-[#003ea8] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px]"
             >
-              Dashboard
+              <Plus className="w-4 h-4" /> Add Member
             </button>
           </div>
         </div>
 
-        {/* Members Tab Content */}
+        {/* Tabs */}
+        <div className="flex gap-1 p-1 bg-slate-50 rounded-lg w-fit border border-slate-100">
+          <button
+            onClick={() => setActiveTab('members')}
+            className={clsx(
+              "px-6 py-1.5 text-[13px] font-bold rounded-md transition-all",
+              activeTab === 'members' ? "bg-white text-[#004ac6] shadow-sm border border-slate-100" : "text-[#565e74]"
+            )}
+          >
+            Directory
+          </button>
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={clsx(
+              "px-6 py-1.5 text-[13px] font-bold rounded-md transition-all",
+              activeTab === 'dashboard' ? "bg-white text-[#004ac6] shadow-sm border border-slate-100" : "text-[#565e74]"
+            )}
+          >
+            Insights
+          </button>
+        </div>
+
         {activeTab === 'members' && (
-          <>
-            {/* Filter Section */}
-            <form onSubmit={(e) => e.preventDefault()}>
-              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-3 shadow-sm">
-                {/* existing filter inputs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-gray-100 rounded-md flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
-                      <Search className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <input
-                      type="text"
-                      name="search"
-                      placeholder="Search by name or email"
-                      value={filters.search}
-                      onChange={handleFilterChange}
-                      className="w-full p-1.5 bg-transparent border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-gray-100 rounded-md flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
-                      <Filter className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <select
-                      name="wing"
-                      value={filters.wing}
-                      onChange={handleFilterChange}
-                      className="w-full p-1.5 bg-transparent border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 text-sm"
-                    >
-                      <option value="">All Wings</option>
-                      {wings.map((wing) => (
-                        <option key={wing.id} value={wing.id}>
-                          {wing.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-gray-100 rounded-md flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
-                      <Filter className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <select
-                      name="floor"
-                      value={filters.floor}
-                      onChange={handleFilterChange}
-                      disabled={!filters.wing}
-                      className="w-full p-1.5 bg-transparent border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 text-sm"
-                    >
-                      <option value="">All Floors</option>
-                      {floors.map((floor) => (
-                        <option key={floor.floor_id} value={floor.floor_id}>
-                          Floor {floor.floor_number}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-gray-100 rounded-md flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
-                      <Filter className="w-4 h-4 text-gray-600" />
-                    </div>
-                    <select
-                      name="flat"
-                      value={filters.flat}
-                      onChange={handleFilterChange}
-                      disabled={!filters.floor}
-                      className="w-full p-1.5 bg-transparent border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 text-sm"
-                    >
-                      <option value="">All Flats</option>
-                      {flats.map((flat) => (
-                        <option key={flat.flat_id} value={flat.flat_id}>
-                          {wings.find(w => String(w.id) === String(filters.wing))?.name || 'N/A'}-{flat.flat_number}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-slate-100 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 flex-grow">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    name="search"
+                    placeholder="Search members..."
+                    value={filters.search}
+                    onChange={handleFilterChange}
+                    className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-[#004ac6]"
+                  />
                 </div>
-
-                <div className="flex gap-2 mt-3 justify-end">
-                  <button
-                    onClick={handleAdd}
-                    className="group flex items-center gap-1.5 bg-blue-500 text-white px-2.5 py-1.5 rounded-md hover:bg-blue-600 hover:shadow-md transition-all duration-200 text-sm"
-                  >
-                    <Plus className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    <span>Add Member</span>
-                  </button>
-                  <button
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="group flex items-center gap-1.5 bg-emerald-500 text-white px-2.5 py-1.5 rounded-md hover:bg-emerald-600 hover:shadow-md transition-all duration-200 text-sm"
-                  >
-                    <Upload className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                    <span>Import Members</span>
-                  </button>
-                </div>
+                <select name="wing" value={filters.wing} onChange={handleFilterChange} className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] font-medium outline-none">
+                  <option value="">All Wings</option>
+                  {wings.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+                <select 
+                  name="floor" 
+                  value={filters.floor} 
+                  onChange={handleFilterChange} 
+                  disabled={!filters.wing}
+                  className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] font-medium outline-none disabled:opacity-50"
+                >
+                  <option value="">All Floors</option>
+                  {floors.map(f => <option key={f.floor_id} value={f.floor_id}>{f.floor_number}</option>)}
+                </select>
+                <select 
+                  name="flat" 
+                  value={filters.flat} 
+                  onChange={handleFilterChange} 
+                  disabled={!filters.floor}
+                  className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] font-medium outline-none disabled:opacity-50"
+                >
+                  <option value="">All Flats</option>
+                  {flats.map(f => <option key={f.flat_id} value={f.flat_id}>{f.flat_number}</option>)}
+                </select>
               </div>
-            </form>
+            </div>
 
-            {/* Members Table */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 overflow-hidden shadow-sm">
+            <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-100">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-slate-50">
+                  <thead className="bg-slate-50/50">
                     <tr>
-                      <th
-                        onClick={() => handleSort('name')}
-                        className="px-3 py-2 text-left text-xs font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="flex items-center">
-                          Name
-                          {sortField === 'name' && (
-                            <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </div>
-                      </th>
-                      <th
-                        onClick={() => handleSort('email')}
-                        className="px-3 py-2 text-left text-xs font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="flex items-center">
-                          Email
-                          {sortField === 'email' && (
-                            <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                          )}
-                        </div>
-                      </th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Flat</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Status</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Role</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Actions</th>
+                      <th onClick={() => handleSort('name')} className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider cursor-pointer hover:bg-slate-50 transition-colors">Name / Property</th>
+                      <th onClick={() => handleSort('email')} className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider cursor-pointer hover:bg-slate-50 transition-colors">Contact</th>
+                      <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-4 text-right text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {members.length > 0 ? (
-                      members.map((member) => (
-                        <tr key={member.user_id} className="hover:bg-blue-50/50 transition-all duration-200">
-                          <td className="px-3 py-2">
-                            <div className="text-sm font-medium text-gray-900">
-                              {member.first_name && member.last_name
-                                ? `${member.first_name} ${member.last_name}`
-                                : member.first_name || member.last_name || 'N/A'}
+                  <tbody className="divide-y divide-slate-50">
+                    {members.map((member) => (
+                      <tr key={member.user_id} className="hover:bg-slate-50/50 transition-all">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-[#004ac6] font-bold text-xs">
+                              {(member.firstName?.[0] || member.email?.[0] || member.name?.[0] || '?').toUpperCase()}
                             </div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="text-sm text-gray-500">{member.email}</div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="text-sm text-gray-500">
-                              {member.wing_name || wings.find(w => String(w.id) === String(member.wing_id))?.name || 'N/A'}-{member.flat_number}
+                            <div>
+                              <p className="font-bold text-[#0b1c30] text-[14px]">{member.firstName} {member.lastName}</p>
+                              <p className="text-[12px] text-[#565e74] font-medium">{member.wing_name}-{member.flat_number}</p>
                             </div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span
-                              className={clsx(
-                                'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                                {
-                                  'bg-green-100 text-green-800': member.status === 'active',
-                                  'bg-yellow-100 text-yellow-800': member.status === 'pending_onboarding',
-                                  'bg-red-100 text-red-800': member.status === 'inactive',
-                                }
-                              )}
-                            >
-                              <div className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                                member.status === 'active' ? 'bg-green-500' :
-                                member.status === 'pending_onboarding' ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}></div>
-                              {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span
-                              className={clsx(
-                                'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                                {
-                                  'bg-blue-100 text-blue-800': member.userType === 'societyAdmin',
-                                  'bg-gray-100 text-gray-600': member.userType === 'member',
-                                }
-                              )}
-                            >
-                              <div className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                                member.userType === 'societyAdmin' ? 'bg-blue-500' : 'bg-gray-400'
-                              }`}></div>
-                              {member.userType === 'societyAdmin' ? 'Society Admin' : 'Member'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => {
-                                  setEditingMember(member);
-                                  setIsModalOpen(true);
-                                }}
-                                className="text-blue-500 hover:text-blue-700 transition-colors"
-                                title="Edit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              {/* Delete and Status Toggle removed as per request */}
-                              {member.userType !== 'societyAdmin' && (
-                                <button
-                                  onClick={() => handleMakeAdmin(member)}
-                                  className="text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-50"
-                                  title="Make Admin"
-                                  disabled={promotingUserId === member.user_id}
-                                >
-                                  <Shield className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="px-3 py-4 text-center text-sm text-gray-500">
-                          No members found
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-[13px] text-[#0b1c30] font-bold">{member.email}</div>
+                          <div className="text-[11px] text-[#565e74]">{member.phoneNumber}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={clsx(
+                            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold text-[11px] uppercase",
+                            (member.status || 'inactive') === 'active' ? 'bg-green-50 text-green-700' : (member.status || 'inactive') === 'pending_onboarding' ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'
+                          )}>
+                            <span className={clsx("w-1 h-1 rounded-full", (member.status || 'inactive') === 'active' ? 'bg-green-500' : (member.status || 'inactive') === 'pending_onboarding' ? 'bg-yellow-500' : 'bg-red-500')}></span>
+                            {(member.status || 'inactive').replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={clsx("px-2.5 py-0.5 rounded-full font-bold text-[11px] uppercase", member.userType === 'societyAdmin' ? 'bg-blue-50 text-blue-700' : 'bg-slate-50 text-slate-700')}>
+                            {member.userType === 'societyAdmin' ? 'Admin' : 'Member'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-4 items-center">
+                            <button onClick={() => { setEditingMember(member); setRole((member.userType as 'member' | 'societyAdmin') || 'member'); setIsModalOpen(true); }} className="text-[12px] font-bold text-[#004ac6] hover:underline">View Details</button>
+                            <button onClick={() => handleMakeAdmin(member)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" disabled={member.userType === 'societyAdmin' || promotingUserId === member.user_id}><Shield className="w-4 h-4" /></button>
+                          </div>
                         </td>
                       </tr>
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            {/* Pagination */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-3 flex items-center justify-between shadow-sm">
-              <div className="text-sm text-gray-500">
-                Showing{' '}
-                <span className="font-medium">{(currentPage * itemsPerPage) + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min((currentPage + 1) * itemsPerPage, totalItems)}
-                </span>{' '}
-                of <span className="font-medium">{totalItems}</span> members
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
-                  disabled={currentPage === 0}
-                  className="px-2.5 py-1 bg-gray-100 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-all duration-200"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) =>
-                      Math.min(p + 1, Math.floor((totalItems - 1) / itemsPerPage))
-                    )
-                  }
-                  disabled={(currentPage + 1) * itemsPerPage >= totalItems}
-                  className="px-2.5 py-1 bg-gray-100 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-all duration-200"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-
-            {/* Add/Edit Member Modal */}
-            {isModalOpen && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden m-4">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-                  <div className="p-4">
-                    {modalLoading ? (
-                      <div className="text-gray-600 text-sm font-medium animate-pulse text-center">
-                        Loading modal data...
-                      </div>
-                    ) : (
-                      <>
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                          {editingMember ? 'Edit Member' : 'Add Member'}
-                        </h2>
-                        <form onSubmit={handleSave} className="space-y-3">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                First Name
-                              </label>
-                              <input
-                                type="text"
-                                name="firstName"
-                                defaultValue={editingMember?.first_name || ''}
-                                className={clsx(
-                                  'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                  formErrors.firstName ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400'
-                                )}
-                              />
-                              {formErrors.firstName && (
-                                <p className="text-xs text-red-500 mt-1">{formErrors.firstName}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Last Name
-                              </label>
-                              <input
-                                type="text"
-                                name="lastName"
-                                defaultValue={editingMember?.last_name || ''}
-                                className={clsx(
-                                  'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                  formErrors.lastName ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400'
-                                )}
-                              />
-                              {formErrors.lastName && (
-                                <p className="text-xs text-red-500 mt-1">{formErrors.lastName}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                              Email
-                            </label>
-                            <input
-                              type="email"
-                              name="email"
-                              defaultValue={editingMember?.email || ''}
-                              className={clsx(
-                                'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                formErrors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400'
-                              )}
-                            />
-                            {formErrors.email && (
-                              <p className="text-xs text-red-500 mt-1">{formErrors.email}</p>
-                            )}
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Wing
-                              </label>
-                              <select
-                                name="wing"
-                                value={modalWing}
-                                onChange={handleModalWingChange}
-                                className={clsx(
-                                  'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                  formErrors.wing ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400'
-                                )}
-                              >
-                                <option value="">Select Wing</option>
-                                {wings.map((wing) => (
-                                  <option key={wing.id} value={wing.id}>
-                                    {wing.name}
-                                  </option>
-                                ))}
-                              </select>
-                              {formErrors.wing && (
-                                <p className="text-xs text-red-500 mt-1">{formErrors.wing}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Floor
-                              </label>
-                              <select
-                                name="floor"
-                                value={modalFloor}
-                                onChange={handleModalFloorChange}
-                                disabled={!modalWing}
-                                className={clsx(
-                                  'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                  formErrors.floor ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400',
-                                  !modalWing && 'opacity-50'
-                                )}
-                              >
-                                <option value="">Select Floor</option>
-                                {modalFloors.map((floor) => (
-                                  <option key={floor.floor_id} value={floor.floor_id}>
-                                    Floor {floor.floor_number}
-                                  </option>
-                                ))}
-                              </select>
-                              {formErrors.floor && (
-                                <p className="text-xs text-red-500 mt-1">{formErrors.floor}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Flat
-                              </label>
-                              <select
-                                name="flat"
-                                value={modalFlat}
-                                onChange={handleModalFlatChange}
-                                disabled={!modalFloor || modalFlats.length === 0}
-                                className={clsx(
-                                  'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                  formErrors.flat ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400',
-                                  (!modalFloor || modalFlats.length === 0) && 'opacity-50'
-                                )}
-                              >
-                                <option value="">Select Flat</option>
-                                {modalFlats.map((flat) => (
-                                  <option key={flat.flat_id} value={flat.flat_id}>
-                                    {flat.flat_number}
-                                  </option>
-                                ))}
-                              </select>
-                              {formErrors.flat && (
-                                <p className="text-xs text-red-500 mt-1">{formErrors.flat}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Phone
-                              </label>
-                              <input
-                                type="tel"
-                                name="phone"
-                                defaultValue={editingMember?.phone_number || ''}
-                                className={clsx(
-                                  'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                  formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400'
-                                )}
-                              />
-                              {formErrors.phone && (
-                                <p className="text-xs text-red-500 mt-1">{formErrors.phone}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Role
-                              </label>
-                              <select
-                                name="role"
-                                defaultValue={editingMember?.userType || 'member'}
-                                className={clsx(
-                                  'w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 text-sm',
-                                  formErrors.role ? 'border-red-500 focus:ring-red-500' : 'border-gray-200 focus:ring-blue-400'
-                                )}
-                              >
-                                <option value="member">Member</option>
-                                <option value="societyAdmin">Society Admin</option>
-                              </select>
-                              {formErrors.role && (
-                                <p className="text-xs text-red-500 mt-1">{formErrors.role}</p>
-                              )}
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-700 mb-1">
-                                Identity (IAM)
-                              </label>
-                              <select
-                                name="IAM"
-                                defaultValue={editingMember?.IAM || 'owner'}
-                                className="w-full p-1.5 border rounded-md focus:outline-none focus:ring-1 border-gray-200 focus:ring-blue-400 text-sm"
-                              >
-                                <option value="owner">Owner</option>
-                                <option value="tenant">Tenant</option>
-                                <option value="family">Family Member</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-end space-x-2 pt-3">
-                            <button
-                              type="button"
-                              onClick={() => setIsModalOpen(false)}
-                              className="px-2.5 py-1 bg-gray-100 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-all duration-200"
-                              disabled={isProcessing}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="submit"
-                              className="px-2.5 py-1 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600 hover:shadow-md disabled:opacity-50 transition-all duration-200"
-                              disabled={isProcessing || modalLoading}
-                            >
-                              {isProcessing ? 'Processing...' : editingMember ? 'Update' : 'Add'} Member
-                            </button>
-                          </div>
-                        </form>
-                      </>
-                    )}
-                  </div>
+              <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+                <span>Showing {members.length} of {totalItems} Results</span>
+                <div className="flex gap-2">
+                  <button onClick={() => setCurrentPage(p => Math.max(0, p-1))} disabled={currentPage === 0} className="p-1 hover:bg-slate-100 rounded-md disabled:opacity-30"><ChevronLeft className="w-4 h-4" /></button>
+                  <button onClick={() => setCurrentPage(p => p+1)} disabled={(currentPage+1)*itemsPerPage >= totalItems} className="p-1 hover:bg-slate-100 rounded-md disabled:opacity-30"><ChevronRight className="w-4 h-4" /></button>
                 </div>
               </div>
-            )}
-
-            {/* Import Members Modal */}
-            {isImportModalOpen && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden m-4">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-blue-500"></div>
-                  <div className="p-4">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Import Members</h2>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-3">
-                          Import members from a CSV or Excel file. Download the template file to ensure proper formatting.
-                        </p>
-                        <div className="flex justify-center mb-3">
-                          <button
-                            onClick={downloadTemplate}
-                            className="group flex items-center gap-1.5 bg-blue-500 text-white px-2.5 py-1 rounded-md hover:bg-blue-600 hover:shadow-md transition-all duration-200 text-sm"
-                          >
-                            <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                            <span>Download Template</span>
-                          </button>
-                        </div>
-                        <div className="border-2 border-dashed border-gray-200 rounded-md p-4 text-center">
-                          <Upload className="w-6 h-6 mx-auto text-gray-400" />
-                          <p className="mt-2 text-xs text-gray-600">
-                            Drag and drop your file here, or click to browse
-                          </p>
-                          <input
-                            type="file"
-                            accept=".csv,.xlsx,.xls"
-                            className="hidden"
-                            id="csv-upload"
-                            onChange={handleFileUpload}
-                          />
-                          <label
-                            htmlFor="csv-upload"
-                            className="mt-2 inline-flex items-center px-2.5 py-1 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600 hover:shadow-md transition-all duration-200 cursor-pointer"
-                          >
-                            Select File
-                          </label>
-                          {selectedFile && (
-                            <p className="mt-2 text-xs text-gray-600">
-                              Selected: {selectedFile.name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex justify-end space-x-2 pt-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsImportModalOpen(false);
-                            setSelectedFile(null);
-                          }}
-                          className="px-2.5 py-1 bg-gray-100 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200 disabled:opacity-50 transition-all duration-200"
-                          disabled={isProcessing}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleImportSubmit}
-                          disabled={!selectedFile || isProcessing}
-                          className={clsx(
-                            'px-2.5 py-1 bg-blue-500 text-white rounded-md text-sm font-medium hover:bg-blue-600 hover:shadow-md transition-all duration-200',
-                            { 'opacity-50 cursor-not-allowed': !selectedFile || isProcessing }
-                          )}
-                        >
-                          {isProcessing ? 'Importing...' : 'Import Members'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
+            </div>
+          </div>
         )}
 
-        {/* Dashboard Tab Content */}
         {activeTab === 'dashboard' && (
-              <div className="space-y-4">
-                {/* Overview Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
-                    <div className="text-xs text-gray-500">Total Members</div>
-                    <div className="mt-1 text-2xl font-semibold text-gray-900">{totalMembers}</div>
-                    <div className="mt-2 h-1.5 bg-gray-100 rounded">
-                      <div className="h-1.5 bg-gray-400 rounded" style={{ width: `${totalMembers ? 100 : 0}%` }}></div>
-                    </div>
-                  </div>
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
-                    <div className="text-xs text-gray-500">Active</div>
-                    <div className="mt-1 text-2xl font-semibold text-green-600">{activeMembers}</div>
-                    <div className="mt-2 h-1.5 bg-green-100 rounded">
-                      <div className="h-1.5 bg-green-500 rounded" style={{ width: `${totalMembers ? (activeMembers / totalMembers) * 100 : 0}%` }}></div>
-                    </div>
-                  </div>
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
-                    <div className="text-xs text-gray-500">Pending</div>
-                    <div className="mt-1 text-2xl font-semibold text-yellow-600">{pendingMembers}</div>
-                    <div className="mt-2 h-1.5 bg-yellow-100 rounded">
-                      <div className="h-1.5 bg-yellow-500 rounded" style={{ width: `${totalMembers ? (pendingMembers / totalMembers) * 100 : 0}%` }}></div>
-                    </div>
-                  </div>
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
-                    <div className="text-xs text-gray-500">Inactive</div>
-                    <div className="mt-1 text-2xl font-semibold text-red-600">{inactiveMembers}</div>
-                    <div className="mt-2 h-1.5 bg-red-100 rounded">
-                      <div className="h-1.5 bg-red-500 rounded" style={{ width: `${totalMembers ? (inactiveMembers / totalMembers) * 100 : 0}%` }}></div>
-                    </div>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[
+                { label: 'Total Members', value: totalMembers, color: 'text-slate-600', bg: 'bg-slate-400' },
+                { label: 'Active', value: activeMembers, color: 'text-green-600', bg: 'bg-green-500' },
+                { label: 'Pending', value: pendingMembers, color: 'text-yellow-600', bg: 'bg-yellow-500' },
+                { label: 'Inactive', value: inactiveMembers, color: 'text-red-600', bg: 'bg-red-500' }
+              ].map(stat => (
+                <div key={stat.label} className="bg-white p-6 rounded-xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                  <h3 className={clsx("text-2xl font-bold", stat.color)}>{stat.value}</h3>
+                  <div className="mt-4 h-1 bg-slate-50 rounded-full overflow-hidden">
+                    <div className={clsx("h-full rounded-full", stat.bg)} style={{ width: `${totalMembers ? (stat.value / totalMembers) * 100 : 0}%` }}></div>
                   </div>
                 </div>
+              ))}
+            </div>
 
-                {/* Role Distribution */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-semibold text-gray-900">Roles</h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-blue-50 rounded-md p-3 border border-blue-100">
-                        <div className="text-xs text-blue-700">Society Admins</div>
-                        <div className="text-xl font-semibold text-blue-800 mt-1">{adminCount}</div>
-                      </div>
-                      <div className="bg-gray-50 rounded-md p-3 border border-gray-100">
-                        <div className="text-xs text-gray-700">Members</div>
-                        <div className="text-xl font-semibold text-gray-800 mt-1">{memberCount}</div>
-                      </div>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white p-6 rounded-xl border border-slate-100">
+                <h3 className="text-[14px] font-bold mb-6 border-b border-slate-50 pb-4">Role Distribution</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+                    <div className="flex items-center gap-3"><Shield className="w-5 h-5 text-blue-600" /> <span className="font-bold text-[13px]">Admins</span></div>
+                    <span className="text-xl font-bold">{adminCount}</span>
                   </div>
-
-                  {/* Members by Wing */}
-                  <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-semibold text-gray-900">Members by Wing</h3>
-                    </div>
-                    <div className="space-y-2">
-                      {Object.entries(wingStats).length === 0 ? (
-                        <p className="text-xs text-gray-500">No wing data available</p>
-                      ) : (
-                        Object.entries(wingStats)
-                          .sort((a, b) => b[1] - a[1])
-                          .map(([wingName, count], idx, arr) => {
-                            const max = arr[0][1] || 1;
-                            const pct = Math.round((count / max) * 100);
-                            return (
-                              <div key={wingName} className="flex items-center gap-3">
-                                <div className="w-24 text-xs text-gray-700 truncate">{wingName}</div>
-                                <div className="flex-1 h-2 bg-gray-100 rounded">
-                                  <div className="h-2 bg-blue-500 rounded" style={{ width: `${pct}%` }}></div>
-                                </div>
-                                <div className="w-10 text-right text-xs text-gray-600">{count}</div>
-                              </div>
-                            );
-                          })
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recent Members */}
-                <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 overflow-hidden shadow-sm">
-                  <div className="p-3 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-900">Recent Members</h3>
-                    <p className="text-xs text-gray-500">A quick look at the latest fetched members</p>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-100">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Name</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Email</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Status</th>
-                          <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Role</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {(members.slice(0, 8)).map((member) => (
-                          <tr key={member.user_id} className="hover:bg-blue-50/50 transition-all duration-200">
-                            <td className="px-3 py-2">
-                              <div className="text-sm font-medium text-gray-900">
-                                {member.first_name && member.last_name
-                                  ? `${member.first_name} ${member.last_name}`
-                                  : member.first_name || member.last_name || 'N/A'}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="text-sm text-gray-500">{member.email}</div>
-                            </td>
-                            <td className="px-3 py-2">
-                              <span
-                                className={clsx(
-                                  'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                                  {
-                                    'bg-green-100 text-green-800': member.status === 'active',
-                                    'bg-yellow-100 text-yellow-800': member.status === 'pending_onboarding',
-                                    'bg-red-100 text-red-800': member.status === 'inactive',
-                                  }
-                                )}
-                              >
-                                <div className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                                  member.status === 'active' ? 'bg-green-500' :
-                                  member.status === 'pending_onboarding' ? 'bg-yellow-500' : 'bg-red-500'
-                                }`}></div>
-                                {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2">
-                              <span
-                                className={clsx(
-                                  'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
-                                  {
-                                    'bg-blue-100 text-blue-800': member.userType === 'societyAdmin',
-                                    'bg-gray-100 text-gray-600': member.userType === 'member',
-                                  }
-                                )}
-                              >
-                                <div className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                                  member.userType === 'societyAdmin' ? 'bg-blue-500' : 'bg-gray-400'
-                                }`}></div>
-                                {member.userType === 'societyAdmin' ? 'Society Admin' : 'Member'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                        {members.length === 0 && (
-                          <tr>
-                            <td colSpan={4} className="px-3 py-4 text-center text-sm text-gray-500">No members found</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                  <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+                    <div className="flex items-center gap-3"><Users className="w-5 h-5 text-slate-600" /> <span className="font-bold text-[13px]">Residents</span></div>
+                    <span className="text-xl font-bold">{memberCount}</span>
                   </div>
                 </div>
               </div>
-            )}
+              <div className="bg-white p-6 rounded-xl border border-slate-100">
+                <h3 className="text-[14px] font-bold mb-6 border-b border-slate-50 pb-4">Residents by Wing</h3>
+                <div className="space-y-4 max-h-[200px] overflow-y-auto pr-2">
+                  {Object.entries(wingStats).map(([wing, count]) => (
+                    <div key={wing} className="space-y-1">
+                      <div className="flex justify-between text-[11px] font-bold uppercase"><span>{wing}</span> <span>{count}</span></div>
+                      <div className="h-1 bg-slate-50 rounded-full overflow-hidden"><div className="h-full bg-blue-600" style={{ width: `${totalMembers ? (count / totalMembers) * 100 : 0}%` }}></div></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        </main>
-      );
-    };
+        )}
+      </div>
 
-    export default MembersPage;
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0b1c30]/10 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl border border-slate-100">
+              <div className="px-8 py-5 border-b border-slate-50 flex justify-between items-center">
+                <h3 className="text-xl font-bold">{editingMember ? 'Update Profile' : 'New Resident'}</h3>
+                <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5 text-slate-400" /></button>
+              </div>
+              <form onSubmit={handleSave} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">First Name</label>
+                    <input name="firstName" defaultValue={editingMember?.firstName} className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Last Name</label>
+                    <input name="lastName" defaultValue={editingMember?.lastName} className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Email Address</label>
+                    <input type="email" name="email" defaultValue={editingMember?.email} className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Phone Number</label>
+                    <input type="tel" name="phone" defaultValue={editingMember?.phoneNumber} className="w-full px-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 border-t border-slate-50 pt-6">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Wing</label>
+                    <select value={modalWing} onChange={handleModalWingChange} className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none">
+                      <option value="">Select</option>
+                      {wings.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Floor</label>
+                    <select value={modalFloor} onChange={e => { setModalFloor(e.target.value); fetchModalFlats(modalWing, e.target.value); }} className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none">
+                      <option value="">Select</option>
+                      {modalFloors.map(f => <option key={f.floor_id} value={f.floor_id}>{f.floor_number}</option>)}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Flat</label>
+                    <select value={modalFlat} onChange={e => setModalFlat(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none">
+                      <option value="">Select</option>
+                      {modalFlats.map(f => <option key={f.flat_id} value={f.flat_id}>{f.flat_number}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100 mt-4">
+                  <div className="flex items-center gap-3"><ShieldPlus className="w-5 h-5 text-blue-600" /><span className="text-[13px] font-bold">Administrative Rights</span></div>
+                  <select value={role} onChange={e => setRole(e.target.value as any)} className="bg-white border border-slate-200 rounded px-3 py-1 text-[12px] font-bold outline-none">
+                    <option value="member">Resident</option>
+                    <option value="societyAdmin">Society Admin</option>
+                  </select>
+                </div>
+                <div className="flex gap-3 pt-6">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-lg font-bold text-[13px] hover:bg-slate-200 transition-all">Cancel</button>
+                  <button type="submit" disabled={isProcessing} className="flex-[2] py-2.5 bg-blue-600 text-white rounded-lg font-bold text-[13px] hover:bg-blue-700 transition-all disabled:opacity-50">{isProcessing ? 'Processing...' : (editingMember ? 'Update Profile' : 'Confirm Registration')}</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {isImportModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0b1c30]/10 backdrop-blur-sm">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white rounded-2xl w-full max-w-lg p-8 shadow-2xl border border-slate-100">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold">Batch Import</h3>
+                <button onClick={() => setIsImportModalOpen(false)}><XCircle className="w-6 h-6 text-slate-300" /></button>
+              </div>
+              <div className="space-y-6">
+                <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-4">
+                  <Download className="w-6 h-6 text-blue-600 mt-1" />
+                  <div>
+                    <p className="font-bold text-blue-700 text-sm">Download Schema</p>
+                    <button onClick={downloadTemplate} className="text-xs text-blue-600 hover:underline">Download CSV Template</button>
+                  </div>
+                </div>
+                <div className="border-2 border-dashed border-slate-100 rounded-2xl p-10 text-center hover:bg-slate-50 transition-all cursor-pointer relative">
+                  <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
+                  <Upload className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                  <p className="font-bold text-sm text-[#0b1c30]">{selectedFile ? selectedFile.name : 'Click to upload dataset'}</p>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setIsImportModalOpen(false)} className="flex-1 py-2.5 bg-slate-50 text-slate-500 rounded-lg font-bold text-[13px]">Cancel</button>
+                  <button onClick={handleImportSubmit} disabled={!selectedFile || isProcessing} className="flex-[2] py-2.5 bg-blue-600 text-white rounded-lg font-bold text-[13px] disabled:opacity-50">Run Import</button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </main>
+  );
+};
+
+export default MembersPage;

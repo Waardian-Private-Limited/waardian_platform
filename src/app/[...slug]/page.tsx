@@ -23,18 +23,19 @@ import InvoicesDashboard from '@/components/societyAdmin/InvoicesDashboard';
 import InvoicesPenaltiesPage from '@/components/societyAdmin/InvoicesPenaltiesPage';
 import VisitorManagement from '@/components/societyAdmin/VisitorManagement';
 import PaymentGatewayPage from '@/components/societyAdmin/PaymentGateway';
+import MerchantSaltMapper from '@/components/superadmin/MerchantSaltMapper';
+import AppVersionManagement from '@/components/superadmin/AppVersionManagement';
 import ExpenseDashboard from '@/components/societyAdmin/ExpenseDashboard';
 import ExpenseManagement from '@/components/societyAdmin/ExpenseManagement';
 import LedgerDashboard from '@/components/societyAdmin/LedgerDashboard';
 import LedgerManagement from '@/components/societyAdmin/LedgerManagement';
 import VotingDashboard from '@/components/societyAdmin/VotingDashboard';
 import AmenityManagement from '@/components/societyAdmin/AmenityManagement';
-import NoticeDashboard from '@/components/societyAdmin/NoticeDashboard';
+
 import NoticeManagement from '@/components/societyAdmin/NoticeManagement';
 import AssetManagement from '@/components/societyAdmin/AssetManagement';
 import AssetDashboard from '@/components/societyAdmin/assets/AssetDashboard';
 import AssetList from '@/components/societyAdmin/assets/AssetList';
-import AssetAdd from '@/components/societyAdmin/assets/AssetAdd';
 import AssetBookings from '@/components/societyAdmin/assets/AssetBookings';
 import AssetMaintenance from '@/components/societyAdmin/assets/AssetMaintenance';
 import AssetAMC from '@/components/societyAdmin/assets/AssetAMC';
@@ -71,8 +72,8 @@ export default function DynamicAdminPage() {
 
   const allowedBaseRoutes = ['superadmin', 'societyadmin'];
   const validTabs: Record<string, string[]> = {
-    superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management', 'opted-subscriptions'],
-    societyadmin: ['dashboard', 'members', 'wings', 'floors', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'payment-gateway', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'move-management', 'polls', 'notices-dashboard', 'notices-management', 'staff', 'society-profile', 'asset-management', 'asset-dashboard', 'asset-list', 'asset-booking', 'asset-movement', 'asset-maintenance', 'asset-amc', 'asset-inventory', 'asset-vendors', 'asset-reports', 'renovations', 'maintenance-requests', 'document-requests'],
+    superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management', 'opted-subscriptions', 'merchant-mapper', 'app-version'],
+    societyadmin: ['dashboard', 'members', 'wings', 'floors', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'move-management', 'polls', 'notices', 'staff', 'society-profile', 'asset-management', 'asset-dashboard', 'asset-list', 'asset-booking', 'asset-movement', 'asset-maintenance', 'asset-amc', 'asset-inventory', 'asset-vendors', 'asset-reports', 'renovations', 'maintenance-requests', 'document-requests'],
   };
 
   const redirectToLogin = useCallback((reason: string) => {
@@ -86,8 +87,6 @@ export default function DynamicAdminPage() {
 
   useEffect(() => {
     let isMounted = true;
-
-    // console.log('Route info:', { baseRoute, subRoute, validTabs, slug });
 
     if (!baseRoute || !allowedBaseRoutes.includes(baseRoute)) {
       redirectToLogin(`Invalid baseRoute: ${baseRoute}`);
@@ -104,7 +103,6 @@ export default function DynamicAdminPage() {
     const verifySession = async () => {
       try {
         const data = await checkSession();
-        // console.log('Session data:', data);
 
         if (!isMounted) return;
 
@@ -221,6 +219,10 @@ export default function DynamicAdminPage() {
           return <AdPackages />;
         case 'placement-management':
           return <PlacementManagement />;
+        case 'merchant-mapper':
+          return <MerchantSaltMapper />;
+        case 'app-version':
+          return <AppVersionManagement />;
         default:
           return <div>Select a tab</div>;
       }
@@ -270,9 +272,7 @@ export default function DynamicAdminPage() {
           return <MoveManagement societyId={(user?.societyId || '0').toString()} />;
         case 'polls':
           return <VotingDashboard societyId={(user?.societyId || '0').toString()} />;
-        case 'notices-dashboard':
-          return <NoticeDashboard societyId={(user?.societyId || '0').toString()} />;
-        case 'notices-management':
+        case 'notices':
           return <NoticeManagement societyId={(user?.societyId || '0').toString()} user={user} />;
         case 'renovations':
           return <RenovationManagement />;

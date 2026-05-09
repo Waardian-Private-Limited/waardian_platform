@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FileText, AlertTriangle, Receipt, Plus, Eye, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import { FileText, AlertTriangle, Receipt, Plus, Eye, ToggleLeft, ToggleRight, X, Calendar, Search } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
+import clsx from 'clsx';
 
 interface InvoicesPenaltiesPageProps {
   societyId: string;
@@ -17,23 +18,12 @@ interface TabItem {
 
 const InvoicesPenaltiesPage: React.FC<InvoicesPenaltiesPageProps> = ({ societyId }) => {
   const [activeTab, setActiveTab] = useState('invoices');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const tabs: TabItem[] = [
-    {
-      id: 'invoices',
-      label: 'Invoices',
-      icon: FileText,
-    },
-    {
-      id: 'templates',
-      label: 'Recurring Invoices',
-      icon: Receipt,
-    },
-    {
-      id: 'raised-invoices',
-      label: 'Raised Invoices',
-      icon: Plus,
-    },
+  const tabs = [
+    { id: 'invoices', label: 'Billing Registry', icon: FileText },
+    { id: 'templates', label: 'Recurring Rules', icon: Receipt },
+    { id: 'raised-invoices', label: 'Instant Invoices', icon: Plus },
   ];
 
   const renderTabContent = () => {
@@ -50,52 +40,63 @@ const InvoicesPenaltiesPage: React.FC<InvoicesPenaltiesPageProps> = ({ societyId
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Invoices & Collection</h1>
-          <p className="text-gray-600 mt-1">Manage invoices and recurring invoice templates</p>
+    <main className="flex-1 bg-white text-[#0b1c30] antialiased p-8 font-['Manrope',_sans-serif]">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="flex justify-between items-end">
+          <div>
+            <nav className="flex gap-2 text-[12px] font-bold text-[#565e74] mb-2 uppercase tracking-wide">
+              <span>Financials</span>
+              <span>/</span>
+              <span className="text-[#004ac6]">Collections</span>
+            </nav>
+            <h2 className="text-[32px] font-bold leading-tight tracking-tight text-[#0b1c30]">Invoices & Collection</h2>
+          </div>
+          <div className="flex gap-3">
+             <button 
+               onClick={() => setShowCreateModal(true)}
+               className="bg-[#004ac6] hover:bg-[#003ea8] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px]"
+             >
+               <Plus className="w-4 h-4" />
+               New Invoice
+             </button>
+          </div>
         </div>
-      </div>
-      
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`group inline-flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  isActive
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <Icon
-                  className={`mr-2 h-4 w-4 ${
-                    isActive ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'
-                  }`}
-                />
-                {tab.label}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
 
-      {/* Tab Content */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6">
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl w-fit">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={clsx(
+                "px-6 py-2 text-[13px] font-bold rounded-lg transition-all flex items-center gap-2",
+                activeTab === tab.id ? "bg-white text-[#004ac6] shadow-sm" : "text-[#565e74] hover:text-[#004ac6]"
+              )}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-100 p-0 shadow-sm overflow-hidden min-h-[600px]">
           {renderTabContent()}
         </div>
       </div>
-      
 
-    </div>
+      {/* Lifted Create Invoice Modal */}
+      <InvoiceCreationModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        societyId={societyId}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          // Force refresh logic would go here, or depend on tab internal effect
+          window.location.reload(); 
+        }}
+      />
+    </main>
   );
 };
 
@@ -231,7 +232,10 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
       const response = await apiClient('/billing/wings', {
         withAuth: true,
       });
-      setWings(response.data || []);
+      setWings((response.data || []).map((w: any) => ({ 
+        wing_id: w.wing_id ?? w.id, 
+        wing_name: w.wing_name ?? w.name 
+      })));
     } catch (error) {
       console.error('Error fetching wings:', error);
     }
@@ -322,56 +326,77 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Category Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          {categoryTabs.map((tab) => {
-            const isActive = activeCategory === tab.id;
-            return (
+    <div className="space-y-0">
+      {/* Category Sub-tabs */}
+      <div className="px-6 pt-4 border-b border-slate-50 bg-slate-50/20">
+         <div className="flex gap-8">
+            {categoryTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => {
                   setActiveCategory(tab.id);
                   setCurrentPage(1);
                 }}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  isActive
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={clsx(
+                  "pb-4 text-[13px] font-bold transition-all capitalize border-b-2",
+                  activeCategory === tab.id ? "border-[#004ac6] text-[#004ac6]" : "border-transparent text-slate-400 hover:text-slate-600"
+                )}
               >
                 {tab.label}
               </button>
-            );
-          })}
-        </nav>
+            ))}
+         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-        <div className="col-span-1 md:col-span-2">
+      {/* Control Bar */}
+      <div className="p-4 bg-white border-b border-slate-50 flex flex-col md:flex-row items-center gap-4">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="Search invoices..."
+            placeholder={`Search ${activeCategory} invoices...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-[#004ac6] transition-all"
           />
         </div>
-        
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="all">All Status</option>
-          <option value="unpaid">Unpaid</option>
-          <option value="partial">Partial</option>
-          <option value="paid">Paid</option>
-          <option value="reversed">Reversed</option>
-        </select>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 p-1 bg-slate-50 border border-slate-100 rounded-lg">
+            {['all', 'paid', 'unpaid', 'partial'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={clsx(
+                  "px-4 py-1.5 text-[12px] font-bold rounded-md transition-all capitalize",
+                  statusFilter === f ? "bg-white text-[#004ac6] shadow-sm border border-slate-100" : "text-[#565e74] hover:text-[#004ac6]"
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+          <button 
+            onClick={() => {
+              setSearchTerm('');
+              setStatusFilter('all');
+              setSelectedWing('all');
+              setSelectedFloor('all');
+              setSelectedFlat('all');
+              const now = new Date();
+              setFromDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]);
+              setToDate(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]);
+              setCurrentPage(1);
+            }}
+            className="p-2 text-slate-400 hover:text-red-500 transition-all"
+            title="Clear Filters"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
+      {/* Filters Grid */}
+      <div className="p-4 bg-slate-50/30 border-b border-slate-50 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <select
           value={selectedWing}
           onChange={(e) => {
@@ -379,7 +404,7 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
             setSelectedFloor('all');
             setSelectedFlat('all');
           }}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 focus:ring-1 focus:ring-[#004ac6] outline-none transition-all"
         >
           <option value="all">All Wings</option>
           {wings.map((wing) => (
@@ -395,8 +420,8 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
             setSelectedFloor(e.target.value);
             setSelectedFlat('all');
           }}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           disabled={selectedWing === 'all'}
+          className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 focus:ring-1 focus:ring-[#004ac6] outline-none transition-all disabled:opacity-50"
         >
           <option value="all">All Floors</option>
           {floors.map((floor) => (
@@ -409,8 +434,8 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
         <select
           value={selectedFlat}
           onChange={(e) => setSelectedFlat(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           disabled={selectedFloor === 'all'}
+          className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-[12px] font-bold text-slate-600 focus:ring-1 focus:ring-[#004ac6] outline-none transition-all disabled:opacity-50"
         >
           <option value="all">All Flats</option>
           {flats.map((flat) => (
@@ -419,172 +444,99 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
             </option>
           ))}
         </select>
-      </div>
 
-      {/* Date Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+        <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg">
+           <Calendar className="w-3.5 h-3.5 text-slate-400" />
+           <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="bg-transparent border-none text-[11px] font-bold text-slate-600 outline-none w-full" />
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={() => {
-              setCurrentPage(1);
-              fetchInvoices();
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Search
-          </button>
+
+        <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg">
+           <Calendar className="w-3.5 h-3.5 text-slate-400" />
+           <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="bg-transparent border-none text-[11px] font-bold text-slate-600 outline-none w-full" />
         </div>
       </div>
 
       {/* Invoices List */}
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-3 p-8">
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="bg-gray-200 animate-pulse h-16 rounded-lg"></div>
           ))}
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="bg-white border-t border-slate-50 overflow-hidden">
           {invoices.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className="min-w-full divide-y divide-slate-50">
+                <thead className="bg-slate-50/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Invoice
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Flat
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Owner
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fees
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Taxes
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Refund
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actual Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Due Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Invoice Descriptor</th>
+                    <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Asset Node</th>
+                    <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Settlement Value</th>
+                    <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Actual Amount</th>
+                    <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Due Cycle</th>
+                    <th className="px-6 py-4 text-right text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-slate-50">
                   {invoices.map((invoice) => {
-                    const totalAmount = parseFloat(invoice.total_payable);
+                    const totalAmount = parseFloat(invoice.total_payable || '0');
                     const fees = parseFloat(invoice.fees || '0');
                     const taxes = parseFloat(invoice.taxes || '0');
                     const refundRaw = (invoice.refund_amount ?? invoice.refundAmount) || '0';
                     const refund = parseFloat(refundRaw);
                     const actualAmount = invoice.actual_amount ? parseFloat(invoice.actual_amount) : totalAmount - fees - taxes - refund;
                     
-                    // Check if fees and taxes are empty/zero for display
-                    const displayFees = !invoice.fees || parseFloat(invoice.fees) === 0 ? '-' : formatCurrency(fees);
-                    const displayTaxes = !invoice.taxes || parseFloat(invoice.taxes) === 0 ? '-' : formatCurrency(taxes);
-                    const displayRefund = !refundRaw || refund === 0 ? '-' : formatCurrency(refund);
-                    
                     return (
-                    <tr key={invoice.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {invoice.bill_name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {new Date(invoice.created_at).toLocaleDateString()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {invoice.flat_number}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {invoice.wing_name}
+                    <tr key={invoice.id} className="hover:bg-slate-50/50 transition-all group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                           <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[#004ac6]">
+                             <Receipt className="w-5 h-5" />
+                           </div>
+                           <div className="min-w-0">
+                             <p className="text-[14px] font-bold text-[#0b1c30] truncate max-w-[200px]">{invoice.bill_name || 'Unnamed Invoice'}</p>
+                             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">#{invoice.id?.slice(0,8) || 'N/A'}</p>
+                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {invoice.owner_name}
-                        </div>
+                      <td className="px-6 py-4">
+                        <p className="text-[13px] font-bold text-[#0b1c30]">{invoice.flat_number || 'N/A'}</p>
+                        <p className="text-[11px] text-slate-500 font-medium uppercase tracking-tighter">Wing {invoice.wing_name || '-'}</p>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4">
+                        <div className="text-[14px] font-bold text-[#0b1c30]">
                           {formatCurrency(totalAmount)}
                         </div>
+                        {parseFloat(invoice.penalty_amount || '0') > 0 && <p className="text-[10px] text-red-500 font-bold mt-0.5">+{formatCurrency(parseFloat(invoice.penalty_amount || '0'))} Penalty</p>}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-md inline-block">
-                          {displayFees}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-md inline-block">
-                          {displayTaxes}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-md inline-block">
-                          {displayRefund}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-bold text-green-700 bg-green-50 px-2 py-1 rounded-md inline-block">
+                      <td className="px-6 py-4">
+                        <div className="text-[14px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md inline-block">
                           {formatCurrency(actualAmount)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          getStatusColor(invoice.status)
-                        }`}>
-                          {invoice.status}
+                      <td className="px-6 py-4">
+                        <span className={clsx(
+                          "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter",
+                          invoice.status === 'paid' ? "bg-emerald-50 text-emerald-700" :
+                          invoice.status === 'unpaid' ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"
+                        )}>
+                          {invoice.status || 'unknown'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(invoice.due_date).toLocaleDateString()}
+                      <td className="px-6 py-4 text-[12px] font-bold text-slate-600">
+                        {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => {
                             setSelectedInvoice(invoice);
                             setShowDetailsModal(true);
                           }}
-                          className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                          className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-400 hover:text-[#004ac6]"
                         >
                           <Eye className="w-4 h-4" />
-                          View Details
                         </button>
                       </td>
                     </tr>
@@ -594,9 +546,9 @@ const InvoicesTab: React.FC<{ societyId: string }> = ({ societyId }) => {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No {activeCategory} invoices found</p>
+            <div className="text-center py-20">
+              <FileText className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No {activeCategory} invoices found</p>
             </div>
           )}
         </div>
@@ -1308,9 +1260,9 @@ const InvoiceCreationModal: React.FC<{
       const response = await apiClient('/billing/wings', {
         withAuth: true,
       });
-      const wingsData = (response.data || []).map((wing: any) => ({
-        id: wing.wing_id.toString(),
-        name: wing.wing_name
+      const wingsData = (response.data || []).map((wing: { wing_id?: number; id?: string; wing_name?: string; name?: string }) => ({
+        id: (wing.wing_id ?? wing.id)?.toString() || '',
+        name: wing.wing_name ?? wing.name ?? ''
       }));
       setWings(wingsData);
     } catch (error) {
@@ -1324,7 +1276,7 @@ const InvoiceCreationModal: React.FC<{
         withAuth: true,
         params: { wingId }
       });
-      const floorsData = (response.data || []).map((floor: any) => ({
+      const floorsData = (response.data || []).map((floor: { floor_id: number; floor_number: number }) => ({
         id: floor.floor_id.toString(),
         name: `Floor ${floor.floor_number}`
       }));
@@ -1340,7 +1292,7 @@ const InvoiceCreationModal: React.FC<{
         withAuth: true,
         params: { wingId, floorId }
       });
-      const flatsData = (response.data || []).map((flat: any) => ({
+      const flatsData = (response.data || []).map((flat: { flat_id: number; flat_number: string; wing_id: number; floor_id: number }) => ({
         id: flat.flat_id.toString(),
         name: flat.flat_number,
         wing_id: flat.wing_id.toString(),
@@ -1456,7 +1408,9 @@ const InvoiceCreationModal: React.FC<{
             new Date(formData.dueDate).toISOString(),
           isRecurring: formData.isRecurring,
           recurrenceType: formData.isRecurring ? formData.recurrenceType : null,
-          period: formData.isRecurring ? `${formData.firstBillYear}-${formData.firstBillMonth}` : formData.billGenerationDate.split('T')[0],
+          period: formData.isRecurring 
+            ? `${formData.firstBillYear}-${String(formData.firstBillMonth).padStart(2, '0')}` 
+            : formData.billGenerationDate.split('T')[0].slice(0, 7),
           charges: formData.charges.map(charge => ({
             name: charge.name,
             description: charge.description,

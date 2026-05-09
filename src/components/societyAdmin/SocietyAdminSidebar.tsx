@@ -68,98 +68,48 @@ interface SocietyAdminSidebarProps {
 
 const navigationItems: NavigationItem[] = [
     {
-      id: 'dashboard',
+      id: 'societyadmin',
       label: 'Dashboard',
       icon: Home,
       href: '/societyadmin',
     },
     {
-      id: 'management',
-      label: 'Management',
+      id: 'residency-management',
+      label: 'Residency',
       icon: Users,
       isCategory: true,
       children: [
         {
           id: 'members',
-          label: 'Member Management',
+          label: 'Member Registry',
           icon: Users,
           href: '/societyadmin/members',
         },
         {
-          id: 'staff',
-          label: 'Staff Management',
-          icon: UserCog,
-          href: '/societyadmin/staff',
-        },
-        {
-          id: 'visitors',
-          label: 'Visitor Management',
+          id: 'visitor-management',
+          label: 'Visitor Protocols',
           icon: UserCheck,
           href: '/societyadmin/visitor-management',
         },
         {
-          id: 'amenity-management',
-          label: 'Amenity Management',
-          icon: Waves,
-          href: '/societyadmin/amenity-management',
-        },
-        {
-          id: 'document-requests',
-          label: 'Document Requests',
-          icon: FileText,
-          href: '/societyadmin/document-requests',
-        },
-        {
           id: 'move-management',
-          label: 'Move Management',
+          label: 'Move Logs',
           icon: Truck,
           href: '/societyadmin/move-management',
         },
-        {
-          id: 'building-structure',
-          label: 'Building Structure',
-          icon: Building2,
-          isCategory: true,
-          children: [
-            {
-              id: 'wings',
-              label: 'Wings',
-              icon: Folder,
-              href: '/societyadmin/wings',
-            },
-            {
-              id: 'floors',
-              label: 'Floors',
-              icon: Folder,
-              href: '/societyadmin/floors',
-            },
-            {
-              id: 'flats',
-              label: 'Flats',
-              icon: Folder,
-              href: '/societyadmin/flats',
-            },
-          ],
-        },
+      ],
+    },
+    {
+      id: 'comm-ops',
+      label: 'Community & Ops',
+      icon: Megaphone,
+      isCategory: true,
+      children: [
         {
           id: 'notices',
-          label: 'Notices & Alerts',
+          label: 'Notice Hub',
           icon: Bell,
-          isCategory: true,
-          children: [
-            {
-              id: 'notices-dashboard',
-              label: 'Notice Dashboard',
-              icon: BarChart3,
-              href: '/societyadmin/notices-dashboard',
-            },
-            {
-              id: 'notices-management',
-              label: 'Notice Management',
-              icon: Megaphone,
-              href: '/societyadmin/notices-management',
-            },
-          ],
+          href: '/societyadmin/notices',
         },
         {
           id: 'polls',
@@ -168,16 +118,56 @@ const navigationItems: NavigationItem[] = [
           href: '/societyadmin/polls',
         },
         {
-          id: 'tasks',
-          label: 'Task Scheduling',
-          icon: Calendar,
-          href: '/societyadmin/tasks',
+          id: 'amenity-management',
+          label: 'Amenity Management',
+          icon: Waves,
+          href: '/societyadmin/amenity-management',
         },
         {
-          id: 'complaints',
-          label: 'Complaint Resolution',
-          icon: Headphones,
-          href: '/societyadmin/complaints',
+          id: 'staff',
+          label: 'Staff Management',
+          icon: UserCog,
+          href: '/societyadmin/staff',
+        },
+      ],
+    },
+    {
+      id: 'service-hub',
+      label: 'Service Hub',
+      icon: Headphones,
+      isCategory: true,
+      children: [
+        {
+          id: 'document-requests',
+          label: 'Document Requests',
+          icon: FileText,
+          href: '/societyadmin/document-requests',
+        },
+      ],
+    },
+    {
+      id: 'building-structure',
+      label: 'Infrastructure',
+      icon: Building2,
+      isCategory: true,
+      children: [
+        {
+          id: 'wings',
+          label: 'Wings',
+          icon: Folder,
+          href: '/societyadmin/wings',
+        },
+        {
+          id: 'floors',
+          label: 'Floors',
+          icon: Folder,
+          href: '/societyadmin/floors',
+        },
+        {
+          id: 'flats',
+          label: 'Flats',
+          icon: Folder,
+          href: '/societyadmin/flats',
         },
       ],
     },
@@ -268,12 +258,6 @@ const navigationItems: NavigationItem[] = [
             },
           ],
         },
-        {
-          id: 'payment-gateway',
-          label: 'Payment Gateway',
-          icon: CreditCard,
-          href: '/societyadmin/payment-gateway',
-        },
       ],
     },
     {
@@ -353,7 +337,7 @@ const navigationItems: NavigationItem[] = [
       ],
     },
     {
-      id: 'subscription',
+      id: 'billing',
       label: 'Subscription',
       icon: Crown,
       href: '/societyadmin/billing',
@@ -506,7 +490,6 @@ export default function SocietyAdminSidebar({
                 {!isCollapsed && isExpanded && item.children && (
                   <div className="ml-4 space-y-1">
                     {item.children
-                      .filter((child) => child.id !== 'tasks' && child.id !== 'complaints')
                       .map((child) => {
                         const ChildIcon = child.icon;
                         const isChildActive = activeTab === child.id;

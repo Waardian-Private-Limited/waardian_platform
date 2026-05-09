@@ -1,15 +1,18 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Plus, Download, Package, MapPin, MoreVertical, Edit2, Boxes, ChevronRight, CheckCircle2, AlertCircle, HistoryIcon, Clock, RefreshCw, TrendingUp, TrendingDown, IndianRupee, PieChart as PieChartIcon } from 'lucide-react';
+import {
+  Search, Plus, Download, Package, Edit2, ChevronRight, RefreshCw,
+  TrendingUp, TrendingDown, IndianRupee, PieChart as PieChartIcon,
+  Trash2, ChevronLeft, Boxes, LayoutGrid, Layers
+} from 'lucide-react';
 import { apiClient, Asset, exportAssetsToExcel } from '@/lib/apiClient';
 import clsx from 'clsx';
-import { format, isValid } from 'date-fns';
+import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import AssetDetailsModal from './AssetDetailsModal';
 import AssetAddModal from './AssetAddModal';
-
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function AssetList() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -18,7 +21,6 @@ export default function AssetList() {
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
   const [editAssetId, setEditAssetId] = useState<number | null>(null);
   const [activeCategory, setActiveCategory] = useState('All');
-  const [activeView, setActiveView] = useState<'list' | 'financials'>('list');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const router = useRouter();
 
@@ -42,8 +44,8 @@ export default function AssetList() {
 
   const handleExport = async () => {
     try {
-      const blob = await exportAssetsToExcel({ 
-        category: activeCategory === 'All' ? '' : activeCategory 
+      const blob = await exportAssetsToExcel({
+        category: activeCategory === 'All' ? '' : activeCategory
       });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -60,476 +62,262 @@ export default function AssetList() {
   const categories = ['All', ...Array.from(new Set(assets.map(a => a.category)))];
 
   const filteredAssets = assets.filter(asset => {
-    const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         asset.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      asset.category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = activeCategory === 'All' || asset.category === activeCategory;
     return matchesSearch && matchesCategory;
   });
 
   if (isLoading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6 bg-gray-50/50">
-        <RefreshCw className="animate-spin text-blue-600" size={48} />
-        <p className="text-sm font-bold text-gray-400 animate-pulse uppercase tracking-[0.2em]">Loading Asset Registry...</p>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
+        <RefreshCw className="animate-spin text-blue-600" size={40} />
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Syncing Asset Registry...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen bg-gray-50/50">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-20 font-sans">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-200">
-         <div className="space-y-1">
-            <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Asset Registry</h1>
-            <p className="text-gray-500 font-medium tracking-tight">Systematic inventory and infrastructure oversight</p>
-         </div>
-         <div className="flex items-center gap-3">
-            <div className="inline-flex p-1.5 bg-gray-200/50 rounded-lg border border-gray-200 backdrop-blur-sm">
-               <button 
-                 className="px-6 py-2.5 rounded-lg text-sm font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 transform hover:scale-105 active:scale-95 transition-all"
-               >
-                 Registry View
-               </button>
-               <button 
-                 onClick={() => router.push('/societyadmin/asset-dashboard')}
-                 className="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:text-blue-600 hover:bg-white transition-all transform hover:scale-105 active:scale-95"
-               >
-                 Diagnostic Center
-               </button>
-            </div>
-            <button 
-              onClick={fetchData}
-              className="p-2.5 bg-white border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-200 shadow-sm transition-all active:scale-90"
-            >
-              <RefreshCw size={20} />
-            </button>
-         </div>
-      </div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2">
+        <div className="flex items-center gap-3">
 
-      {activeView === 'list' ? (
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg border border-gray-100 p-4 md:p-6 shadow-sm space-y-6">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3 flex-1">
-                <div className="relative group min-w-[300px] flex-1">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 bg-gray-50 rounded-lg group-focus-within:bg-blue-50 transition-colors">
-                    <Search className="text-gray-400 group-focus-within:text-blue-500" size={16} />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search assets by name or category..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-14 pr-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all placeholder:text-gray-400"
-                  />
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 bg-gray-50 rounded-lg">
-                    <Filter className="text-gray-400" size={16} />
-                  </div>
-                  <select 
-                    value={activeCategory}
-                    onChange={(e) => setActiveCategory(e.target.value)}
-                    className="pl-14 pr-10 py-3 bg-white border border-gray-200 rounded-lg text-sm font-medium appearance-none min-w-[180px] outline-none hover:border-gray-300 transition-all cursor-pointer"
-                  >
-                    {categories.map(c => <option key={c} value={c}>{c === 'All' ? 'All Categories' : c}</option>)}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-                    <ChevronRight className="rotate-90 text-gray-400" size={16} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                 <button 
-                   onClick={() => {
-                     setEditAssetId(null);
-                     setIsAddModalOpen(true);
-                   }}
-                   className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg transition-all shadow-lg active:scale-95 text-sm font-bold"
-                 >
-                   <Plus size={18} />
-                   <span>Add Asset</span>
-                 </button>
-                 <button 
-                   onClick={handleExport}
-                   className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-3 rounded-lg transition-all shadow-lg active:scale-95 text-sm font-bold"
-                 >
-                   <Download size={18} />
-                   <span>Export Excel</span>
-                 </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-100 shadow-sm overflow-hidden min-h-[500px]">
-            {filteredAssets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-40 text-center space-y-4">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-300">
-                  <Boxes size={40} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">No Assets Found</h2>
-                  <p className="text-sm text-gray-500">Your search didn't match any records.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left min-w-[800px]">
-                  <thead className="bg-gray-50/50 text-[11px] font-bold uppercase text-gray-400 tracking-wider">
-                    <tr>
-                      <th className="px-8 py-5 border-b border-gray-100">Name</th>
-                      <th className="px-8 py-5 border-b border-gray-100">Category</th>
-                      <th className="px-8 py-5 border-b border-gray-100">Location</th>
-                      <th className="px-8 py-5 border-b border-gray-100">Status</th>
-                      <th className="px-8 py-5 border-b border-gray-100">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredAssets.map(asset => (
-                      <tr 
-                        key={asset.id} 
-                        className="group hover:bg-gray-50 transition-all cursor-pointer"
-                        onClick={() => setSelectedAssetId(Number(asset.id))}
-                      >
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-sm ${
-                              asset.status === 'missing' ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
-                            }`}>
-                              <Package size={20} />
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">{asset.name}</p>
-                              <p className="text-[11px] text-gray-400 font-medium">AST-ID: {asset.id.toString().padStart(4, '0')}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-[11px] font-bold shadow-sm border border-blue-100/50">
-                            {asset.category}
-                          </span>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-2 text-gray-500">
-                            <MapPin size={14} className="text-gray-300" />
-                            <span className="text-xs font-medium">{asset.location || 'Main Precinct'}</span>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <span
-                            className={clsx(
-                              'inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-sm border',
-                              {
-                                'bg-green-100 text-green-800 border-green-200': asset.status === 'in_use' || asset.status === 'active',
-                                'bg-yellow-100 text-yellow-800 border-yellow-200': asset.status === 'under_maintenance',
-                                'bg-red-100 text-red-800 border-red-200': asset.status === 'missing',
-                                'bg-slate-100 text-slate-800 border-slate-200': asset.status === 'decommissioned',
-                              }
-                            )}
-                          >
-                            <div className={clsx('w-1.5 h-1.5 rounded-full mr-1.5', {
-                              'bg-green-500': asset.status === 'in_use' || asset.status === 'active',
-                              'bg-yellow-500': asset.status === 'under_maintenance',
-                              'bg-red-500': asset.status === 'missing',
-                              'bg-slate-500': asset.status === 'decommissioned',
-                            })}></div>
-                            {asset.status.replace('_', ' ').toUpperCase()}
-                          </span>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditAssetId(Number(asset.id));
-                                setIsAddModalOpen(true);
-                              }}
-                              className="p-2 hover:bg-white rounded-lg transition-all text-blue-400 hover:text-blue-600 border border-transparent hover:border-blue-100 shadow-sm"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button className="p-2 hover:bg-white rounded-lg transition-all text-gray-300 hover:text-red-500">
-                              <MoreVertical size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div className="p-6 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between">
-              <p className="text-xs font-medium text-gray-400">
-                Showing <span className="text-gray-900">1 to {filteredAssets.length}</span> of <span className="text-gray-900">{filteredAssets.length}</span> assets
-              </p>
-              <div className="flex items-center gap-2">
-                <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-300 cursor-not-allowed">Previous</button>
-                <button className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-300 cursor-not-allowed">Next</button>
-              </div>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">Asset Registry</h1>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">Consolidated Resource Inventory</p>
           </div>
         </div>
-      ) : (
-        <FinancialReportingModule assets={assets} onExport={handleExport} />
-      )}
+      </div>
 
-      {selectedAssetId && (
-        <AssetDetailsModal 
-          assetId={selectedAssetId} 
-          onClose={() => setSelectedAssetId(null)} 
-          onEdit={() => {
-            setEditAssetId(selectedAssetId);
-            setIsAddModalOpen(true);
-            setSelectedAssetId(null);
-          }}
-          onUpdate={() => {
-            setSelectedAssetId(null);
-            fetchData();
-          }}
-        />
-      )}
+      <FinancialReportingModule assets={assets} />
 
-      <AssetAddModal 
-        isOpen={isAddModalOpen}
-        onClose={() => {
-           setIsAddModalOpen(false);
-           setEditAssetId(null);
-        }}
-        editAssetId={editAssetId}
-        onSuccess={fetchData}
-      />
+      <div className="bg-white rounded-none border border-slate-200 shadow-sm overflow-hidden min-h-[600px] flex flex-col">
+        {/* Integrated Header */}
+        <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-50/50">
+          <div className="flex gap-2 p-1 bg-white rounded-none border border-slate-200 shadow-sm overflow-x-auto no-scrollbar max-w-full md:max-w-md">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={clsx(
+                  "px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-none transition-all whitespace-nowrap",
+                  activeCategory === cat ? "bg-slate-900 text-white" : "text-slate-400 hover:text-slate-900"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="relative group">
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+              <input
+                type="text"
+                placeholder="QUICK SEARCH..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-none text-[10px] font-bold uppercase tracking-widest outline-none focus:ring-1 focus:ring-blue-100 transition-all w-full md:w-56"
+              />
+            </div>
+            <button
+              onClick={handleExport}
+              className="p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 rounded-none transition-all shadow-sm active:scale-95"
+            >
+              <Download size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 tracking-wider border-b border-slate-100">
+                <th className="px-8 py-4">Asset Descriptor</th>
+                <th className="px-8 py-4">Classification</th>
+                <th className="px-8 py-4">Status / Health</th>
+                <th className="px-8 py-4">Primary Location</th>
+                <th className="px-8 py-4 text-right">Operations</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredAssets.length > 0 ? filteredAssets.map((asset, i) => (
+                <motion.tr
+                  key={asset.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.02 }}
+                  className="hover:bg-slate-50 transition-all group cursor-pointer"
+                  onClick={() => setSelectedAssetId(asset.id)}
+                >
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-none flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">
+                        <Package size={18} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">{asset.name}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">AST-{asset.id.toString().padStart(4, '0')}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-none border border-slate-200 uppercase tracking-widest">
+                      {asset.category}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-3">
+                      <div className={clsx(
+                        "w-2 h-2 rounded-none",
+                        asset.status === 'operational' || asset.status === 'active' || asset.status === 'available' ? "bg-emerald-500" :
+                          asset.status === 'maintenance' || asset.status === 'under_maintenance' ? "bg-amber-500" :
+                            "bg-red-500"
+                      )} />
+                      <span className={clsx(
+                        "text-[9px] font-bold uppercase tracking-wider border px-2 py-0.5 rounded-none",
+                        asset.status === 'operational' || asset.status === 'active' || asset.status === 'available' ? "text-emerald-700 border-emerald-100 bg-emerald-50" :
+                          asset.status === 'maintenance' || asset.status === 'under_maintenance' ? "text-amber-700 border-amber-100 bg-amber-50" :
+                            "text-red-700 border-red-100 bg-red-50"
+                      )}>
+                        {asset.status.replace('_', ' ')}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600 uppercase tracking-tight">
+                      <span className="text-slate-400">{asset.block_wing || '---'}</span>
+                      <span className="text-slate-200">|</span>
+                      <span>{asset.exact_location || 'DEPOT HQ'}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditAssetId(asset.id); }}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-none transition-all active:scale-95"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSelectedAssetId(asset.id); }}
+                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-none transition-all active:scale-95"
+                      >
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </motion.tr>
+              )) : (
+                <tr>
+                  <td colSpan={5} className="py-32 text-center">
+                    <Package size={40} className="mx-auto mb-4 text-slate-100" />
+                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No Operational Assets Found</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {selectedAssetId && (
+          <AssetDetailsModal
+            assetId={selectedAssetId}
+            onClose={() => setSelectedAssetId(null)}
+            onEdit={() => {
+              setEditAssetId(selectedAssetId);
+              setSelectedAssetId(null);
+            }}
+            onUpdate={fetchData}
+          />
+        )}
+
+        {(isAddModalOpen || editAssetId) && (
+          <AssetAddModal
+            assetId={editAssetId || undefined}
+            onClose={() => {
+              setIsAddModalOpen(false);
+              setEditAssetId(null);
+            }}
+            onSuccess={() => {
+              setIsAddModalOpen(false);
+              setEditAssetId(null);
+              fetchData();
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function FinancialReportingModule({ assets, onExport }: { assets: Asset[], onExport: () => void }) {
-  const [reportType, setReportType] = useState<'register' | 'depreciation' | 'disposal'>('register');
-
-  const metrics = React.useMemo(() => {
-    const totalPurchase = assets.reduce((sum, a) => sum + Number(a.purchase_cost || 0), 0);
-    const totalDisposal = assets.filter(a => a.is_disposed).reduce((sum, a) => sum + Number(a.disposal_amount || 0), 0);
-    
-    const totalDepreciation = assets.reduce((sum, a) => {
-      if (a.purchase_cost && a.useful_life_years) {
-        const cost = Number(a.purchase_cost);
-        const scrap = Number(a.scrap_value || 0);
-        const purchaseDate = a.purchase_date ? new Date(a.purchase_date) : new Date();
-        const yearsPassed = (new Date().getFullYear() - purchaseDate.getFullYear());
-        const annualDep = (cost - scrap) / a.useful_life_years;
-        return sum + Math.min(cost - scrap, Math.max(0, annualDep * yearsPassed));
-      }
-      return sum;
+function FinancialReportingModule({ assets }: { assets: Asset[] }) {
+  const stats = React.useMemo(() => {
+    const totalCost = assets.reduce((s, a) => s + Number(a.purchase_cost || 0), 0);
+    const activeBookValue = assets.reduce((s, a) => {
+      if (a.is_disposed) return s;
+      const cost = Number(a.purchase_cost || 0);
+      const scrap = Number(a.scrap_value || 0);
+      const life = Number(a.useful_life_years || 10);
+      const pDate = a.purchase_date ? new Date(a.purchase_date) : new Date();
+      const yearsPassed = (new Date().getFullYear() - pDate.getFullYear());
+      const annualDep = (cost - scrap) / life;
+      const totalDep = Math.min(cost - scrap, Math.max(0, annualDep * yearsPassed));
+      return s + (cost - totalDep);
     }, 0);
 
-    const totalCurrentValue = totalPurchase - totalDepreciation;
-    
-    const totalProfitLoss = assets.filter(a => a.is_disposed).reduce((sum, a) => {
-       const cost = Number(a.purchase_cost || 0);
-       const scrap = Number(a.scrap_value || 0);
-       const annualDep = (cost - scrap) / (a.useful_life_years || 10);
-       const dDate = a.disposal_date ? new Date(a.disposal_date) : new Date();
-       const pDate = a.purchase_date ? new Date(a.purchase_date) : new Date();
-       const yearsPassed = (dDate.getFullYear() - pDate.getFullYear());
-       const bookValueAtDisposal = cost - (annualDep * Math.max(0, yearsPassed));
-       return sum + (Number(a.disposal_amount || 0) - bookValueAtDisposal);
+    const disposalProfitLoss = assets.filter(a => a.is_disposed).reduce((s, a) => {
+      const proceeds = Number(a.disposal_amount || 0);
+      const cost = Number(a.purchase_cost || 0);
+      const scrap = Number(a.scrap_value || 0);
+      const life = Number(a.useful_life_years || 10);
+      const pDate = a.purchase_date ? new Date(a.purchase_date) : new Date();
+      const yearsPassed = (new Date(a.disposal_date || new Date()).getFullYear() - pDate.getFullYear());
+      const annualDep = (cost - scrap) / life;
+      const totalDep = Math.min(cost - scrap, Math.max(0, annualDep * yearsPassed));
+      const bookValue = cost - totalDep;
+      return s + (proceeds - bookValue);
     }, 0);
 
-    return { totalPurchase, totalCurrentValue, totalDepreciation, totalProfitLoss, totalDisposal };
+    return { totalCost, activeBookValue, disposalProfitLoss };
   }, [assets]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <FinancialStatCard 
-          title="Net Book Value" 
-          value={`₹${metrics.totalCurrentValue.toLocaleString()}`} 
-          label="Global Asset Valuation"
-          icon={<IndianRupee size={22} />}
-          color="blue"
-        />
-        <FinancialStatCard 
-          title="Accumulated Dep." 
-          value={`₹${metrics.totalDepreciation.toLocaleString()}`} 
-          label="Total Value Loss"
-          icon={<TrendingDown size={22} />}
-          color="red"
-        />
-        <FinancialStatCard 
-          title="Liquidation Rev." 
-          value={`₹${metrics.totalDisposal.toLocaleString()}`} 
-          label="From Disposals"
-          icon={<PieChartIcon size={22} />}
-          color="emerald"
-        />
-        <FinancialStatCard 
-          title="Net Realized P/L" 
-          value={`${metrics.totalProfitLoss >= 0 ? '+' : ''}₹${Math.abs(metrics.totalProfitLoss).toLocaleString()}`} 
-          label="Liquidation Outcome"
-          icon={metrics.totalProfitLoss >= 0 ? <TrendingUp size={22} /> : <TrendingDown size={22} />}
-          color={metrics.totalProfitLoss >= 0 ? "emerald" : "red"}
-        />
-      </div>
-
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-[600px] hover:shadow-md transition-shadow">
-        <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
-           <div className="flex gap-4">
-              <button 
-                onClick={() => setReportType('register')}
-                className={clsx("text-xs font-black uppercase tracking-widest pb-1 border-b-2 transition-all", reportType === 'register' ? "border-blue-600 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600")}
-              >
-                Asset Register
-              </button>
-              <button 
-                onClick={() => setReportType('depreciation')}
-                className={clsx("text-xs font-black uppercase tracking-widest pb-1 border-b-2 transition-all", reportType === 'depreciation' ? "border-blue-600 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600")}
-              >
-                Depreciation Audit
-              </button>
-              <button 
-                onClick={() => setReportType('disposal')}
-                className={clsx("text-xs font-black uppercase tracking-widest pb-1 border-b-2 transition-all", reportType === 'disposal' ? "border-blue-600 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600")}
-              >
-                Liquidation Report
-              </button>
-           </div>
-           <button 
-             onClick={onExport}
-             className="p-2 bg-white border border-gray-200 rounded-lg text-gray-400 hover:text-blue-600 transition-all shadow-sm"
-           >
-              <Download size={16} />
-           </button>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-6 rounded-none border border-slate-200 shadow-sm flex items-center gap-6">
+        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-none flex items-center justify-center border border-blue-100 shadow-sm">
+          <IndianRupee size={20} />
         </div>
-
-        <div className="flex-1 overflow-x-auto">
-           <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-50/50 text-[10px] font-black uppercase text-gray-400 tracking-widest">
-                 {reportType === 'register' && (
-                   <tr>
-                      <th className="px-8 py-5">Asset Descriptor</th>
-                      <th className="px-8 py-5">Purchase Cost</th>
-                      <th className="px-8 py-5">Current Valuation</th>
-                      <th className="px-8 py-5">Total Dep.</th>
-                      <th className="px-8 py-5">System Status</th>
-                   </tr>
-                 )}
-                 {reportType === 'depreciation' && (
-                   <tr>
-                      <th className="px-8 py-5">Asset</th>
-                      <th className="px-8 py-5">Valuation Method</th>
-                      <th className="px-8 py-5">Useful Life</th>
-                      <th className="px-8 py-5">Scrap Value</th>
-                      <th className="px-8 py-5">Book Value</th>
-                   </tr>
-                 )}
-                 {reportType === 'disposal' && (
-                   <tr>
-                      <th className="px-8 py-5">Liquidated Asset</th>
-                      <th className="px-8 py-5">Purchase Value</th>
-                      <th className="px-8 py-5">Disposal Date</th>
-                      <th className="px-8 py-5">Sale Amount</th>
-                      <th className="px-8 py-5">Outcome</th>
-                   </tr>
-                 )}
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                 {assets.filter(a => {
-                    if (reportType === 'disposal') return a.is_disposed;
-                    return true;
-                 }).map(asset => {
-                    const cost = Number(asset.purchase_cost || 0);
-                    const scrap = Number(asset.scrap_value || 0);
-                    const life = Number(asset.useful_life_years || 10);
-                    const pDate = asset.purchase_date ? new Date(asset.purchase_date) : new Date();
-                    const yearsPassed = (new Date().getFullYear() - pDate.getFullYear());
-                    const annualDep = (cost - scrap) / life;
-                    const totalDep = Math.min(cost - scrap, Math.max(0, annualDep * yearsPassed));
-                    const currentVal = cost - totalDep;
-
-                    return (
-                      <tr key={asset.id} className="hover:bg-gray-50 transition-all">
-                        {reportType === 'register' && (
-                          <>
-                            <td className="px-8 py-5 font-bold text-gray-900 text-sm">
-                               {asset.name}
-                               <p className="text-[10px] text-gray-400 lowercase font-medium">AST-{asset.id}</p>
-                            </td>
-                            <td className="px-8 py-5 font-bold text-gray-800 text-sm">₹{cost.toLocaleString()}</td>
-                            <td className="px-8 py-5 font-bold text-blue-600 text-sm">₹{currentVal.toLocaleString()}</td>
-                            <td className="px-8 py-5 font-bold text-red-400 text-sm">₹{totalDep.toLocaleString()}</td>
-                            <td className="px-8 py-5">
-                               <span className={clsx("px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter shadow-sm border", 
-                                  asset.status === 'decommissioned' ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-blue-50 text-blue-600 border-blue-100")}>
-                                  {asset.status}
-                               </span>
-                            </td>
-                          </>
-                        )}
-                        {reportType === 'depreciation' && (
-                          <>
-                            <td className="px-8 py-5 font-bold text-gray-900 text-sm">{asset.name}</td>
-                            <td className="px-8 py-5 font-bold text-gray-400 text-xs tracking-widest uppercase">Straight Line (SLM)</td>
-                            <td className="px-8 py-5 font-bold text-gray-800 text-sm">{life} Years</td>
-                            <td className="px-8 py-5 font-bold text-gray-800 text-sm">₹{scrap.toLocaleString()}</td>
-                            <td className="px-8 py-5 font-black text-blue-600 text-sm">₹{currentVal.toLocaleString()}</td>
-                          </>
-                        )}
-                        {reportType === 'disposal' && (
-                          <>
-                            <td className="px-8 py-5 font-bold text-gray-900 text-sm">{asset.name}</td>
-                            <td className="px-8 py-5 font-bold text-gray-800 text-sm">₹{cost.toLocaleString()}</td>
-                            <td className="px-8 py-5 font-bold text-gray-400 text-xs">{asset.disposal_date ? format(new Date(asset.disposal_date), 'MMM dd, yyyy') : 'N/A'}</td>
-                            <td className="px-8 py-5 font-black text-emerald-600 text-sm">₹{Number(asset.disposal_amount || 0).toLocaleString()}</td>
-                            <td className="px-8 py-5 font-bold text-sm">
-                               {(() => {
-                                  const dDate = asset.disposal_date ? new Date(asset.disposal_date) : new Date();
-                                  const pDate = asset.purchase_date ? new Date(asset.purchase_date) : new Date();
-                                  const yearsPass = (dDate.getFullYear() - pDate.getFullYear());
-                                  const bVal = cost - (annualDep * Math.max(0, yearsPass));
-                                  const diff = Number(asset.disposal_amount || 0) - bVal;
-                                  return (
-                                     <span className={diff >= 0 ? "text-emerald-600" : "text-red-600"}>
-                                        {diff >= 0 ? 'PROFIT' : 'LOSS'} (₹{Math.abs(diff).toLocaleString()})
-                                     </span>
-                                  );
-                               })()}
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    );
-                 })}
-              </tbody>
-           </table>
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1.5">Lifetime Acquisition</p>
+          <p className="text-xl font-bold text-slate-900 tracking-tight">₹{(stats.totalCost || 0).toLocaleString()}</p>
         </div>
-      </div>
-    </div>
-  );
-}
-function FinancialStatCard({ title, value, label, icon, color }: any) {
-  return (
-    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all group">
-      <div className="flex items-center justify-between mb-4">
-        <div className={clsx(
-          "w-12 h-12 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm border",
-          color === 'blue' ? "bg-blue-50 text-blue-600 border-blue-100" : 
-          color === 'red' ? "bg-red-50 text-red-600 border-red-100" :
-          "bg-emerald-50 text-emerald-600 border-emerald-100"
-        )}>
-          {icon}
+      </motion.div>
+
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white p-6 rounded-none border border-slate-200 shadow-sm flex items-center gap-6">
+        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-none flex items-center justify-center border border-emerald-100 shadow-sm">
+          <TrendingUp size={20} />
         </div>
-        <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">{title}</span>
-      </div>
-      <div>
-        <p className={clsx(
-          "text-2xl font-black tracking-tight",
-          color === 'red' ? "text-red-600" : color === 'emerald' ? "text-emerald-600" : "text-gray-900"
-        )}>{value}</p>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1 opacity-70">{label}</p>
-      </div>
+        <div>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1.5">Net Book Value</p>
+          <p className="text-xl font-bold text-slate-900 tracking-tight">₹{(stats.activeBookValue || 0).toLocaleString()}</p>
+        </div>
+      </motion.div>
+
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={clsx("p-6 rounded-none border shadow-sm flex items-center gap-6", stats.disposalProfitLoss >= 0 ? "bg-white border-slate-200" : "bg-red-50 border-red-100")}>
+        <div className={clsx("w-12 h-12 rounded-none flex items-center justify-center border shadow-sm", stats.disposalProfitLoss >= 0 ? "bg-indigo-50 text-indigo-600 border-indigo-100" : "bg-red-600 text-white border-red-700")}>
+          {stats.disposalProfitLoss >= 0 ? <PieChartIcon size={20} /> : <TrendingDown size={20} />}
+        </div>
+        <div>
+          <p className={clsx("text-[10px] font-bold uppercase tracking-widest leading-none mb-1.5", stats.disposalProfitLoss >= 0 ? "text-slate-400" : "text-red-600")}>Liquidation Yield</p>
+          <p className={clsx("text-xl font-bold tracking-tight", stats.disposalProfitLoss >= 0 ? "text-slate-900" : "text-red-700")}>
+            {stats.disposalProfitLoss >= 0 ? '+' : ''}₹{Math.abs(stats.disposalProfitLoss || 0).toLocaleString()}
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 }

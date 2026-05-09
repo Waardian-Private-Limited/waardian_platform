@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-   Package, MapPin, DollarSign, Calendar, Shield,
-   Settings, Clock, FileText, ChevronLeft, Save, Plus, Users, Target, Loader2, CheckCircle2,
-   CloudUpload, Image as ImageIcon, Wrench, ShieldCheck, Info, TrendingDown, Calculator, X, ChevronRight, IndianRupee
+   Package, MapPin, Shield,
+   Settings, FileText, ChevronLeft, Save, Target, Loader2,
+   CloudUpload, Image as ImageIcon, Wrench, ShieldCheck, X, ChevronRight, IndianRupee,
+   RefreshCw
 } from 'lucide-react';
 import { createAsset, updateAsset, getAssetFullDetails, getVendorsList, uploadFiles, getSocietyStructure } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
@@ -12,10 +13,51 @@ import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AssetAddModalProps {
-   isOpen: boolean;
+   isOpen?: boolean;
+   assetId?: number | null;
    onClose: () => void;
-   editAssetId?: number | null;
    onSuccess?: () => void;
+}
+
+interface AssetFormData {
+  name: string;
+  category: string;
+  sub_type: string;
+  description: string;
+  block_wing: string;
+  floor: string;
+  exact_location: string;
+  owned_by: string;
+  vendor_id: string;
+  assigned_staff_id: string;
+  purchase_date: string;
+  purchase_cost: string;
+  invoice_number: string;
+  status: string;
+  condition_status: string;
+  installation_date: string;
+  expected_life_years: string;
+  warranty_expiry: string;
+  maintenance_type_policy: string;
+  maintenance_frequency: string;
+  last_service_date: string;
+  next_service_date: string;
+  is_bookable: boolean;
+  pricing_model: string;
+  price: string;
+  security_deposit: string;
+  max_booking_hours: string;
+  rules: string;
+  invoice_url: string;
+  image_url: string;
+  useful_life_years: string;
+  scrap_value: string;
+  depreciation_method: string;
+  approval_required: boolean;
+  penalty_grace_period: number;
+  penalty_rate_per_hour: number;
+  utility_rate: number;
+  image_urls: string[];
 }
 
 const STEPS = [
@@ -25,18 +67,18 @@ const STEPS = [
    { id: 4, title: 'Financials', description: 'Value & Access' }
 ];
 
-export default function AssetAddModal({ isOpen, onClose, editAssetId, onSuccess }: AssetAddModalProps) {
+export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddModalProps) {
    const [currentStep, setCurrentStep] = useState(1);
    const [isSubmitting, setIsSubmitting] = useState(false);
    const [isLoading, setIsLoading] = useState(false);
    const [uploadState, setUploadState] = useState({ invoice: false, image: false });
-   const [vendors, setVendors] = useState<any[]>([]);
-   const [structure, setStructure] = useState<{ wings: any[], floors: any[], amenities: any[] }>({ wings: [], floors: [], amenities: [] });
+   const [vendors, setVendors] = useState<{ id: number; business_name: string }[]>([]);
+   const [structure, setStructure] = useState<{ wings: { id: number; name: string }[], floors: string[], amenities: { id: number; name: string }[] }>({ wings: [], floors: [], amenities: [] });
    
    const [isOtherWing, setIsOtherWing] = useState(false);
    const [isOtherFloor, setIsOtherFloor] = useState(false);
 
-   const [formData, setFormData] = useState<any>({
+   const [formData, setFormData] = useState<AssetFormData>({
       name: '',
       category: 'Amenities',
       sub_type: '',
@@ -67,709 +109,389 @@ export default function AssetAddModal({ isOpen, onClose, editAssetId, onSuccess 
       rules: '',
       invoice_url: '',
       image_url: '',
-      useful_life_years: '',
-      scrap_value: '',
+      useful_life_years: '10',
+      scrap_value: '0',
       depreciation_method: 'SLM',
       approval_required: false,
-      penalty_grace_period: 15,
+      penalty_grace_period: 0,
       penalty_rate_per_hour: 0,
+      utility_rate: 0,
       image_urls: []
    });
 
    useEffect(() => {
-      if (!isOpen) {
-         setCurrentStep(1);
-         return;
-      }
-
-      const fetchData = async () => {
+      const init = async () => {
+         setIsLoading(true);
          try {
-            setIsLoading(true);
-            const [vendorRes, structureRes] = await Promise.all([
-               getVendorsList(),
-               getSocietyStructure()
-            ]);
+            const [vRes, sRes] = await Promise.all([getVendorsList(), getSocietyStructure()]);
+            if (vRes.success) setVendors(vRes.data || []);
+            if (sRes.success) setStructure(sRes.data || { wings: [], floors: [], amenities: [] });
 
-            if (vendorRes.success) setVendors(vendorRes.data || []);
-            if (structureRes.success && structureRes.data) {
-               setStructure(structureRes.data);
-            }
-
-            if (editAssetId) {
-               const assetRes = await getAssetFullDetails(editAssetId);
-               if (assetRes.success) {
-                  const data = assetRes.data;
-                  const formatDate = (date: string) => date ? new Date(date).toISOString().split('T')[0] : '';
-                  const sanitizedData = Object.keys(data).reduce((acc: any, key: string) => {
-                     acc[key] = data[key] === null ? '' : data[key];
-                     return acc;
-                  }, {});
-
-                  setFormData((prev: any) => ({
+            if (assetId) {
+               const aRes = await getAssetFullDetails(assetId);
+               if (aRes.success && aRes.data) {
+                  const asset = aRes.data;
+                  setFormData(prev => ({
                      ...prev,
-                     ...sanitizedData,
-                     is_bookable: Boolean(data.is_bookable),
-                     approval_required: Boolean(data.approval_required),
-                     purchase_date: formatDate(data.purchase_date),
-                     installation_date: formatDate(data.installation_date),
-                     warranty_expiry: formatDate(data.warranty_expiry),
-                     last_service_date: formatDate(data.last_service_date),
-                     next_service_date: formatDate(data.next_service_date),
+                     ...asset,
+                     vendor_id: asset.vendor_id?.toString() || '',
+                     purchase_cost: asset.purchase_cost?.toString() || '',
+                     expected_life_years: asset.expected_life_years?.toString() || '',
+                     price: asset.price?.toString() || '',
+                     security_deposit: asset.security_deposit?.toString() || '',
+                     max_booking_hours: asset.max_booking_hours?.toString() || '',
+                     useful_life_years: asset.useful_life_years?.toString() || '10',
+                     scrap_value: asset.scrap_value?.toString() || '0'
                   }));
                }
-            } else {
-               // Reset form if opening for new asset
-               setFormData({
-                  name: '', category: 'Amenities', sub_type: '', description: '',
-                  block_wing: '', floor: '', exact_location: '', owned_by: 'society',
-                  vendor_id: '', assigned_staff_id: '', purchase_date: '', purchase_cost: '',
-                  invoice_number: '', status: 'active', condition_status: 'good',
-                  installation_date: '', expected_life_years: '', warranty_expiry: '',
-                  maintenance_type_policy: 'none', maintenance_frequency: 'none',
-                  last_service_date: '', next_service_date: '', is_bookable: false,
-                  pricing_model: 'free', price: '', security_deposit: '',
-                  max_booking_hours: '', rules: '', invoice_url: '', image_url: '',
-                  useful_life_years: '', scrap_value: '', depreciation_method: 'SLM',
-                  approval_required: false,
-                  penalty_grace_period: 15,
-                  penalty_rate_per_hour: 0,
-                  image_urls: []
-               });
             }
-         } catch (error) {
-            toast.error('Initialization failed');
+         } catch {
+            toast.error('System synchronization failure');
          } finally {
             setIsLoading(false);
          }
       };
-      fetchData();
-   }, [isOpen, editAssetId]);
+      init();
+   }, [assetId]);
 
-   const handleChange = (e: any) => {
-      const { name, value, type, checked } = e.target;
-      setFormData((prev: any) => {
-         const newData = {
-            ...prev,
-            [name]: type === 'checkbox' ? checked : (value ?? '')
-         };
-         
-         // Auto-sync pricing model
-         if (name === 'price') {
-            const priceVal = parseFloat(value);
-            if (priceVal > 0) {
-               newData.pricing_model = 'paid_hourly';
-            } else {
-               newData.pricing_model = 'free';
-            }
+   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'invoice' | 'image') => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      setUploadState(p => ({ ...p, [type]: true }));
+      try {
+         const res = await uploadFiles('assets', [file]);
+         if (res.status === 'success' && res.data?.files?.[0]?.url) {
+            setFormData(p => ({ ...p, [type === 'invoice' ? 'invoice_url' : 'image_url']: res.data.files[0].url }));
+            toast.success(`${type.toUpperCase()} Protocol Committed`);
          }
-         
-         return newData;
-      });
+      } catch {
+         toast.error('Transmission failure');
+      } finally {
+         setUploadState(p => ({ ...p, [type]: false }));
+      }
    };
 
-   const handleNext = () => {
-      if (currentStep < 4) setCurrentStep(currentStep + 1);
-   };
+   const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (currentStep < 4) return setCurrentStep(s => s + 1);
 
-   const handleBack = () => {
-      if (currentStep > 1) setCurrentStep(currentStep - 1);
-   };
-
-   const handleSubmit = async () => {
-      if (isSubmitting) return;
       setIsSubmitting(true);
       try {
-         const res = editAssetId
-            ? await updateAsset(editAssetId, formData)
-            : await createAsset(formData);
+         const payload = {
+            ...formData,
+            purchase_cost: parseFloat(formData.purchase_cost) || 0,
+            price: parseFloat(formData.price) || 0,
+            security_deposit: parseFloat(formData.security_deposit) || 0,
+            max_booking_hours: parseInt(formData.max_booking_hours) || 0,
+            useful_life_years: parseInt(formData.useful_life_years) || 10,
+            scrap_value: parseFloat(formData.scrap_value) || 0
+         };
 
+         const res = assetId ? await updateAsset(assetId, payload) : await createAsset(payload);
          if (res.success) {
-            toast.success(editAssetId ? 'System Updated' : 'Asset Registered');
+            toast.success(assetId ? 'Entity Updated' : 'Entity Manifested');
             onSuccess?.();
             onClose();
          }
-      } catch (error) {
-         toast.error('Operation failed');
+      } catch (err: any) {
+         toast.error(err.message || 'Transmision Failure');
       } finally {
          setIsSubmitting(false);
       }
    };
 
-   const monthlyDepreciation = React.useMemo(() => {
-      const cost = Number(formData.purchase_cost);
-      const life = Number(formData.useful_life_years);
-      const scrap = Number(formData.scrap_value) || 0;
-      if (cost > 0 && life > 0) return (cost - scrap) / (life * 12);
-      return 0;
-   }, [formData.purchase_cost, formData.useful_life_years, formData.scrap_value]);
-
-   if (!isOpen) return null;
-
    return (
-      <AnimatePresence>
-         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-            <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={onClose}
-               className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
-            />
-
-            <motion.div 
-               initial={{ opacity: 0, scale: 0.95, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
-            >
-               {/* Modal Header */}
-               <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                  <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100 shadow-sm">
-                        <Package size={24} />
-                     </div>
-                     <div>
-                        <h2 className="text-xl font-extrabold text-gray-900 tracking-tight">
-                           {editAssetId ? 'Modify Strategy Asset' : 'Register Infrastructure'}
-                        </h2>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">
-                           {editAssetId ? `System ID: AST-${editAssetId.toString().padStart(4, '0')}` : 'Provisioning new society resource'}
-                        </p>
-                     </div>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+         <motion.div 
+            initial={{ opacity: 0, scale: 0.98, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white w-full max-w-4xl rounded-none shadow-2xl overflow-hidden border border-slate-200 flex h-[85vh]"
+         >
+            {/* Sidebar Controls */}
+            <div className="w-1/3 bg-slate-900 p-10 flex flex-col justify-between relative overflow-hidden">
+               <div className="relative z-10">
+                  <div className="w-14 h-14 bg-white/10 rounded-none flex items-center justify-center backdrop-blur-md border border-white/20 mb-8">
+                     <Package size={28} className="text-white" />
                   </div>
-                  <button 
-                     onClick={onClose}
-                     className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-all active:scale-90"
-                  >
-                     <X size={24} />
-                  </button>
-               </div>
+                  <h2 className="text-xl font-bold text-white uppercase tracking-tight mb-2">{assetId ? 'Update' : 'Initialize'} Asset</h2>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-12">Registry Alignment Protocol</p>
 
-               {/* Step Indicator */}
-               <div className="px-8 py-4 bg-gray-50/50 border-b border-gray-100">
-                  <div className="flex items-center justify-between">
+                  <div className="space-y-8">
                      {STEPS.map((step) => (
-                        <div key={step.id} className="flex items-center gap-3 relative flex-1">
+                        <div key={step.id} className="flex gap-5 items-center group cursor-pointer" onClick={() => step.id < currentStep && setCurrentStep(step.id)}>
                            <div className={clsx(
-                              "w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs transition-all",
-                              currentStep === step.id ? "bg-blue-600 text-white shadow-lg shadow-blue-200" : 
-                              currentStep > step.id ? "bg-emerald-500 text-white" : "bg-gray-200 text-gray-500"
+                              "w-9 h-9 rounded-none flex items-center justify-center font-bold text-xs transition-all border",
+                              currentStep === step.id ? "bg-blue-600 text-white border-blue-500 scale-105 shadow-lg shadow-blue-500/20" : 
+                              currentStep > step.id ? "bg-emerald-500 text-white border-emerald-400" : "bg-white/5 text-slate-500 border-white/10"
                            )}>
-                              {currentStep > step.id ? <CheckCircle2 size={16} /> : step.id}
+                              {currentStep > step.id ? <ShieldCheck size={16} /> : step.id}
                            </div>
-                           <div className="hidden md:block">
-                              <p className={clsx("text-[10px] font-black uppercase tracking-tight leading-none mb-1 text-gray-400", currentStep === step.id && "text-blue-600")}>
-                                 {step.title}
-                              </p>
-                              <p className="text-[10px] text-gray-400 font-medium whitespace-nowrap">{step.description}</p>
+                           <div>
+                              <p className={clsx("text-[10px] font-bold uppercase tracking-widest leading-none mb-1.5", currentStep === step.id ? "text-white" : "text-slate-500")}>{step.title}</p>
+                              <p className="text-[9px] font-medium text-slate-600 uppercase tracking-tight">{step.description}</p>
                            </div>
-                           {step.id < 4 && (
-                              <div className="flex-1 h-0.5 mx-4 bg-gray-100" />
-                           )}
                         </div>
                      ))}
                   </div>
                </div>
 
-               {/* Modal Body */}
-               <div className="flex-1 overflow-y-auto p-8">
-                  {isLoading ? (
-                     <div className="py-20 flex flex-col items-center justify-center space-y-4">
-                        <Loader2 className="animate-spin text-blue-600" size={48} />
-                        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Hydrating Core Data...</p>
+               <div className="relative z-10 pt-10 border-t border-white/5">
+                  <div className="flex items-center gap-4 p-4 bg-white/5 rounded-none border border-white/10">
+                     <div className="w-8 h-8 bg-blue-500/20 rounded-none flex items-center justify-center text-blue-400">
+                        <Target size={18} />
                      </div>
-                  ) : (
-                     <form className="space-y-8 h-full">
-                        <AnimatePresence mode="wait">
-                           {currentStep === 1 && (
-                              <motion.div 
-                                 key="step1"
-                                 initial={{ opacity: 0, x: 20 }}
-                                 animate={{ opacity: 1, x: 0 }}
-                                 exit={{ opacity: 0, x: -20 }}
-                                 className="space-y-8"
-                              >
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-4">
-                                       <Input label="Asset Name" name="name" required value={formData.name} onChange={handleChange} placeholder="e.g. Caterpillar DG Set" />
-                                       <div className="space-y-1.5 flex flex-col">
-                                          <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Primary Category</label>
-                                          <select name="category" value={formData.category} onChange={handleChange} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none">
-                                             <option value="Electrical">Electrical</option>
-                                             <option value="Mechanical">Mechanical</option>
-                                             <option value="Amenities">Amenities</option>
-                                             <option value="Infrastructure">Infrastructure</option>
-                                          </select>
-                                       </div>
-                                       <Input label="Model / Sub-Type" name="sub_type" value={formData.sub_type} onChange={handleChange} placeholder="e.g. 500kVA Soundproof" />
-                                    </div>
-                                    <div className="space-y-1.5 h-full">
-                                       <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 mb-1 block">Operational Purpose</label>
-                                       <textarea 
-                                          name="description" 
-                                          value={formData.description} 
-                                          onChange={handleChange} 
-                                          rows={7} 
-                                          className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none resize-none" 
-                                          placeholder="Technical specifications, serial numbers, critical usage notes..." 
-                                       />
-                                    </div>
-                                 </div>
-                              </motion.div>
-                           )}
-
-                           {currentStep === 2 && (
-                              <motion.div 
-                                 key="step2"
-                                 initial={{ opacity: 0, x: 20 }}
-                                 animate={{ opacity: 1, x: 0 }}
-                                 exit={{ opacity: 0, x: -20 }}
-                                 className="space-y-8"
-                              >
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* Deployment Details */}
-                                    <div className="space-y-6">
-                                       <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
-                                          <div className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center">
-                                             <MapPin size={18} />
-                                          </div>
-                                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Deployment Sector</h3>
-                                       </div>
-                                       
-                                       <div className="space-y-4">
-                                          <div className="space-y-1.5 flex flex-col">
-                                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Zone / Wing</label>
-                                             {!isOtherWing ? (
-                                                <select 
-                                                   name="block_wing" 
-                                                   value={formData.block_wing} 
-                                                   onChange={(e) => {
-                                                      if (e.target.value === 'other') {
-                                                         setIsOtherWing(true);
-                                                         setFormData({ ...formData, block_wing: '', floor: '' });
-                                                      } else {
-                                                         setFormData({ ...formData, block_wing: e.target.value, floor: '' });
-                                                      }
-                                                   }}
-                                                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all"
-                                                >
-                                                   <option value="">Select Zone...</option>
-                                                   <optgroup label=" wings / Zones">
-                                                      {structure.wings.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                                   </optgroup>
-                                                   <optgroup label="Amenities">
-                                                      {structure.amenities.map(a => <option key={a.id} value={a.name}>{a.name}</option>)}
-                                                   </optgroup>
-                                                   <option value="other" className="text-blue-600 font-bold">+ Custom Zone</option>
-                                                </select>
-                                             ) : (
-                                                <div className="relative">
-                                                   <input 
-                                                      type="text" name="block_wing" value={formData.block_wing} onChange={handleChange}
-                                                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none pr-10"
-                                                      placeholder="Enter zone..." autoFocus
-                                                   />
-                                                   <button type="button" onClick={() => setIsOtherWing(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-blue-600 uppercase">List</button>
-                                                </div>
-                                             )}
-                                          </div>
-
-                                          <div className="space-y-1.5 flex flex-col">
-                                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Floor Level</label>
-                                             {!isOtherFloor ? (
-                                                <select 
-                                                   name="floor" value={formData.floor} 
-                                                   onChange={(e) => e.target.value === 'other' ? setIsOtherFloor(true) : handleChange(e)}
-                                                   className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none disabled:opacity-50"
-                                                   disabled={!formData.block_wing && !isOtherWing}
-                                                >
-                                                   <option value="">Select Floor...</option>
-                                                   {structure.floors.filter(f => f.wing_id == formData.block_wing).map(f => <option key={f.id} value={f.level}>Floor {f.level}</option>)}
-                                                   <option value="other" className="text-blue-600 font-bold">+ Custom Floor</option>
-                                                </select>
-                                             ) : (
-                                                <div className="relative">
-                                                   <input type="text" name="floor" value={formData.floor} onChange={handleChange} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none pr-10" placeholder="Enter floor..." autoFocus />
-                                                   <button type="button" onClick={() => setIsOtherFloor(false)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-blue-600 uppercase">List</button>
-                                                </div>
-                                             )}
-                                          </div>
-                                          <Input label="Exact Coordinates" name="exact_location" value={formData.exact_location} onChange={handleChange} placeholder="e.g. Near DG Exhaust pipe" />
-                                       </div>
-                                    </div>
-
-                                    {/* Ownership & Custody */}
-                                    <div className="space-y-6">
-                                       <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
-                                          <div className="w-8 h-8 bg-orange-50 text-orange-500 rounded-lg flex items-center justify-center">
-                                             <Users size={18} />
-                                          </div>
-                                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Custody Layer</h3>
-                                       </div>
-
-                                       <div className="space-y-4">
-                                          <div className="space-y-1.5">
-                                             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Ownership Model</label>
-                                             <select name="owned_by" value={formData.owned_by} onChange={handleChange} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none">
-                                                <option value="society">Society Owned</option>
-                                                <option value="vendor">Leased / Vendor</option>
-                                             </select>
-                                          </div>
-                                          {formData.owned_by === 'vendor' && (
-                                             <div className="space-y-1.5 animate-in slide-in-from-top-2">
-                                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Partner Entity</label>
-                                                <select name="vendor_id" value={formData.vendor_id} onChange={handleChange} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 outline-none">
-                                                   <option value="">Select Vendor...</option>
-                                                   {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                                </select>
-                                             </div>
-                                          )}
-                                          <Input label="Custodian ID" name="assigned_staff_id" type="number" value={formData.assigned_staff_id} onChange={handleChange} placeholder="Employee ID of lead handler" />
-                                       </div>
-                                    </div>
-                                 </div>
-                              </motion.div>
-                           )}
-
-                           {currentStep === 3 && (
-                              <motion.div 
-                                 key="step3"
-                                 initial={{ opacity: 0, x: 20 }}
-                                 animate={{ opacity: 1, x: 0 }}
-                                 exit={{ opacity: 0, x: -20 }}
-                                 className="space-y-8"
-                              >
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* Lifecycle and Health */}
-                                    <div className="space-y-6">
-                                       <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
-                                          <div className="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center">
-                                             <Target size={18} />
-                                          </div>
-                                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">System Vitality</h3>
-                                       </div>
-
-                                       <div className="grid grid-cols-2 gap-4">
-                                          <div className="space-y-1.5">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Global Status</label>
-                                             <select name="status" value={formData.status} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 outline-none">
-                                                <option value="active">Active</option>
-                                                <option value="under_maintenance">Maintenance</option>
-                                                <option value="decommissioned">Retired</option>
-                                             </select>
-                                          </div>
-                                          <div className="space-y-1.5">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Core Condition</label>
-                                             <select name="condition_status" value={formData.condition_status} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 outline-none">
-                                                <option value="new">Factory New</option>
-                                                <option value="good">Operative</option>
-                                                <option value="fair">Aged</option>
-                                                <option value="poor">Critically Worn</option>
-                                             </select>
-                                          </div>
-                                          <Input label="Install Date" name="installation_date" type="date" value={formData.installation_date} onChange={handleChange} />
-                                          <Input label="Warranty End" name="warranty_expiry" type="date" value={formData.warranty_expiry} onChange={handleChange} />
-                                       </div>
-                                    </div>
-
-                                    {/* SLA and Maintenance */}
-                                    <div className="space-y-6">
-                                       <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
-                                          <div className="w-8 h-8 bg-purple-50 text-purple-500 rounded-lg flex items-center justify-center">
-                                             <Wrench size={18} />
-                                          </div>
-                                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">SLA Protocols</h3>
-                                       </div>
-
-                                       <div className="grid grid-cols-2 gap-4">
-                                          <div className="space-y-1.5">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Policy Type</label>
-                                             <select name="maintenance_type_policy" value={formData.maintenance_type_policy} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 outline-none">
-                                                <option value="none">Reactive</option>
-                                                <option value="amc">AMC Periodic</option>
-                                                <option value="on_demand">Incident Based</option>
-                                             </select>
-                                          </div>
-                                          <div className="space-y-1.5">
-                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Audit Cycle</label>
-                                             <select name="maintenance_frequency" value={formData.maintenance_frequency} onChange={handleChange} className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 outline-none">
-                                                <option value="none">N/A</option>
-                                                <option value="monthly">Monthly</option>
-                                                <option value="quarterly">Quarterly</option>
-                                                <option value="yearly">Annual</option>
-                                             </select>
-                                          </div>
-                                          <Input label="Last Audit" name="last_service_date" type="date" value={formData.last_service_date} onChange={handleChange} />
-                                          <Input label="Next Audit" name="next_service_date" type="date" value={formData.next_service_date} onChange={handleChange} />
-                                       </div>
-                                    </div>
-                                 </div>
-                              </motion.div>
-                           )}
-
-                           {currentStep === 4 && (
-                              <motion.div 
-                                 key="step4"
-                                 initial={{ opacity: 0, x: 20 }}
-                                 animate={{ opacity: 1, x: 0 }}
-                                 exit={{ opacity: 0, x: -20 }}
-                                 className="space-y-8"
-                              >
-                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                    {/* Financial Core */}
-                                    <div className="space-y-6">
-                                       <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
-                                          <div className="w-8 h-8 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center">
-                                             <IndianRupee size={18} />
-                                          </div>
-                                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Financial Audit</h3>
-                                       </div>
-
-                                       <div className="space-y-4">
-                                          <div className="grid grid-cols-3 gap-4">
-                                             <div className="col-span-2">
-                                                <Input label="Purchase Cost (₹)" name="purchase_cost" type="number" required value={formData.purchase_cost} onChange={handleChange} placeholder="0.00" />
-                                             </div>
-                                             <div className="space-y-1.5">
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Useful Life</label>
-                                                <input type="number" name="useful_life_years" value={formData.useful_life_years} onChange={handleChange} className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-800 outline-none" placeholder="Years" />
-                                             </div>
-                                          </div>
-                                          
-                                          {monthlyDepreciation > 0 && (
-                                             <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100 flex items-center gap-4 animate-in zoom-in duration-300">
-                                                <Calculator size={20} className="text-emerald-600" />
-                                                <div>
-                                                   <p className="text-[9px] font-black text-emerald-600 uppercase tracking-[0.1em]">Monthly Dep. Accrual</p>
-                                                   <p className="text-lg font-black text-gray-900 tracking-tighter">₹{monthlyDepreciation.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-                                                </div>
-                                             </div>
-                                          )}
-
-                                          <div className="grid grid-cols-2 gap-4">
-                                             <Input label="Purchase Date" name="purchase_date" type="date" value={formData.purchase_date} onChange={handleChange} />
-                                             <Input label="Invoice #" name="invoice_number" value={formData.invoice_number} onChange={handleChange} placeholder="TXN-..." />
-                                          </div>
-
-                                          <div className="grid grid-cols-2 gap-4">
-                                             <MediaUpload
-                                                label="Invoice PDF"
-                                                icon={<FileText size={16} />}
-                                                isUploading={uploadState.invoice}
-                                                isUploaded={!!formData.invoice_url}
-                                                onFileSelect={async (file: File) => {
-                                                   setUploadState(p => ({ ...p, invoice: true }));
-                                                   try {
-                                                      const res = await uploadFiles('asset-invoices', [file]);
-                                                      if (res?.data?.files?.[0]?.url) setFormData((p: any) => ({ ...p, invoice_url: res.data.files[0].url }));
-                                                   } catch (err) { toast.error('Upload failed'); }
-                                                   finally { setUploadState(p => ({ ...p, invoice: false })); }
-                                                }}
-                                             />
-                                             <div className="space-y-4">
-                                                <MediaUpload
-                                                   label="Asset Images (Upload multiple)"
-                                                   icon={<ImageIcon size={16} />}
-                                                   isUploading={uploadState.image}
-                                                   onFileSelect={async (file: File) => {
-                                                      setUploadState(p => ({ ...p, image: true }));
-                                                      try {
-                                                         const res = await uploadFiles('asset-images', [file]);
-                                                         if (res?.data?.files?.[0]?.url) {
-                                                            setFormData((p: any) => ({ 
-                                                               ...p, 
-                                                               image_urls: [...(p.image_urls || []), res.data.files[0].url],
-                                                               // Fallback for legacy support
-                                                               image_url: p.image_url || res.data.files[0].url
-                                                            }));
-                                                         }
-                                                      } catch (err) { toast.error('Upload failed'); }
-                                                      finally { setUploadState(p => ({ ...p, image: false })); }
-                                                   }}
-                                                />
-                                                
-                                                {/* Image Preview Gallery */}
-                                                {formData.image_urls?.length > 0 && (
-                                                   <div className="flex flex-wrap gap-2 animate-in fade-in zoom-in duration-300">
-                                                      {formData.image_urls.map((url: string, idx: number) => (
-                                                         <div key={idx} className="relative group w-16 h-16 rounded-lg overflow-hidden border border-gray-100 shadow-sm">
-                                                            <img src={url} alt={`Asset ${idx}`} className="w-full h-full object-cover" />
-                                                            <button 
-                                                               type="button"
-                                                               onClick={() => setFormData((p: any) => ({ ...p, image_urls: p.image_urls.filter((_: any, i: number) => i !== idx) }))}
-                                                               className="absolute top-0.5 right-0.5 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            >
-                                                               <X size={10} />
-                                                            </button>
-                                                         </div>
-                                                      ))}
-                                                   </div>
-                                                )}
-                                             </div>
-                                          </div>
-                                       </div>
-                                    </div>
-
-                                    {/* Access Logic */}
-                                    <div className="space-y-6">
-                                       <div className="flex items-center gap-3 pb-2 border-b border-gray-100">
-                                          <div className="w-8 h-8 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center">
-                                             <ShieldCheck size={18} />
-                                          </div>
-                                          <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight">Access Protocol</h3>
-                                       </div>
-
-                                       <div className="space-y-4">
-                                          <button
-                                             type="button"
-                                             onClick={() => setFormData({ ...formData, is_bookable: !formData.is_bookable })}
-                                             className={clsx(
-                                                "w-full p-4 rounded-lg flex items-center justify-between transition-all border",
-                                                formData.is_bookable ? "bg-emerald-50 border-emerald-100 text-emerald-900" : "bg-gray-50 border-gray-100 text-gray-400"
-                                             )}
-                                          >
-                                             <div className="text-left">
-                                                <p className="text-sm font-bold">Resident Booking</p>
-                                                <p className="text-[10px] uppercase font-bold tracking-tight opacity-60">Allows self-service via App</p>
-                                             </div>
-                                             {formData.is_bookable ? <CheckCircle2 size={20} className="text-emerald-500" /> : <div className="w-5 h-5 rounded-full border-2 border-gray-300" />}
-                                          </button>
-
-                                          {formData.is_bookable && (
-                                             <div className="animate-in fade-in slide-in-from-top-2 space-y-4">
-                                                <div className="flex gap-4">
-                                                   <div className="flex-1">
-                                                      <Input label="Utility Rate" name="price" type="number" value={formData.price} onChange={handleChange} placeholder="0.00" />
-                                                   </div>
-                                                   <div className="flex-1">
-                                                      <Input label="Max Duration" name="max_booking_hours" type="number" value={formData.max_booking_hours} onChange={handleChange} placeholder="Hrs" />
-                                                   </div>
-                                                </div>
-                                                <button
-                                                   type="button"
-                                                   onClick={() => setFormData({ ...formData, approval_required: !formData.approval_required })}
-                                                   className={clsx(
-                                                      "w-full px-4 py-3 rounded-lg flex items-center justify-between transition-all border",
-                                                      formData.approval_required ? "bg-blue-50 border-blue-100 text-blue-900" : "bg-gray-50 border-gray-100 text-gray-400"
-                                                   )}
-                                                >
-                                                   <span className="text-xs font-bold">Manual Admin Confirmation</span>
-                                                   {formData.approval_required ? <Shield size={16} className="text-blue-500" /> : <div className="w-4 h-4 rounded-full border-2 border-gray-300" />}
-                                                </button>
-
-                                                {/* Dynamic Penalty Configuration */}
-                                                <div className="p-4 bg-red-50/50 rounded-xl border border-red-100 space-y-4">
-                                                   <div className="flex items-center gap-2 text-red-600 mb-1">
-                                                      <Calculator size={16} />
-                                                      <span className="text-[10px] font-black uppercase tracking-widest">Enforcement Policy</span>
-                                                   </div>
-                                                   <div className="grid grid-cols-2 gap-4">
-                                                      <div className="space-y-1">
-                                                         <label className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Grace Period (Mins)</label>
-                                                         <input 
-                                                            type="number" 
-                                                            name="penalty_grace_period" 
-                                                            value={formData.penalty_grace_period} 
-                                                            onChange={handleChange} 
-                                                            className="w-full px-3 py-2 bg-white border border-red-200 rounded-lg text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-red-100 transition-all"
-                                                            placeholder="e.g. 15"
-                                                         />
-                                                      </div>
-                                                      <div className="space-y-1">
-                                                         <label className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Late Fee (₹/Hr)</label>
-                                                         <input 
-                                                            type="number" 
-                                                            name="penalty_rate_per_hour" 
-                                                            value={formData.penalty_rate_per_hour} 
-                                                            onChange={handleChange} 
-                                                            className="w-full px-3 py-2 bg-white border border-red-200 rounded-lg text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-red-100 transition-all"
-                                                            placeholder="e.g. 50"
-                                                         />
-                                                      </div>
-                                                   </div>
-                                                   <p className="text-[9px] text-gray-400 font-medium italic">
-                                                      Residents will be automatically notified of penalties if the return exceeds the grace duration.
-                                                   </p>
-                                                </div>
-                                             </div>
-                                          )}
-                                       </div>
-                                    </div>
-                                 </div>
-                              </motion.div>
-                           )}
-                        </AnimatePresence>
-                     </form>
-                  )}
-               </div>
-
-               {/* Modal Footer */}
-               <div className="px-8 py-6 bg-white border-t border-gray-100 flex items-center justify-between sticky bottom-0 z-10">
-                  <button 
-                     onClick={handleBack}
-                     disabled={currentStep === 1 || isSubmitting}
-                     className="px-6 py-3 text-sm font-bold text-gray-400 hover:text-gray-900 disabled:opacity-0 transition-all flex items-center gap-2"
-                  >
-                     <ChevronLeft size={18} />
-                     Back
-                  </button>
-
-                  <div className="flex items-center gap-4">
-                     <button 
-                        onClick={onClose}
-                        className="px-6 py-3 text-sm font-bold text-gray-400 hover:text-gray-600 transition-all"
-                     >
-                        Cancel
-                     </button>
-                     {currentStep < 4 ? (
-                        <button 
-                           onClick={handleNext}
-                           className="bg-gray-900 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-3 shadow-xl active:scale-95 transition-all"
-                        >
-                           Next Step
-                           <ChevronRight size={18} />
-                        </button>
-                     ) : (
-                        <button 
-                           onClick={handleSubmit}
-                           disabled={isSubmitting}
-                           className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-3 rounded-lg font-bold flex items-center gap-3 shadow-xl shadow-blue-200 active:scale-95 transition-all disabled:opacity-50"
-                        >
-                           {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                           {editAssetId ? 'Update Asset' : 'Finalize Infrastructure'}
-                        </button>
-                     )}
+                     <p className="text-[9px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">System validation active. Ensure all parameters align with society SLA.</p>
                   </div>
                </div>
-            </motion.div>
-         </div>
-      </AnimatePresence>
+               
+               <Package size={200} className="absolute -left-10 -bottom-10 opacity-5 -rotate-12" />
+            </div>
+
+            {/* Main Form Space */}
+            <div className="flex-1 flex flex-col bg-white">
+               <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Protocol Phase</span>
+                     <span className="px-3 py-1 bg-white border border-slate-200 rounded-none text-[10px] font-bold text-slate-900 tabular-nums shadow-sm">{currentStep} / 4</span>
+                  </div>
+                  <button onClick={onClose} className="p-2 hover:bg-white rounded-none transition-all border border-transparent hover:border-slate-200 active:scale-90"><X size={20} className="text-slate-400" /></button>
+               </div>
+
+               <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
+                  {isLoading ? (
+                     <div className="h-full flex flex-col items-center justify-center gap-4">
+                        <RefreshCw size={32} className="animate-spin text-blue-600" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Retrieving Entity Records...</p>
+                     </div>
+                  ) : (
+                     <AnimatePresence mode="wait">
+                        {currentStep === 1 && (
+                           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-8">
+                              <FormSection icon={<FileText size={16} />} title="Identity Matrix">
+                                 <div className="grid grid-cols-2 gap-6">
+                                    <FormInput label="Entity Name *" required value={formData.name} onChange={v => setFormData({...formData, name: v})} placeholder="CENTRAL CHILLER A-1" />
+                                    <FormSelect label="Classification" value={formData.category} options={['Amenities', 'Infrastructure', 'Security', 'Maintenance', 'Vehicle', 'Equipment']} onChange={v => setFormData({...formData, category: v})} />
+                                    <FormInput label="Sub-Classification" value={formData.sub_type} onChange={v => setFormData({...formData, sub_type: v})} placeholder="HVAC SYSTEM" />
+                                    <FormSelect label="Condition Status" value={formData.condition_status} options={['good', 'damaged', 'maintenance', 'scrapped']} onChange={v => setFormData({...formData, condition_status: v})} />
+                                 </div>
+                                 <FormTextarea label="Tactical Directive / Description" value={formData.description} onChange={v => setFormData({...formData, description: v})} placeholder="Enter operational directives..." />
+                              </FormSection>
+                           </motion.div>
+                        )}
+
+                        {currentStep === 2 && (
+                           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-8">
+                              <FormSection icon={<MapPin size={16} />} title="Logistic Mesh">
+                                 <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Deployment Wing</label>
+                                       <select 
+                                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all uppercase"
+                                          value={isOtherWing ? 'other' : formData.block_wing}
+                                          onChange={e => {
+                                             if (e.target.value === 'other') setIsOtherWing(true);
+                                             else { setIsOtherWing(false); setFormData({...formData, block_wing: e.target.value}); }
+                                          }}
+                                       >
+                                          <option value="">Select Wing...</option>
+                                          {structure.wings.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
+                                          <option value="other">OTHER / EXTERNAL</option>
+                                       </select>
+                                       {isOtherWing && <input className="w-full px-4 py-3 bg-white border border-blue-200 rounded-none text-xs font-bold text-slate-900 outline-none mt-2 uppercase" placeholder="ENTER WING..." value={formData.block_wing} onChange={e => setFormData({...formData, block_wing: e.target.value})} />}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Floor Level</label>
+                                       <select 
+                                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all uppercase"
+                                          value={isOtherFloor ? 'other' : formData.floor}
+                                          onChange={e => {
+                                             if (e.target.value === 'other') setIsOtherFloor(true);
+                                             else { setIsOtherFloor(false); setFormData({...formData, floor: e.target.value}); }
+                                          }}
+                                       >
+                                          <option value="">Select Floor...</option>
+                                          {structure.floors.map(f => <option key={f} value={f}>{f}</option>)}
+                                          <option value="other">OTHER</option>
+                                       </select>
+                                       {isOtherFloor && <input className="w-full px-4 py-3 bg-white border border-blue-200 rounded-none text-xs font-bold text-slate-900 outline-none mt-2 uppercase" placeholder="ENTER FLOOR..." value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} />}
+                                    </div>
+                                 </div>
+                                 <FormInput label="Pinpoint Location" value={formData.exact_location} onChange={v => setFormData({...formData, exact_location: v})} placeholder="CENTRAL HVAC HUB - B1" />
+                              </FormSection>
+                           </motion.div>
+                        )}
+
+                        {currentStep === 3 && (
+                           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-8">
+                              <FormSection icon={<Wrench size={16} />} title="SLA & Service Protocol">
+                                 <div className="grid grid-cols-2 gap-6">
+                                    <FormSelect label="Service Strategy" value={formData.maintenance_type_policy} options={['none', 'predictive', 'scheduled', 'reactive']} onChange={v => setFormData({...formData, maintenance_type_policy: v})} />
+                                    <FormSelect label="Service Frequency" value={formData.maintenance_frequency} options={['none', 'weekly', 'bi-weekly', 'monthly', 'quarterly', 'half-yearly', 'annually']} onChange={v => setFormData({...formData, maintenance_frequency: v})} />
+                                    <FormInput label="Warranty Termination" type="date" value={formData.warranty_expiry} onChange={v => setFormData({...formData, warranty_expiry: v})} />
+                                    <FormInput label="Planned Service" type="date" value={formData.next_service_date} onChange={v => setFormData({...formData, next_service_date: v})} />
+                                 </div>
+                              </FormSection>
+                           </motion.div>
+                        )}
+
+                        {currentStep === 4 && (
+                           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-8">
+                              <FormSection icon={<IndianRupee size={16} />} title="Fiscal Registry">
+                                 <div className="grid grid-cols-2 gap-6">
+                                    <FormInput label="Acquisition Cost (₹)" type="number" value={formData.purchase_cost} onChange={v => setFormData({...formData, purchase_cost: v})} placeholder="0.00" />
+                                    <FormInput label="Acquisition Date" type="date" value={formData.purchase_date} onChange={v => setFormData({...formData, purchase_date: v})} />
+                                    <FormSelect label="Supply Partner" value={formData.vendor_id} options={vendors.map(v => ({ label: v.business_name, value: v.id.toString() }))} onChange={v => setFormData({...formData, vendor_id: v})} />
+                                    <FormInput label="Invoice Number" value={formData.invoice_number} onChange={v => setFormData({...formData, invoice_number: v})} placeholder="INV-0000" />
+                                 </div>
+                                 <div className="p-6 bg-slate-50 rounded-none border border-slate-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                       <div className={clsx("w-10 h-10 rounded-none flex items-center justify-center transition-all border", formData.is_bookable ? "bg-blue-600 text-white shadow-md border-blue-500" : "bg-white text-slate-300 border-slate-200")}>
+                                          <Target size={20} />
+                                       </div>
+                                       <div>
+                                          <p className="text-[11px] font-bold text-slate-900 uppercase tracking-tight">Booking Access</p>
+                                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Enable resident reservations</p>
+                                       </div>
+                                    </div>
+                                    <button 
+                                       type="button"
+                                       onClick={() => setFormData({...formData, is_bookable: !formData.is_bookable})}
+                                       className={clsx("w-12 h-6 rounded-none relative transition-all duration-300 border", formData.is_bookable ? "bg-blue-600 border-blue-500" : "bg-slate-200 border-slate-300")}
+                                    >
+                                       <div className={clsx("absolute top-0.5 w-5 h-4.5 bg-white rounded-none transition-all duration-300 shadow-sm", formData.is_bookable ? "left-6.5" : "left-0.5")} />
+                                    </button>
+                                 </div>
+                              </FormSection>
+
+                              <FormSection icon={<ImageIcon size={16} />} title="Documentation">
+                                 <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Primary Imagery</p>
+                                       <label className="flex flex-col items-center justify-center w-full h-32 border border-dashed border-slate-200 rounded-none bg-slate-50/50 cursor-pointer hover:bg-white hover:border-blue-300 transition-all group overflow-hidden relative">
+                                          {formData.image_url ? (
+                                             <img src={formData.image_url} alt="asset" className="w-full h-full object-cover" />
+                                          ) : (
+                                             <div className="flex flex-col items-center">
+                                                <ImageIcon size={28} className="text-slate-300 group-hover:text-blue-500 mb-2 transition-colors" />
+                                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center">Upload Resource Image</p>
+                                             </div>
+                                          )}
+                                          <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'image')} />
+                                          {uploadState.image && <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-sm"><Loader2 size={24} className="animate-spin text-blue-600" /></div>}
+                                       </label>
+                                    </div>
+                                    <div className="space-y-2">
+                                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Fiscal Invoice</p>
+                                       <label className="flex flex-col items-center justify-center w-full h-32 border border-dashed border-slate-200 rounded-none bg-slate-50/50 cursor-pointer hover:bg-white hover:border-blue-300 transition-all group overflow-hidden relative">
+                                          <div className="flex flex-col items-center">
+                                             <CloudUpload size={28} className="text-slate-300 group-hover:text-blue-500 mb-2 transition-colors" />
+                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center px-4">
+                                                {formData.invoice_url ? 'INVOICE ATTACHED' : 'Upload Invoice PDF/JPG'}
+                                             </p>
+                                          </div>
+                                          <input type="file" className="hidden" onChange={e => handleFileUpload(e, 'invoice')} />
+                                          {uploadState.invoice && <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-sm"><Loader2 size={24} className="animate-spin text-blue-600" /></div>}
+                                       </label>
+                                    </div>
+                                 </div>
+                              </FormSection>
+                           </motion.div>
+                        )}
+                     </AnimatePresence>
+                  )}
+               </form>
+
+               {/* Footer Navigation */}
+               <div className="p-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <button 
+                     type="button"
+                     onClick={() => currentStep > 1 ? setCurrentStep(s => s - 1) : onClose()}
+                     className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all flex items-center gap-2"
+                  >
+                     <ChevronLeft size={16} />
+                     {currentStep === 1 ? 'Abort' : 'Back'}
+                  </button>
+                  <button 
+                     onClick={handleSubmit}
+                     disabled={isSubmitting}
+                     className="min-w-[180px] px-8 py-3 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-blue-600 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : (
+                        <>
+                           {currentStep === 4 ? (assetId ? 'Commit Updates' : 'Manifest Entity') : 'Continue Phase'}
+                           <ChevronRight size={16} />
+                        </>
+                     )}
+                  </button>
+               </div>
+            </div>
+         </motion.div>
+      </div>
    );
 }
 
-function Input({ label, name, type = "text", required, value, onChange, placeholder }: any) {
+function FormSection({ icon, title, children }: { icon: any, title: string, children: React.ReactNode }) {
    return (
-      <div className="space-y-1.5 flex flex-col">
-         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">
-            {label} {required && <span className="text-red-400">*</span>}
-         </label>
-         <input
-            name={name} type={type} required={required} value={value} onChange={onChange} placeholder={placeholder}
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-gray-700 placeholder:text-gray-300 placeholder:font-medium focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+      <div className="space-y-6">
+         <div className="flex items-center gap-3 border-b border-slate-50 pb-4">
+            <div className="p-1.5 bg-blue-50 text-blue-600 rounded-none border border-blue-100">{icon}</div>
+            <h3 className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">{title}</h3>
+         </div>
+         <div className="space-y-6">
+            {children}
+         </div>
+      </div>
+   );
+}
+
+function FormInput({ label, type = 'text', value, onChange, placeholder, required }: { label: string, type?: string, value: string, onChange: (v: string) => void, placeholder?: string, required?: boolean }) {
+   return (
+      <div className="space-y-2">
+         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">{label}</label>
+         <input 
+            required={required}
+            type={type}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all placeholder:text-slate-300 uppercase"
+            placeholder={placeholder}
          />
       </div>
    );
 }
 
-function MediaUpload({ label, icon, isUploading, isUploaded, onFileSelect }: any) {
+function FormSelect({ label, value, options, onChange }: { label: string, value: string, options: (string | { label: string, value: string })[], onChange: (v: string) => void }) {
    return (
-      <label className="relative flex items-center justify-between p-4 bg-gray-50 hover:bg-white border border-gray-200 rounded-lg cursor-pointer transition-all group overflow-hidden">
-         <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => e.target.files?.[0] && onFileSelect(e.target.files[0])} />
-         <div className="flex items-center gap-3">
-            <div className="text-gray-400 group-hover:text-blue-600 transition-colors">{icon}</div>
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{label}</span>
-         </div>
-         {isUploading ? <Loader2 size={16} className="animate-spin text-blue-600" /> : isUploaded ? <CheckCircle2 size={18} className="text-emerald-500" /> : <CloudUpload size={18} className="text-gray-300" />}
-      </label>
+      <div className="space-y-2">
+         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">{label}</label>
+         <select 
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all uppercase"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+         >
+            {options.map(opt => {
+               const val = typeof opt === 'string' ? opt : opt.value;
+               const lbl = typeof opt === 'string' ? opt : opt.label;
+               return <option key={val} value={val}>{lbl.toUpperCase()}</option>;
+            })}
+         </select>
+      </div>
+   );
+}
+
+function FormTextarea({ label, value, onChange, placeholder }: { label: string, value: string, onChange: (v: string) => void, placeholder?: string }) {
+   return (
+      <div className="space-y-2">
+         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">{label}</label>
+         <textarea 
+            rows={4}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all placeholder:text-slate-300 resize-none uppercase"
+            placeholder={placeholder}
+         />
+      </div>
    );
 }
