@@ -217,6 +217,24 @@ const MembersPage = ({ societyId }: Props) => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+  const fetchModalFloors = async (wingId: string) => {
+    try {
+      if (!wingId) {
+        setModalFloors([]);
+        setModalFlats([]);
+        setModalFloor('');
+        setModalFlat('');
+        return [];
+      }
+      const floorsData = await getFloors(wingId);
+      setModalFloors(floorsData);
+      return floorsData;
+    } catch (err) {
+      toast.error('Failed to load floors.');
+      console.error('Error fetching floors:', err);
+      return [];
+    }
+  };
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -627,8 +645,8 @@ const MembersPage = ({ societyId }: Props) => {
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && (file.type === 'text/csv' || file.name.endsWith('.csv') || 
-                 file.type.includes('spreadsheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+    if (file && (file.type === 'text/csv' || file.name.endsWith('.csv') ||
+      file.type.includes('spreadsheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
       setSelectedFile(file);
     } else {
       toast.error('Please upload a valid CSV or Excel file');
@@ -856,6 +874,70 @@ const MembersPage = ({ societyId }: Props) => {
                             <button onClick={() => { setEditingMember(member); setRole((member.userType as 'member' | 'societyAdmin') || 'member'); setIsModalOpen(true); }} className="text-[12px] font-bold text-[#004ac6] hover:underline">View Details</button>
                             <button onClick={() => handleMakeAdmin(member)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-all disabled:opacity-30" disabled={member.userType === 'societyAdmin' || promotingUserId === member.user_id}><Shield className="w-4 h-4" /></button>
                           </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <span
+                              className={clsx(
+                                'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                                {
+                                  'bg-green-100 text-green-800': member.status === 'active',
+                                  'bg-yellow-100 text-yellow-800': member.status === 'pending_onboarding',
+                                  'bg-red-100 text-red-800': member.status === 'inactive',
+                                }
+                              )}
+                            >
+                              <div className={`w-1.5 h-1.5 rounded-full mr-1 ${member.status === 'active' ? 'bg-green-500' :
+                                  member.status === 'pending_onboarding' ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}></div>
+                              {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <span
+                              className={clsx(
+                                'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                                {
+                                  'bg-blue-100 text-blue-800': member.userType === 'societyAdmin',
+                                  'bg-gray-100 text-gray-600': member.userType === 'member',
+                                }
+                              )}
+                            >
+                              <div className={`w-1.5 h-1.5 rounded-full mr-1 ${member.userType === 'societyAdmin' ? 'bg-blue-500' : 'bg-gray-400'
+                                }`}></div>
+                              {member.userType === 'societyAdmin' ? 'Society Admin' : 'Member'}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  setEditingMember(member);
+                                  setIsModalOpen(true);
+                                }}
+                                className="text-blue-500 hover:text-blue-700 transition-colors"
+                                title="Edit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              {/* Delete and Status Toggle removed as per request */}
+                              {member.userType !== 'societyAdmin' && (
+                                <button
+                                  onClick={() => handleMakeAdmin(member)}
+                                  className="text-purple-600 hover:text-purple-800 transition-colors disabled:opacity-50"
+                                  title="Make Admin"
+                                  disabled={promotingUserId === member.user_id}
+                                >
+                                  <Shield className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="px-3 py-4 text-center text-sm text-gray-500">
+                          No members found
                         </td>
                       </tr>
                     ))}
@@ -1303,6 +1385,84 @@ const MembersPage = ({ societyId }: Props) => {
                     <p className="font-bold text-blue-700 text-sm">Download Schema</p>
                     <button onClick={downloadTemplate} className="text-xs text-blue-600 hover:underline">Download CSV Template</button>
                   </div>
+        {/* Dashboard Tab Content */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-4">
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
+                <div className="text-xs text-gray-500">Total Members</div>
+                <div className="mt-1 text-2xl font-semibold text-gray-900">{totalMembers}</div>
+                <div className="mt-2 h-1.5 bg-gray-100 rounded">
+                  <div className="h-1.5 bg-gray-400 rounded" style={{ width: `${totalMembers ? 100 : 0}%` }}></div>
+                </div>
+              </div>
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
+                <div className="text-xs text-gray-500">Active</div>
+                <div className="mt-1 text-2xl font-semibold text-green-600">{activeMembers}</div>
+                <div className="mt-2 h-1.5 bg-green-100 rounded">
+                  <div className="h-1.5 bg-green-500 rounded" style={{ width: `${totalMembers ? (activeMembers / totalMembers) * 100 : 0}%` }}></div>
+                </div>
+              </div>
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
+                <div className="text-xs text-gray-500">Pending</div>
+                <div className="mt-1 text-2xl font-semibold text-yellow-600">{pendingMembers}</div>
+                <div className="mt-2 h-1.5 bg-yellow-100 rounded">
+                  <div className="h-1.5 bg-yellow-500 rounded" style={{ width: `${totalMembers ? (pendingMembers / totalMembers) * 100 : 0}%` }}></div>
+                </div>
+              </div>
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
+                <div className="text-xs text-gray-500">Inactive</div>
+                <div className="mt-1 text-2xl font-semibold text-red-600">{inactiveMembers}</div>
+                <div className="mt-2 h-1.5 bg-red-100 rounded">
+                  <div className="h-1.5 bg-red-500 rounded" style={{ width: `${totalMembers ? (inactiveMembers / totalMembers) * 100 : 0}%` }}></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Role Distribution */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-900">Roles</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 rounded-md p-3 border border-blue-100">
+                    <div className="text-xs text-blue-700">Society Admins</div>
+                    <div className="text-xl font-semibold text-blue-800 mt-1">{adminCount}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-md p-3 border border-gray-100">
+                    <div className="text-xs text-gray-700">Members</div>
+                    <div className="text-xl font-semibold text-gray-800 mt-1">{memberCount}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Members by Wing */}
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-gray-900">Members by Wing</h3>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(wingStats).length === 0 ? (
+                    <p className="text-xs text-gray-500">No wing data available</p>
+                  ) : (
+                    Object.entries(wingStats)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([wingName, count], idx, arr) => {
+                        const max = arr[0][1] || 1;
+                        const pct = Math.round((count / max) * 100);
+                        return (
+                          <div key={wingName} className="flex items-center gap-3">
+                            <div className="w-24 text-xs text-gray-700 truncate">{wingName}</div>
+                            <div className="flex-1 h-2 bg-gray-100 rounded">
+                              <div className="h-2 bg-blue-500 rounded" style={{ width: `${pct}%` }}></div>
+                            </div>
+                            <div className="w-10 text-right text-xs text-gray-600">{count}</div>
+                          </div>
+                        );
+                      })
+                  )}
                 </div>
                 <div className="border-2 border-dashed border-slate-100 rounded-2xl p-10 text-center hover:bg-slate-50 transition-all cursor-pointer relative">
                   <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -1318,6 +1478,83 @@ const MembersPage = ({ societyId }: Props) => {
           </div>
         )}
       </AnimatePresence>
+            </div>
+
+            {/* Recent Members */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-lg border border-gray-100 overflow-hidden shadow-sm">
+              <div className="p-3 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-900">Recent Members</h3>
+                <p className="text-xs text-gray-500">A quick look at the latest fetched members</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Name</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Email</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Status</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-900">Role</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(members.slice(0, 8)).map((member) => (
+                      <tr key={member.user_id} className="hover:bg-blue-50/50 transition-all duration-200">
+                        <td className="px-3 py-2">
+                          <div className="text-sm font-medium text-gray-900">
+                            {member.first_name && member.last_name
+                              ? `${member.first_name} ${member.last_name}`
+                              : member.first_name || member.last_name || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="text-sm text-gray-500">{member.email}</div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={clsx(
+                              'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                              {
+                                'bg-green-100 text-green-800': member.status === 'active',
+                                'bg-yellow-100 text-yellow-800': member.status === 'pending_onboarding',
+                                'bg-red-100 text-red-800': member.status === 'inactive',
+                              }
+                            )}
+                          >
+                            <div className={`w-1.5 h-1.5 rounded-full mr-1 ${member.status === 'active' ? 'bg-green-500' :
+                                member.status === 'pending_onboarding' ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}></div>
+                            {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={clsx(
+                              'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium',
+                              {
+                                'bg-blue-100 text-blue-800': member.userType === 'societyAdmin',
+                                'bg-gray-100 text-gray-600': member.userType === 'member',
+                              }
+                            )}
+                          >
+                            <div className={`w-1.5 h-1.5 rounded-full mr-1 ${member.userType === 'societyAdmin' ? 'bg-blue-500' : 'bg-gray-400'
+                              }`}></div>
+                            {member.userType === 'societyAdmin' ? 'Society Admin' : 'Member'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {members.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-3 py-4 text-center text-sm text-gray-500">No members found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </main>
   );
 };
