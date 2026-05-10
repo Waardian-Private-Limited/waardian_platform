@@ -88,6 +88,14 @@ export default function AssetList() {
             <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">Consolidated Resource Inventory</p>
           </div>
         </div>
+
+        <button
+          onClick={() => setIsAddModalOpen(true)}
+          className="px-6 py-3 bg-slate-900 text-white rounded-none flex items-center gap-3 hover:bg-blue-600 transition-all shadow-xl active:scale-95 group"
+        >
+          <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+          <span className="text-[11px] font-black uppercase tracking-[0.2em]">Register New Asset</span>
+        </button>
       </div>
 
       <FinancialReportingModule assets={assets} />

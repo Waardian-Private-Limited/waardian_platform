@@ -58,7 +58,6 @@ export async function apiClient<T = any>(
     allHeaders['Content-Type'] = 'application/json';
   }
 
-  console.log(`🌐 Calling API: ${method} ${path}${query}`);
   const res = await fetch(`${BASE_URL}${path}${query}`, {
     method,
     credentials: 'include', // ensures cookies work across domains
@@ -82,7 +81,7 @@ export async function apiClient<T = any>(
         errorMsg = `Request failed with status ${res.status}`;
       }
     }
-    
+
     const finalMsg = errorMsg || `Request failed with status ${res.status}`;
     console.error(`❌ API Error [${method} ${path}]:`, finalMsg);
     throw new Error(finalMsg);
@@ -1171,9 +1170,9 @@ export const getPropertyFlats = async (wingId: number, floorId: number): Promise
 };
 
 export const getSocietyStructure = async (): Promise<ApiResponse<{ wings: any[]; floors: any[]; amenities: any[] }>> => {
-   return apiClient('/onboarding/getSocietyStructure', {
-      method: 'GET',
-      withAuth: true,
-      headers: { 'Content-Type': 'application/json' },
-   });
+  return apiClient('/onboarding/getSocietyStructure', {
+    method: 'GET',
+    withAuth: true,
+    headers: { 'Content-Type': 'application/json' },
+  });
 };

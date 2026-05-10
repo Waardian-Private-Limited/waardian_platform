@@ -27,7 +27,7 @@ export default function PaymentMethodRestrictions() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await apiClient('/societyadmin/society/payment-settings', {
+      const response = await apiClient('/society-admin/society/payment-settings', {
         method: 'GET',
         withAuth: true,
       });
@@ -53,7 +53,7 @@ export default function PaymentMethodRestrictions() {
   const handleSave = async () => {
     try {
       setSaving(true);
-      const response = await apiClient('/societyadmin/society/payment-settings', {
+      const response = await apiClient('/society-admin/society/payment-settings', {
         method: 'POST',
         withAuth: true,
         body: JSON.stringify({ settings: methods }),

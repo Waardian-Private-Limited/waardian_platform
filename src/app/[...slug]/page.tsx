@@ -73,7 +73,7 @@ export default function DynamicAdminPage() {
   const allowedBaseRoutes = ['superadmin', 'societyadmin'];
   const validTabs: Record<string, string[]> = {
     superadmin: ['dashboard', 'societies', 'subscription', 'ad-packages', 'placement-management', 'opted-subscriptions', 'merchant-mapper', 'app-version'],
-    societyadmin: ['dashboard', 'members', 'wings', 'floors', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'move-management', 'polls', 'notices', 'staff', 'society-profile', 'asset-management', 'asset-dashboard', 'asset-list', 'asset-booking', 'asset-movement', 'asset-maintenance', 'asset-amc', 'asset-inventory', 'asset-vendors', 'asset-reports', 'renovations', 'maintenance-requests', 'document-requests'],
+    societyadmin: ['dashboard', 'members', 'wings', 'floors', 'flats', 'billing', 'settings', 'buildingstructure', 'invoices-dashboard', 'invoices-penalties', 'visitor-management', 'subscription', 'expense-dashboard', 'expense-management', 'ledger-dashboard', 'ledger-management', 'amenity-management', 'move-management', 'polls', 'notices', 'staff', 'society-profile', 'asset-management', 'asset-dashboard', 'asset-list', 'asset-booking', 'asset-movement', 'asset-maintenance', 'asset-amc', 'asset-inventory', 'asset-vendors', 'asset-reports', 'renovations', 'maintenance-requests', 'document-requests', 'payment-gateway'],
   };
 
   const redirectToLogin = useCallback((reason: string) => {
