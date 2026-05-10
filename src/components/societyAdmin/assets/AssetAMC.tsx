@@ -338,8 +338,8 @@ function CreateAMCModal({ onClose, onSuccess, initialAsset }: { onClose: () => v
    useEffect(() => {
       const fetchData = async () => {
          const [a, v] = await Promise.all([getAllAssets(), getVendorsList()]);
-         if (a.success) setAssets(a.data);
-         if (v.success) setVendors(v.data);
+         if (a.success) setAssets(a.data || []);
+         if (v.success) setVendors(v.data || []);
       };
       fetchData();
    }, []);

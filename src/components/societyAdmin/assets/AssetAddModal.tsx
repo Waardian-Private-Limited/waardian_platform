@@ -7,7 +7,7 @@ import {
    CloudUpload, Image as ImageIcon, Wrench, ShieldCheck, X, ChevronRight, IndianRupee,
    RefreshCw
 } from 'lucide-react';
-import { createAsset, updateAsset, getAssetFullDetails, getVendorsList, uploadFiles, getSocietyStructure } from '@/lib/apiClient';
+import { createAsset, updateAsset, getAssetFullDetails, getVendorsList, uploadFiles, getSocietyStructure, Asset } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,44 +20,44 @@ interface AssetAddModalProps {
 }
 
 interface AssetFormData {
-  name: string;
-  category: string;
-  sub_type: string;
-  description: string;
-  block_wing: string;
-  floor: string;
-  exact_location: string;
-  owned_by: string;
-  vendor_id: string;
-  assigned_staff_id: string;
-  purchase_date: string;
-  purchase_cost: string;
-  invoice_number: string;
-  status: string;
-  condition_status: string;
-  installation_date: string;
-  expected_life_years: string;
-  warranty_expiry: string;
-  maintenance_type_policy: string;
-  maintenance_frequency: string;
-  last_service_date: string;
-  next_service_date: string;
-  is_bookable: boolean;
-  pricing_model: string;
-  price: string;
-  security_deposit: string;
-  max_booking_hours: string;
-  rules: string;
-  invoice_url: string;
-  image_url: string;
-  useful_life_years: string;
-  scrap_value: string;
-  depreciation_method: string;
-  approval_required: boolean;
-  penalty_grace_period: number;
-  penalty_rate_per_hour: number;
-  utility_rate: number;
-  image_urls: string[];
+   name: string;
+   category: string;
+   sub_type: string;
+   description: string;
+   block_wing: string;
+   floor: string;
+   exact_location: string;
+   owned_by: string;
+   vendor_id: string;
+   assigned_staff_id: string;
+   purchase_date: string;
+   purchase_cost: string;
+   invoice_number: string;
+   status: string;
+   condition_status: string;
+   installation_date: string;
+   expected_life_years: string;
+   warranty_expiry: string;
+   maintenance_type_policy: string;
+   maintenance_frequency: string;
+   last_service_date: string;
+   next_service_date: string;
+   is_bookable: boolean;
+   pricing_model: string;
+   price: string;
+   security_deposit: string;
+   max_booking_hours: string;
+   rules: string;
+   invoice_url: string;
+   image_url: string;
+   useful_life_years: string;
+   scrap_value: string;
+   depreciation_method: string;
+   approval_required: boolean;
+   penalty_grace_period: number;
+   penalty_rate_per_hour: number;
+   utility_rate: number;
+   image_urls: string[];
 }
 
 const STEPS = [
@@ -74,7 +74,7 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
    const [uploadState, setUploadState] = useState({ invoice: false, image: false });
    const [vendors, setVendors] = useState<{ id: number; business_name: string }[]>([]);
    const [structure, setStructure] = useState<{ wings: { id: number; name: string }[], floors: string[], amenities: { id: number; name: string }[] }>({ wings: [], floors: [], amenities: [] });
-   
+
    const [isOtherWing, setIsOtherWing] = useState(false);
    const [isOtherFloor, setIsOtherFloor] = useState(false);
 
@@ -157,7 +157,7 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'invoice' | 'image') => {
       const file = e.target.files?.[0];
       if (!file) return;
-      
+
       setUploadState(p => ({ ...p, [type]: true }));
       try {
          const res = await uploadFiles('assets', [file]);
@@ -178,14 +178,20 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
 
       setIsSubmitting(true);
       try {
-         const payload = {
+         const payload: Partial<Asset> = {
             ...formData,
+            status: formData.status as any,
+            pricing_model: formData.pricing_model as any,
+            owned_by: formData.owned_by as any,
             purchase_cost: parseFloat(formData.purchase_cost) || 0,
             price: parseFloat(formData.price) || 0,
             security_deposit: parseFloat(formData.security_deposit) || 0,
             max_booking_hours: parseInt(formData.max_booking_hours) || 0,
             useful_life_years: parseInt(formData.useful_life_years) || 10,
-            scrap_value: parseFloat(formData.scrap_value) || 0
+            scrap_value: parseFloat(formData.scrap_value) || 0,
+            expected_life_years: parseInt(formData.expected_life_years) || 0,
+            vendor_id: formData.vendor_id ? parseInt(formData.vendor_id) : undefined,
+            assigned_staff_id: formData.assigned_staff_id ? parseInt(formData.assigned_staff_id) : undefined,
          };
 
          const res = assetId ? await updateAsset(assetId, payload) : await createAsset(payload);
@@ -203,7 +209,7 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
 
    return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
-         <motion.div 
+         <motion.div
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             className="bg-white w-full max-w-4xl rounded-none shadow-2xl overflow-hidden border border-slate-200 flex h-[85vh]"
@@ -222,8 +228,8 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                         <div key={step.id} className="flex gap-5 items-center group cursor-pointer" onClick={() => step.id < currentStep && setCurrentStep(step.id)}>
                            <div className={clsx(
                               "w-9 h-9 rounded-none flex items-center justify-center font-bold text-xs transition-all border",
-                              currentStep === step.id ? "bg-blue-600 text-white border-blue-500 scale-105 shadow-lg shadow-blue-500/20" : 
-                              currentStep > step.id ? "bg-emerald-500 text-white border-emerald-400" : "bg-white/5 text-slate-500 border-white/10"
+                              currentStep === step.id ? "bg-blue-600 text-white border-blue-500 scale-105 shadow-lg shadow-blue-500/20" :
+                                 currentStep > step.id ? "bg-emerald-500 text-white border-emerald-400" : "bg-white/5 text-slate-500 border-white/10"
                            )}>
                               {currentStep > step.id ? <ShieldCheck size={16} /> : step.id}
                            </div>
@@ -244,7 +250,7 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                      <p className="text-[9px] font-bold text-slate-400 uppercase leading-relaxed tracking-tight">System validation active. Ensure all parameters align with society SLA.</p>
                   </div>
                </div>
-               
+
                <Package size={200} className="absolute -left-10 -bottom-10 opacity-5 -rotate-12" />
             </div>
 
@@ -270,12 +276,12 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-8">
                               <FormSection icon={<FileText size={16} />} title="Identity Matrix">
                                  <div className="grid grid-cols-2 gap-6">
-                                    <FormInput label="Entity Name *" required value={formData.name} onChange={v => setFormData({...formData, name: v})} placeholder="CENTRAL CHILLER A-1" />
-                                    <FormSelect label="Classification" value={formData.category} options={['Amenities', 'Infrastructure', 'Security', 'Maintenance', 'Vehicle', 'Equipment']} onChange={v => setFormData({...formData, category: v})} />
-                                    <FormInput label="Sub-Classification" value={formData.sub_type} onChange={v => setFormData({...formData, sub_type: v})} placeholder="HVAC SYSTEM" />
-                                    <FormSelect label="Condition Status" value={formData.condition_status} options={['good', 'damaged', 'maintenance', 'scrapped']} onChange={v => setFormData({...formData, condition_status: v})} />
+                                    <FormInput label="Entity Name *" required value={formData.name} onChange={v => setFormData({ ...formData, name: v })} placeholder="CENTRAL CHILLER A-1" />
+                                    <FormSelect label="Classification" value={formData.category} options={['Amenities', 'Infrastructure', 'Security', 'Maintenance', 'Vehicle', 'Equipment']} onChange={v => setFormData({ ...formData, category: v })} />
+                                    <FormInput label="Sub-Classification" value={formData.sub_type} onChange={v => setFormData({ ...formData, sub_type: v })} placeholder="HVAC SYSTEM" />
+                                    <FormSelect label="Condition Status" value={formData.condition_status} options={['good', 'damaged', 'maintenance', 'scrapped']} onChange={v => setFormData({ ...formData, condition_status: v })} />
                                  </div>
-                                 <FormTextarea label="Tactical Directive / Description" value={formData.description} onChange={v => setFormData({...formData, description: v})} placeholder="Enter operational directives..." />
+                                 <FormTextarea label="Tactical Directive / Description" value={formData.description} onChange={v => setFormData({ ...formData, description: v })} placeholder="Enter operational directives..." />
                               </FormSection>
                            </motion.div>
                         )}
@@ -286,39 +292,39 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                                  <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Deployment Wing</label>
-                                       <select 
+                                       <select
                                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all uppercase"
                                           value={isOtherWing ? 'other' : formData.block_wing}
                                           onChange={e => {
                                              if (e.target.value === 'other') setIsOtherWing(true);
-                                             else { setIsOtherWing(false); setFormData({...formData, block_wing: e.target.value}); }
+                                             else { setIsOtherWing(false); setFormData({ ...formData, block_wing: e.target.value }); }
                                           }}
                                        >
                                           <option value="">Select Wing...</option>
                                           {structure.wings.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
                                           <option value="other">OTHER / EXTERNAL</option>
                                        </select>
-                                       {isOtherWing && <input className="w-full px-4 py-3 bg-white border border-blue-200 rounded-none text-xs font-bold text-slate-900 outline-none mt-2 uppercase" placeholder="ENTER WING..." value={formData.block_wing} onChange={e => setFormData({...formData, block_wing: e.target.value})} />}
+                                       {isOtherWing && <input className="w-full px-4 py-3 bg-white border border-blue-200 rounded-none text-xs font-bold text-slate-900 outline-none mt-2 uppercase" placeholder="ENTER WING..." value={formData.block_wing} onChange={e => setFormData({ ...formData, block_wing: e.target.value })} />}
                                     </div>
 
                                     <div className="space-y-2">
                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Floor Level</label>
-                                       <select 
+                                       <select
                                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all uppercase"
                                           value={isOtherFloor ? 'other' : formData.floor}
                                           onChange={e => {
                                              if (e.target.value === 'other') setIsOtherFloor(true);
-                                             else { setIsOtherFloor(false); setFormData({...formData, floor: e.target.value}); }
+                                             else { setIsOtherFloor(false); setFormData({ ...formData, floor: e.target.value }); }
                                           }}
                                        >
                                           <option value="">Select Floor...</option>
                                           {structure.floors.map(f => <option key={f} value={f}>{f}</option>)}
                                           <option value="other">OTHER</option>
                                        </select>
-                                       {isOtherFloor && <input className="w-full px-4 py-3 bg-white border border-blue-200 rounded-none text-xs font-bold text-slate-900 outline-none mt-2 uppercase" placeholder="ENTER FLOOR..." value={formData.floor} onChange={e => setFormData({...formData, floor: e.target.value})} />}
+                                       {isOtherFloor && <input className="w-full px-4 py-3 bg-white border border-blue-200 rounded-none text-xs font-bold text-slate-900 outline-none mt-2 uppercase" placeholder="ENTER FLOOR..." value={formData.floor} onChange={e => setFormData({ ...formData, floor: e.target.value })} />}
                                     </div>
                                  </div>
-                                 <FormInput label="Pinpoint Location" value={formData.exact_location} onChange={v => setFormData({...formData, exact_location: v})} placeholder="CENTRAL HVAC HUB - B1" />
+                                 <FormInput label="Pinpoint Location" value={formData.exact_location} onChange={v => setFormData({ ...formData, exact_location: v })} placeholder="CENTRAL HVAC HUB - B1" />
                               </FormSection>
                            </motion.div>
                         )}
@@ -327,10 +333,10 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-8">
                               <FormSection icon={<Wrench size={16} />} title="SLA & Service Protocol">
                                  <div className="grid grid-cols-2 gap-6">
-                                    <FormSelect label="Service Strategy" value={formData.maintenance_type_policy} options={['none', 'predictive', 'scheduled', 'reactive']} onChange={v => setFormData({...formData, maintenance_type_policy: v})} />
-                                    <FormSelect label="Service Frequency" value={formData.maintenance_frequency} options={['none', 'weekly', 'bi-weekly', 'monthly', 'quarterly', 'half-yearly', 'annually']} onChange={v => setFormData({...formData, maintenance_frequency: v})} />
-                                    <FormInput label="Warranty Termination" type="date" value={formData.warranty_expiry} onChange={v => setFormData({...formData, warranty_expiry: v})} />
-                                    <FormInput label="Planned Service" type="date" value={formData.next_service_date} onChange={v => setFormData({...formData, next_service_date: v})} />
+                                    <FormSelect label="Service Strategy" value={formData.maintenance_type_policy} options={['none', 'predictive', 'scheduled', 'reactive']} onChange={v => setFormData({ ...formData, maintenance_type_policy: v })} />
+                                    <FormSelect label="Service Frequency" value={formData.maintenance_frequency} options={['none', 'weekly', 'bi-weekly', 'monthly', 'quarterly', 'half-yearly', 'annually']} onChange={v => setFormData({ ...formData, maintenance_frequency: v })} />
+                                    <FormInput label="Warranty Termination" type="date" value={formData.warranty_expiry} onChange={v => setFormData({ ...formData, warranty_expiry: v })} />
+                                    <FormInput label="Planned Service" type="date" value={formData.next_service_date} onChange={v => setFormData({ ...formData, next_service_date: v })} />
                                  </div>
                               </FormSection>
                            </motion.div>
@@ -340,10 +346,10 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-8">
                               <FormSection icon={<IndianRupee size={16} />} title="Fiscal Registry">
                                  <div className="grid grid-cols-2 gap-6">
-                                    <FormInput label="Acquisition Cost (₹)" type="number" value={formData.purchase_cost} onChange={v => setFormData({...formData, purchase_cost: v})} placeholder="0.00" />
-                                    <FormInput label="Acquisition Date" type="date" value={formData.purchase_date} onChange={v => setFormData({...formData, purchase_date: v})} />
-                                    <FormSelect label="Supply Partner" value={formData.vendor_id} options={vendors.map(v => ({ label: v.business_name, value: v.id.toString() }))} onChange={v => setFormData({...formData, vendor_id: v})} />
-                                    <FormInput label="Invoice Number" value={formData.invoice_number} onChange={v => setFormData({...formData, invoice_number: v})} placeholder="INV-0000" />
+                                    <FormInput label="Acquisition Cost (₹)" type="number" value={formData.purchase_cost} onChange={v => setFormData({ ...formData, purchase_cost: v })} placeholder="0.00" />
+                                    <FormInput label="Acquisition Date" type="date" value={formData.purchase_date} onChange={v => setFormData({ ...formData, purchase_date: v })} />
+                                    <FormSelect label="Supply Partner" value={formData.vendor_id} options={vendors.map(v => ({ label: v.business_name, value: v.id.toString() }))} onChange={v => setFormData({ ...formData, vendor_id: v })} />
+                                    <FormInput label="Invoice Number" value={formData.invoice_number} onChange={v => setFormData({ ...formData, invoice_number: v })} placeholder="INV-0000" />
                                  </div>
                                  <div className="p-6 bg-slate-50 rounded-none border border-slate-100 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
@@ -355,9 +361,9 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Enable resident reservations</p>
                                        </div>
                                     </div>
-                                    <button 
+                                    <button
                                        type="button"
-                                       onClick={() => setFormData({...formData, is_bookable: !formData.is_bookable})}
+                                       onClick={() => setFormData({ ...formData, is_bookable: !formData.is_bookable })}
                                        className={clsx("w-12 h-6 rounded-none relative transition-all duration-300 border", formData.is_bookable ? "bg-blue-600 border-blue-500" : "bg-slate-200 border-slate-300")}
                                     >
                                        <div className={clsx("absolute top-0.5 w-5 h-4.5 bg-white rounded-none transition-all duration-300 shadow-sm", formData.is_bookable ? "left-6.5" : "left-0.5")} />
@@ -405,7 +411,7 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
 
                {/* Footer Navigation */}
                <div className="p-6 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-                  <button 
+                  <button
                      type="button"
                      onClick={() => currentStep > 1 ? setCurrentStep(s => s - 1) : onClose()}
                      className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all flex items-center gap-2"
@@ -413,7 +419,7 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                      <ChevronLeft size={16} />
                      {currentStep === 1 ? 'Abort' : 'Back'}
                   </button>
-                  <button 
+                  <button
                      onClick={handleSubmit}
                      disabled={isSubmitting}
                      className="min-w-[180px] px-8 py-3 bg-slate-900 text-white rounded-none text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-blue-600 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
@@ -450,7 +456,7 @@ function FormInput({ label, type = 'text', value, onChange, placeholder, require
    return (
       <div className="space-y-2">
          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">{label}</label>
-         <input 
+         <input
             required={required}
             type={type}
             value={value}
@@ -466,7 +472,7 @@ function FormSelect({ label, value, options, onChange }: { label: string, value:
    return (
       <div className="space-y-2">
          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">{label}</label>
-         <select 
+         <select
             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-900 outline-none focus:bg-white focus:ring-1 focus:ring-blue-100 transition-all uppercase"
             value={value}
             onChange={e => onChange(e.target.value)}
@@ -485,7 +491,7 @@ function FormTextarea({ label, value, onChange, placeholder }: { label: string, 
    return (
       <div className="space-y-2">
          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">{label}</label>
-         <textarea 
+         <textarea
             rows={4}
             value={value}
             onChange={e => onChange(e.target.value)}

@@ -53,7 +53,7 @@ interface AssetDetailsModalProps {
   onUpdate?: () => void;
 }
 
-const InfoRow = ({ label, value, icon, fullWidth }: { label: string; value: string; icon: React.ReactNode; fullWidth?: boolean }) => (
+const InfoRow = ({ label, value, icon, fullWidth }: { label: string; value: string | undefined; icon: React.ReactNode; fullWidth?: boolean }) => (
   <div className={clsx("p-4 bg-slate-50 border border-slate-100 rounded-none flex items-center gap-4 group hover:bg-white hover:border-blue-100 transition-all", fullWidth ? 'col-span-1 md:col-span-2' : 'col-span-1')}>
      <div className="w-10 h-10 bg-white border border-slate-100 rounded-none flex items-center justify-center text-blue-600 shadow-sm transition-transform group-hover:scale-105">
         {icon}

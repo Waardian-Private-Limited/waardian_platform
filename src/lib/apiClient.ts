@@ -817,7 +817,7 @@ export interface Asset {
   description: string;
   category: string;
   image_url: string;
-  status: 'active' | 'in_use' | 'under_maintenance' | 'missing' | 'decommissioned' | 'available' | 'operational' | 'maintenance';
+  status: 'active' | 'in_use' | 'under_maintenance' | 'missing' | 'decommissioned' | 'available' | 'operational' | 'maintenance' | 'in_transit';
   is_bookable: boolean;
   pricing_model: 'free' | 'paid_hourly' | 'paid_daily';
   price: number;
