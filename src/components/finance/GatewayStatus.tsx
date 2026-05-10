@@ -19,6 +19,7 @@ import {
   Shield
 } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
+import PaymentMethodRestrictions from '../societyAdmin/PaymentMethodRestrictions';
 
 interface GatewayStatusProps {
   onEdit: () => void;
@@ -447,6 +448,9 @@ export default function GatewayStatus({ onEdit }: GatewayStatusProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Payment Method Restrictions */}
+      <PaymentMethodRestrictions />
     </div>
   );
 }

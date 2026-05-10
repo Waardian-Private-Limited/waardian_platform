@@ -334,6 +334,12 @@ const navigationItems: NavigationItem[] = [
           icon: FileSignature,
           href: '/societyadmin/society-profile',
         },
+        {
+          id: 'payment-gateway',
+          label: 'Payment Gateway',
+          icon: CreditCard,
+          href: '/societyadmin/payment-gateway',
+        },
       ],
     },
     {
