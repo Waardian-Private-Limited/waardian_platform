@@ -56,7 +56,7 @@ export default function PaymentMethodRestrictions() {
       const response = await apiClient('/society-admin/society/payment-settings', {
         method: 'POST',
         withAuth: true,
-        body: JSON.stringify({ settings: methods }),
+        body: { settings: methods },
       });
 
       if (response.success) {
