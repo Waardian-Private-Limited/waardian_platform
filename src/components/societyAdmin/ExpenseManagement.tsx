@@ -16,11 +16,16 @@ import {
   FileText,
   Upload,
   ExternalLink,
-  Receipt
+  Receipt,
+  Check,
+  Activity,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 import clsx from 'clsx';
 import { apiClient, getExpenseInvoiceUrl, getSocietyDetailsForExpenses } from '@/lib/apiClient';
 import { toast } from 'react-hot-toast';
+import { motion } from 'framer-motion';
 
 // Types
 interface Attachment {
@@ -1045,17 +1050,15 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
     }
   }, [formData, originalFormData]);
   
-  // Filter and search
+  // Filter and search logic
   const filteredExpenses = (Array.isArray(expenses) ? expenses : []).filter(expense => {
     const matchesSearch = expense.invoice_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          expense.category.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !filterCategory || expense.category === filterCategory;
     const matchesType = !filterType || expense.type === filterType;
-    
     return matchesSearch && matchesCategory && matchesType;
   });
   
-  // Pagination
   const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedExpenses = filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
@@ -1069,101 +1072,96 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
   }
   
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Expense Management</h1>
-        <p className="text-gray-600">Manage society and flat expenses, track payments and generate reports.</p>
-      </div>
-      
-      {/* Tab Navigation */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('expenses')}
-              className={clsx(
-                'py-2 px-1 border-b-2 font-medium text-sm',
-                activeTab === 'expenses'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <Receipt className="w-4 h-4" />
-                Expenses
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('fees')}
-              className={clsx(
-                'py-2 px-1 border-b-2 font-medium text-sm',
-                activeTab === 'fees'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              )}
-            >
-            </button>
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="flex justify-between items-end">
+        <div>
+          <nav className="flex gap-2 text-[12px] font-bold text-[#565e74] mb-2 uppercase tracking-wide">
+            <span>Management</span>
+            <span>/</span>
+            <span className="text-[#004ac6]">Expenses</span>
           </nav>
+          <h2 className="text-[32px] font-bold leading-tight tracking-tight text-[#0b1c30]">Expense Registry</h2>
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowExportModal(true)}
+            className="bg-white border border-slate-200 text-[#565e74] px-5 py-2 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px] hover:bg-slate-50 shadow-sm"
+          >
+            <Download className="w-4 h-4" /> Export Report
+          </button>
+          <button
+            onClick={handleAddExpenseClick}
+            className="bg-[#004ac6] text-white px-5 py-2 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px] hover:bg-[#003da3] shadow-lg shadow-blue-200"
+          >
+            <Plus className="w-4 h-4" /> New Expense
+          </button>
         </div>
       </div>
-      
-      {/* Action Bar */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex flex-col sm:flex-row gap-4 flex-1">
-            {/* Search */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search expenses..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+
+      {/* Stats Cards Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[
+          { label: 'Total Expenses', value: expenses.length, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-500' },
+          { label: 'Total Amount', value: formatCurrency(expenses.reduce((sum, e) => sum + (Number(e.net_amount) || 0), 0)), icon: DollarSign, color: 'text-green-600', bg: 'bg-green-500' },
+          { label: 'Approved Amount', value: formatCurrency(expenses.filter(e => e.status === 'approved').reduce((sum, e) => sum + (Number(e.net_amount) || 0), 0)), icon: Check, color: 'text-emerald-600', bg: 'bg-emerald-500' },
+          { label: 'Pending Approval', value: expenses.filter(e => e.status === 'pending').length, icon: Activity, color: 'text-orange-600', bg: 'bg-orange-500' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+            <div className="flex justify-between items-start mb-4">
+              <div className={clsx("w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg", stat.bg)}>
+                <stat.icon className="w-5 h-5" />
+              </div>
+              <div className={clsx("text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider", stat.bg.replace('bg-', 'bg-').replace('500', '50'))}>
+                <span className={stat.color}>Live</span>
+              </div>
             </div>
-            
-            {/* Filters */}
-            <div className="flex gap-2">
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Categories</option>
-                {availableCategories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-              
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">All Types</option>
-                <option value="society">Society</option>
-                <option value="flat">Flat</option>
-              </select>
+            <div>
+              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">{stat.label}</p>
+              <h3 className="text-2xl font-bold text-[#0b1c30] tracking-tight">{stat.value}</h3>
             </div>
           </div>
-          
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setShowExportModal(true)}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500"
+        ))}
+      </div>
+      
+      {/* Action Bar Section */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-1 min-w-[300px]">
+          <div className="relative flex-1 max-w-sm group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#004ac6] transition-colors" />
+            <input
+              type="text"
+              placeholder="Search expenses..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[13px] font-medium outline-none focus:bg-white focus:ring-2 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[13px] font-bold text-slate-600 outline-none hover:bg-white focus:ring-2 focus:ring-blue-600/10 transition-all cursor-pointer"
             >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
+              <option value="">All Categories</option>
+              {availableCategories.map(category => (
+                <option key={category} value={category}>{category}</option>
+              ))}
+            </select>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[13px] font-bold text-slate-600 outline-none hover:bg-white focus:ring-2 focus:ring-blue-600/10 transition-all cursor-pointer"
+            >
+              <option value="">All Types</option>
+              <option value="society">Society</option>
+              <option value="flat">Flat</option>
+            </select>
             <button
-              onClick={handleAddExpenseClick}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+              onClick={() => fetchExpenses()}
+              className="p-2 text-slate-400 hover:text-[#004ac6] hover:bg-blue-50 rounded-xl transition-all"
             >
-              <Plus className="w-4 h-4" />
-              Add Expense
+              <RefreshCw className={clsx("w-4 h-4", loading && "animate-spin")} />
             </button>
           </div>
         </div>
@@ -1176,95 +1174,78 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-slate-50/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Invoice</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Charges</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Invoice / Vendor</th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Category</th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Type</th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Amount</th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Transaction</th>
+                <th className="px-6 py-4 text-left text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {paginatedExpenses.map((expense) => (
-                <tr key={expense.id} className="hover:bg-gray-50">
+                <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{expense.invoice_name}</div>
-                      <div className="text-sm text-gray-500">{expense.invoice_id}</div>
+                      <div className="text-[13px] font-bold text-[#0b1c30]">{expense.invoice_name}</div>
+                      <div className="text-[11px] text-slate-400 font-medium">ID: {expense.invoice_id}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{expense.category}</div>
-                    <div className="text-sm text-gray-500">{expense.subcategory}</div>
+                    <div>
+                      <div className="text-[13px] font-bold text-slate-600">{expense.category}</div>
+                      <div className="text-[11px] text-slate-400 font-medium">{expense.subcategory}</div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={clsx(
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      expense.type === 'society' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                      'inline-flex px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider',
+                      expense.type === 'society' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
                     )}>
                       {expense.type}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className={clsx(
-                      'text-sm font-medium',
+                      'text-[14px] font-bold',
                       expense.credit_debit === 'credit' ? 'text-green-600' : 'text-red-600'
                     )}>
                       {expense.credit_debit === 'credit' ? '+' : '-'}{formatCurrency(expense.net_amount)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {expense.payment_method}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {expense.charges && expense.charges.length > 0 ? (
-                      <div className="space-y-1">
-                        {expense.charges.map((charge, index) => (
-                          <div key={index} className="text-xs">
-                            <span className="font-medium">{charge.charge_name}:</span> {charge.quantity} × ₹{charge.rate} = ₹{charge.total}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">No charges</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(expense.transaction_date)}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-[13px] font-bold text-slate-600">{expense.payment_method}</div>
+                    <div className="text-[11px] text-slate-400 font-medium">{formatDate(expense.transaction_date)}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={clsx(
-                      'inline-flex px-2 py-1 text-xs font-semibold rounded-full',
-                      getStatusColor(expense.status)
+                      'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold text-[11px] uppercase',
+                      expense.status === 'approved' ? 'bg-green-50 text-green-700' : expense.status === 'rejected' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
                     )}>
+                      <span className={clsx("w-1 h-1 rounded-full", expense.status === 'approved' ? 'bg-green-500' : expense.status === 'rejected' ? 'bg-red-500' : 'bg-yellow-500')}></span>
                       {expense.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center gap-2">
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="flex justify-end gap-3 items-center">
                       <button
-                        onClick={() => {
-                          setViewingExpense(expense);
-                          setViewModalOpen(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-900"
+                        onClick={() => { setViewingExpense(expense); setViewModalOpen(true); }}
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEdit(expense)}
-                        className="text-green-600 hover:text-green-900"
+                        className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDelete(expense.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1277,232 +1258,188 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
         </div>
         
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <p className="text-sm text-gray-700">
-                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredExpenses.length)} of {filteredExpenses.length} results
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={clsx(
-                      'relative inline-flex items-center px-4 py-2 text-sm font-medium border',
-                      currentPage === page
-                        ? 'bg-blue-50 border-blue-500 text-blue-600'
-                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                    )}
-                  >
-                    {page}
-                  </button>
-                ))}
-                
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+        <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-[12px] font-bold text-slate-500 uppercase tracking-wider">
+            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredExpenses.length)} of {filteredExpenses.length} Expenses
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 disabled:opacity-30 hover:bg-slate-50 transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="flex items-center px-4 bg-white border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600">
+              Page {currentPage} of {totalPages}
             </div>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-2 bg-white border border-slate-200 rounded-lg text-slate-400 disabled:opacity-30 hover:bg-slate-50 transition-all"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
-        )}
+        </div>
       </div>
         </>
       )}
       
       {/* Add/Edit Expense Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-5xl shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              {/* Modal Header */}
-              <div className="flex items-center justify-between pb-4 border-b">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {editingExpense ? 'Edit Expense' : 'Add New Expense'}
-                  </h3>
-                  <div className="flex items-center mt-2">
-                    {[1, 2, 3, 4].map((step) => (
-                      <div key={step} className="flex items-center">
-                        <div className={clsx(
-                          'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
-                          currentStep >= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                        )}>
-                          {step}
-                        </div>
-                        {step < 4 && (
-                          <div className={clsx(
-                            'w-12 h-1 mx-2',
-                            currentStep > step ? 'bg-blue-600' : 'bg-gray-200'
-                          )} />
-                        )}
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm overflow-y-auto h-full w-full z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative bg-white rounded-[24px] shadow-2xl w-full max-w-4xl overflow-hidden"
+          >
+            {/* Modal Header */}
+            <div className="bg-slate-50/50 px-8 py-6 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h3 className="text-[20px] font-bold text-[#0b1c30]">
+                  {editingExpense ? 'Modify Expense Record' : 'Create New Expense'}
+                </h3>
+                <div className="flex items-center gap-2 mt-2">
+                  {[1, 2, 3, 4].map((step) => (
+                    <div key={step} className="flex items-center gap-2">
+                      <div className={clsx(
+                        "w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold transition-all",
+                        currentStep === step ? "bg-[#004ac6] text-white shadow-lg shadow-blue-200" : currentStep > step ? "bg-green-500 text-white" : "bg-slate-200 text-slate-500"
+                      )}>
+                        {currentStep > step ? "✓" : step}
                       </div>
-                    ))}
-                  </div>
-                  <div className="text-sm text-gray-500 mt-1">
-                    Step {currentStep} of {totalSteps}: {
-                      currentStep === 1 ? 'Basic Information' :
-                      currentStep === 2 ? 'Financial Details' :
-                      currentStep === 3 ? 'Additional Information' : 'Review & Submit'
+                      {step < 4 && <div className={clsx("w-8 h-[2px] rounded-full", currentStep > step ? "bg-green-500" : "bg-slate-200")} />}
+                    </div>
+                  ))}
+                  <span className="ml-2 text-[12px] font-bold text-slate-400 uppercase tracking-wider">
+                    Step {currentStep}: {
+                      currentStep === 1 ? 'Basis' :
+                      currentStep === 2 ? 'Financials' :
+                      currentStep === 3 ? 'Details' : 'Verification'
                     }
-                  </div>
+                  </span>
                 </div>
-                <button
-                  onClick={handleModalClose}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
               </div>
+              <button
+                onClick={handleModalClose}
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
               
               {/* Modal Body */}
               <form onSubmit={handleSubmit} className="mt-6">
                 {/* Step 1: Basic Information */}
                 {currentStep === 1 && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-8 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                       {/* Invoice Name */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Invoice Name * 
-                          <span className="text-xs text-gray-500">(Name/title for this expense)</span>
+                      <div className="space-y-2">
+                        <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">
+                          Invoice Reference * 
                         </label>
                         <input
                           type="text"
                           value={formData.invoice_name}
                           onChange={(e) => setFormData(prev => ({ ...prev, invoice_name: e.target.value }))}
                           className={clsx(
-                            'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                            formErrors.invoice_name ? 'border-red-500' : 'border-gray-300'
+                            'w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-medium transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600',
+                            formErrors.invoice_name ? 'border-red-500 bg-red-50/30' : 'border-slate-100'
                           )}
-                          placeholder="Enter invoice name"
+                          placeholder="e.g., Monthly Security Services"
                         />
-                        {formErrors.invoice_name && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.invoice_name}</p>
-                        )}
+                        {formErrors.invoice_name && <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight">{formErrors.invoice_name}</p>}
                       </div>
 
                       {/* Invoice ID */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Invoice ID
-                        </label>
+                      <div className="space-y-2">
+                        <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Invoice ID</label>
                         <input
                           type="text"
                           value={formData.invoice_id}
                           onChange={(e) => setFormData(prev => ({ ...prev, invoice_id: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter invoice ID"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600"
+                          placeholder="INV-2024-001"
                         />
                       </div>
 
-                      {/* Type */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Type *
-                        </label>
-                        <select
-                          value={formData.type}
-                          onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'society' | 'flat' }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="society">Society</option>
-                          <option value="flat">Flat</option>
-                        </select>
+                      {/* Type & Credit/Debit */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Type *</label>
+                          <select
+                            value={formData.type}
+                            onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'society' | 'flat' }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-slate-700 transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600"
+                          >
+                            <option value="society">Society</option>
+                            <option value="flat">Flat</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Direction *</label>
+                          <select
+                            value={formData.credit_debit}
+                            onChange={(e) => setFormData(prev => ({ ...prev, credit_debit: e.target.value as 'credit' | 'debit' }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold text-slate-700 transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600"
+                          >
+                            <option value="debit">Debit (-)</option>
+                            <option value="credit">Credit (+)</option>
+                          </select>
+                        </div>
                       </div>
 
-                      {/* Credit/Debit */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Credit/Debit *
-                        </label>
-                        <select
-                          value={formData.credit_debit}
-                          onChange={(e) => setFormData(prev => ({ ...prev, credit_debit: e.target.value as 'credit' | 'debit' }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="debit">Debit</option>
-                          <option value="credit">Credit</option>
-                        </select>
-                      </div>
-
-                      {/* Category */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Category *
-                        </label>
-                        <select
-                          value={formData.category}
-                          onChange={(e) => {
-                            const category = e.target.value;
-                            setFormData(prev => ({ 
-                              ...prev, 
-                              category,
-                              subcategory: '' // Reset subcategory when category changes
-                            }));
-                          }}
-                          className={clsx(
-                            'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                            formErrors.category ? 'border-red-500' : 'border-gray-300'
-                          )}
-                        >
-                          <option value="">Select Category</option>
-                          {Object.keys(subcategoryMapping).map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                        {formErrors.category && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.category}</p>
-                        )}
-                      </div>
-
-                      {/* Subcategory */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Subcategory *
-                        </label>
-                        <select
-                          value={formData.subcategory}
-                          onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
-                          className={clsx(
-                            'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                            formErrors.subcategory ? 'border-red-500' : 'border-gray-300'
-                          )}
-                          disabled={!formData.category}
-                        >
-                          <option value="">Select Subcategory</option>
-                          {formData.category && subcategoryMapping[formData.category]?.map(subcat => (
-                            <option key={subcat} value={subcat}>{subcat}</option>
-                          ))}
-                        </select>
-                        {formErrors.subcategory && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.subcategory}</p>
-                        )}
+                      {/* Category & Subcategory */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Category *</label>
+                          <select
+                            value={formData.category}
+                            onChange={(e) => {
+                              const category = e.target.value;
+                              setFormData(prev => ({ ...prev, category, subcategory: '' }));
+                            }}
+                            className={clsx(
+                              'w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-bold text-slate-700 transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600',
+                              formErrors.category ? 'border-red-500' : 'border-slate-100'
+                            )}
+                          >
+                            <option value="">Select Category</option>
+                            {Object.keys(subcategoryMapping).map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Subcategory *</label>
+                          <select
+                            value={formData.subcategory}
+                            onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
+                            className={clsx(
+                              'w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-bold text-slate-700 transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600',
+                              formErrors.subcategory ? 'border-red-500' : 'border-slate-100'
+                            )}
+                            disabled={!formData.category}
+                          >
+                            <option value="">Select Subcategory</option>
+                            {formData.category && subcategoryMapping[formData.category]?.map(subcat => (
+                              <option key={subcat} value={subcat}>{subcat}</option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                     </div>
 
                     {/* Step 1 Navigation */}
-                    <div className="flex justify-end pt-6 border-t">
+                    <div className="flex justify-end pt-8 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => navigateToStep(2)}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+                        className="px-8 py-3 bg-[#004ac6] text-white rounded-xl font-bold text-[14px] hover:bg-[#003da3] shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
                       >
-                        Next: Financial Details
+                        Next: Financial Details <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -1510,382 +1447,285 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
 
                 {/* Step 2: Financial Details */}
                 {currentStep === 2 && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      
+                  <div className="p-8 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                       {/* Gross Amount */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Gross Amount * 
-                          <span className="text-xs text-gray-500">(Total amount before taxes and fees)</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.gross_amount}
-                          onChange={(e) => setFormData(prev => ({ ...prev, gross_amount: e.target.value }))}
-                          className={clsx(
-                            'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                            formErrors.gross_amount ? 'border-red-500' : 'border-gray-300'
-                          )}
-                          placeholder="0.00"
-                        />
-                        {formErrors.gross_amount && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.gross_amount}</p>
-                        )}
+                      <div className="space-y-2">
+                        <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Gross Amount *</label>
+                        <div className="relative group">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[14px]">₹</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.gross_amount}
+                            onChange={(e) => setFormData(prev => ({ ...prev, gross_amount: e.target.value }))}
+                            className={clsx(
+                              'w-full pl-8 pr-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-bold transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600',
+                              formErrors.gross_amount ? 'border-red-500 bg-red-50/30' : 'border-slate-100'
+                            )}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        {formErrors.gross_amount && <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight">{formErrors.gross_amount}</p>}
                       </div>
 
                       {/* Fees */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Fees 
-                          <span className="text-xs text-gray-500">(Additional charges, if any)</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.fees || ''}
-                          onChange={(e) => setFormData(prev => ({ ...prev, fees: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="0.00"
-                        />
+                      <div className="space-y-2">
+                        <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Additional Fees</label>
+                        <div className="relative group">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[14px]">₹</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.fees || ''}
+                            onChange={(e) => setFormData(prev => ({ ...prev, fees: e.target.value }))}
+                            className="w-full pl-8 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600"
+                            placeholder="0.00"
+                          />
+                        </div>
                       </div>
 
-                      {/* GST Percentage */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          GST Percentage
-                          <span className="text-xs text-gray-500">(Goods and Services Tax)</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.gst_percentage}
-                          onChange={(e) => setFormData(prev => ({ ...prev, gst_percentage: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="18.00"
-                        />
+                      {/* GST Percentage & Amount */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">GST (%)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.gst_percentage}
+                            onChange={(e) => setFormData(prev => ({ ...prev, gst_percentage: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600"
+                            placeholder="18.00"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">GST Amount (₹)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.gst_amount}
+                            onChange={(e) => setFormData(prev => ({ ...prev, gst_amount: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-bold transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600"
+                            placeholder="0.00"
+                          />
+                        </div>
                       </div>
 
-                      {/* GST Amount (Editable now) */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          GST Amount
-                          <span className="text-xs text-gray-500">(Editable if custom tax applied)</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.gst_amount}
-                          onChange={(e) => setFormData(prev => ({ ...prev, gst_amount: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="0.00"
-                        />
-                      </div>
-
-                      {/* Net Amount (Editable now) */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Net Amount *
-                          <span className="text-xs text-gray-500">(Final amount after all calculations)</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={formData.net_amount}
-                          onChange={(e) => setFormData(prev => ({ ...prev, net_amount: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="0.00"
-                        />
+                      {/* Net Amount */}
+                      <div className="space-y-2">
+                        <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide text-blue-600">Total Net Amount *</label>
+                        <div className="relative group">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-600 font-bold text-[14px]">₹</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.net_amount}
+                            onChange={(e) => setFormData(prev => ({ ...prev, net_amount: e.target.value }))}
+                            className="w-full pl-8 pr-4 py-2.5 bg-blue-50/30 border border-blue-100 rounded-xl text-[16px] font-extrabold text-[#004ac6] transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600"
+                            placeholder="0.00"
+                          />
+                        </div>
                       </div>
 
                       {/* Payment Method */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Payment Method *
-                        </label>
+                      <div className="space-y-2">
+                        <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Payment Method *</label>
                         <select
                           value={formData.payment_method}
                           onChange={(e) => setFormData(prev => ({ ...prev, payment_method: e.target.value }))}
                           className={clsx(
-                            'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                            formErrors.payment_method ? 'border-red-500' : 'border-gray-300'
+                            'w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-bold text-slate-700 transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600',
+                            formErrors.payment_method ? 'border-red-500' : 'border-slate-100'
                           )}
                         >
-                          <option value="">Select Payment Method</option>
+                          <option value="">Select Method</option>
                           {availablePaymentMethods.map(method => (
                             <option key={method} value={method}>{method}</option>
                           ))}
                         </select>
-                        {formErrors.payment_method && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.payment_method}</p>
-                        )}
+                        {formErrors.payment_method && <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight">{formErrors.payment_method}</p>}
                       </div>
 
                       {/* Payment Method Specific Details */}
                       {formData.payment_method && (
                         <div className="space-y-4">
-                          {/* Normalize payment method for comparisons */}
-                          {(() => {
-                            const pm = (formData.payment_method || '').toLowerCase().replace(/\s+/g, '_');
-                            if (pm === 'upi') {
-                              return (
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID *</label>
-                                  <input
-                                    type="text"
-                                    value={formData.transaction_id}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
-                                    className={clsx(
-                                      'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                      formErrors.transaction_id ? 'border-red-500' : 'border-gray-300'
-                                    )}
-                                    placeholder="Enter transaction ID"
-                                  />
-                                  {formErrors.transaction_id && (
-                                    <p className="mt-1 text-sm text-red-600">{formErrors.transaction_id}</p>
-                                  )}
-                                </div>
-                              );
-                            }
-                            if (pm === 'bank_transfer') {
-                              return (
-                                <>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Bank Name *</label>
-                                    <input
-                                      type="text"
-                                      value={formData.bank_name}
-                                      onChange={(e) => setFormData(prev => ({ ...prev, bank_name: e.target.value }))}
-                                      className={clsx(
-                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                        formErrors.bank_name ? 'border-red-500' : 'border-gray-300'
-                                      )}
-                                      placeholder="Enter bank name"
-                                    />
-                                    {formErrors.bank_name && (
-                                      <p className="mt-1 text-sm text-red-600">{formErrors.bank_name}</p>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID *</label>
-                                    <input
-                                      type="text"
-                                      value={formData.transaction_id}
-                                      onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
-                                      className={clsx(
-                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                        formErrors.transaction_id ? 'border-red-500' : 'border-gray-300'
-                                      )}
-                                      placeholder="Enter transaction ID"
-                                    />
-                                    {formErrors.transaction_id && (
-                                      <p className="mt-1 text-sm text-red-600">{formErrors.transaction_id}</p>
-                                    )}
-                                  </div>
-                                </>
-                              );
-                            }
-                            if (pm === 'cheque') {
-                              return (
-                                <>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Cheque Number *</label>
-                                    <input
-                                      type="text"
-                                      value={formData.cheque_number}
-                                      onChange={(e) => setFormData(prev => ({ ...prev, cheque_number: e.target.value }))}
-                                      className={clsx(
-                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                        formErrors.cheque_number ? 'border-red-500' : 'border-gray-300'
-                                      )}
-                                      placeholder="Enter cheque number"
-                                    />
-                                    {formErrors.cheque_number && (
-                                      <p className="mt-1 text-sm text-red-600">{formErrors.cheque_number}</p>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Clearing Date *</label>
-                                    <input
-                                      type="date"
-                                      value={formData.clearing_date}
-                                      onChange={(e) => setFormData(prev => ({ ...prev, clearing_date: e.target.value }))}
-                                      className={clsx(
-                                        'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                        formErrors.clearing_date ? 'border-red-500' : 'border-gray-300'
-                                      )}
-                                    />
-                                    {formErrors.clearing_date && (
-                                      <p className="mt-1 text-sm text-red-600">{formErrors.clearing_date}</p>
-                                    )}
-                                  </div>
-                                </>
-                              );
-                            }
-                            if (pm === 'card') {
-                              return (
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">Transaction ID *</label>
-                                  <input
-                                    type="text"
-                                    value={formData.transaction_id}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
-                                    className={clsx(
-                                      'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                                      formErrors.transaction_id ? 'border-red-500' : 'border-gray-300'
-                                    )}
-                                    placeholder="Enter transaction ID"
-                                  />
-                                  {formErrors.transaction_id && (
-                                    <p className="mt-1 text-sm text-red-600">{formErrors.transaction_id}</p>
-                                  )}
-                                </div>
-                              );
-                            }
-                            if (pm === 'cash') {
-                              return (
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">Reference (Optional)</label>
-                                  <input
-                                    type="text"
-                                    value={formData.payment_details_specific}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, payment_details_specific: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter reference"
-                                  />
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
+                      {(() => {
+                        const pm = (formData.payment_method || '').toLowerCase().replace(/\s+/g, '_');
+                        if (pm === 'upi' || pm === 'card') {
+                          return (
+                            <div className="space-y-2">
+                              <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Transaction ID *</label>
+                              <input
+                                type="text"
+                                value={formData.transaction_id}
+                                onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
+                                className={clsx(
+                                  'w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-medium transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600',
+                                  formErrors.transaction_id ? 'border-red-500' : 'border-slate-100'
+                                )}
+                                placeholder="Enter reference number"
+                              />
+                            </div>
+                          );
+                        }
+                        if (pm === 'bank_transfer') {
+                          return (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Bank Name *</label>
+                                <input
+                                  type="text"
+                                  value={formData.bank_name}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, bank_name: e.target.value }))}
+                                  className={clsx('w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600', formErrors.bank_name ? 'border-red-500' : 'border-slate-100')}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Ref ID *</label>
+                                <input
+                                  type="text"
+                                  value={formData.transaction_id}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, transaction_id: e.target.value }))}
+                                  className={clsx('w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600', formErrors.transaction_id ? 'border-red-500' : 'border-slate-100')}
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+                        if (pm === 'cheque') {
+                          return (
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Cheque # *</label>
+                                <input
+                                  type="text"
+                                  value={formData.cheque_number}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, cheque_number: e.target.value }))}
+                                  className={clsx('w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600', formErrors.cheque_number ? 'border-red-500' : 'border-slate-100')}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Clear Date *</label>
+                                <input
+                                  type="date"
+                                  value={formData.clearing_date}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, clearing_date: e.target.value }))}
+                                  className={clsx('w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600', formErrors.clearing_date ? 'border-red-500' : 'border-slate-100')}
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                         </div>
                       )}
 
                       {/* Transaction Date */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Transaction Date *
-                        </label>
+                      <div className="space-y-2">
+                        <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Record Date *</label>
                         <input
                           type="date"
                           value={formData.transaction_date}
                           onChange={(e) => setFormData(prev => ({ ...prev, transaction_date: e.target.value }))}
                           className={clsx(
-                            'w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                            formErrors.transaction_date ? 'border-red-500' : 'border-gray-300'
+                            'w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-[14px] font-bold transition-all outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600',
+                            formErrors.transaction_date ? 'border-red-500' : 'border-slate-100'
                           )}
                         />
-                        {formErrors.transaction_date && (
-                          <p className="mt-1 text-sm text-red-600">{formErrors.transaction_date}</p>
-                        )}
                       </div>
                     </div>
 
                     {/* Charges Section */}
-                    <div className="border-t pt-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-medium text-gray-900">Item-wise Charges (Optional)</h4>
+                    <div className="border-t border-slate-100 pt-8 mt-8">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h4 className="text-[16px] font-bold text-[#0b1c30]">Line Items</h4>
+                          <p className="text-[12px] font-medium text-slate-400">Add detailed breakdown of charges (Optional)</p>
+                        </div>
                         <button
                           type="button"
                           onClick={addCharge}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+                          className="px-4 py-2 bg-slate-100 text-[#565e74] rounded-lg font-bold text-[13px] hover:bg-slate-200 transition-all flex items-center gap-2"
                         >
-                          <Plus className="w-4 h-4 inline mr-2" />
-                          Add Item
+                          <Plus className="w-4 h-4" /> Add Item
                         </button>
                       </div>
                       
                       {formData.charges.map((charge, index) => (
-                        <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 p-4 border border-gray-200 rounded-lg">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 bg-slate-50/50 border border-slate-100 rounded-xl mb-4 group relative">
+                          <div className="md:col-span-2 space-y-1">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Description</label>
                             <input
                               type="text"
                               value={charge.charge_name}
                               onChange={(e) => updateCharge(index, 'charge_name', e.target.value)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter item name"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-medium outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all"
+                              placeholder="e.g. Service Fee"
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Qty</label>
                             <input
                               type="number"
                               value={charge.quantity}
                               onChange={(e) => updateCharge(index, 'quantity', parseFloat(e.target.value) || 0)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="1"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-medium outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all"
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Rate</label>
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Rate</label>
                             <input
                               type="number"
                               step="0.01"
                               value={charge.rate}
                               onChange={(e) => updateCharge(index, 'rate', parseFloat(e.target.value) || 0)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="0.00"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-medium outline-none focus:ring-4 focus:ring-blue-600/5 focus:border-blue-600 transition-all"
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Tax (%)</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={charge.tax_percentage}
-                              onChange={(e) => updateCharge(index, 'tax_percentage', parseFloat(e.target.value) || 0)}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="0"
-                            />
+                          <div className="space-y-1">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-tight">Total (₹)</label>
+                            <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600">
+                              {formatCurrency(charge.total)}
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Total</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={charge.total}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                              readOnly
-                            />
-                          </div>
-                          <div className="flex items-end">
+                          <div className="flex items-end pb-0.5">
                             <button
                               type="button"
                               onClick={() => removeCharge(index)}
-                              className="w-full px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500"
+                              className="w-full p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all flex items-center justify-center border border-red-100"
                             >
-                              <Trash2 className="w-4 h-4 mx-auto" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
                       ))}
                       
                       {formData.charges.length > 0 && (
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-gray-900">
-                            Total Charges: {formatCurrency(formData.charges.reduce((sum, charge) => sum + charge.total, 0))}
-                          </p>
+                        <div className="flex justify-end pt-4">
+                          <div className="bg-[#0b1c30] px-6 py-2 rounded-xl text-white shadow-xl">
+                            <span className="text-[12px] font-bold text-slate-400 uppercase tracking-widest mr-3">Aggregated Charges</span>
+                            <span className="text-[18px] font-bold font-mono">{formatCurrency(formData.charges.reduce((sum, charge) => sum + charge.total, 0))}</span>
+                          </div>
                         </div>
                       )}
                     </div>
 
                     {/* Step 2 Navigation */}
-                    <div className="flex justify-between pt-6 border-t">
+                    <div className="flex justify-between pt-10 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => setCurrentStep(1)}
-                        className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500"
+                        className="px-8 py-3 bg-white border border-slate-200 text-slate-500 rounded-xl font-bold text-[14px] hover:bg-slate-50 transition-all flex items-center gap-2"
                       >
-                        Previous
+                        <ArrowLeft className="w-4 h-4" /> Previous
                       </button>
                       <button
                         type="button"
                         onClick={() => navigateToStep(3)}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+                        className="px-8 py-3 bg-[#004ac6] text-white rounded-xl font-bold text-[14px] hover:bg-[#003da3] shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
                       >
-                        Next: Additional Info
+                        Next: Attachments <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -1893,150 +1733,94 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
 
                 {/* Step 3: Additional Information */}
                 {currentStep === 3 && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Collected By */}
-                      <div className="md:col-span-2">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-lg font-medium text-gray-900">Collected By</h4>
-                          <button
-                            type="button"
-                            onClick={autoFillSocietyDetails}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                          >
-                            <RefreshCw className="w-4 h-4" /> Auto-fill Society
-                          </button>
+                  <div className="p-8 space-y-8 max-h-[60vh] overflow-y-auto">
+                    {/* Collected By */}
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                          <h4 className="text-[16px] font-bold text-[#0b1c30]">Vendor / Recipient Details</h4>
+                          <p className="text-[12px] font-medium text-slate-400">Information about who received the payment</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                            <input
-                              type="text"
-                              value={formData.collected_by_name}
-                              onChange={(e) => setFormData(prev => ({ ...prev, collected_by_name: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter name"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Phone (Optional)</label>
-                            <input
-                              type="tel"
-                              value={formData.collected_by_phone}
-                              onChange={(e) => setFormData(prev => ({ ...prev, collected_by_phone: e.target.value }))}
-                              className={clsx(
-                                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                                formErrors.collected_by_phone ? "border-red-500" : "border-gray-300"
-                              )}
-                              placeholder="Enter 10-digit phone number"
-                            />
-                            {formErrors.collected_by_phone && (
-                              <p className="mt-1 text-sm text-red-600">{formErrors.collected_by_phone}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
-                            <input
-                              type="email"
-                              value={formData.collected_by_email}
-                              onChange={(e) => setFormData(prev => ({ ...prev, collected_by_email: e.target.value }))}
-                              className={clsx(
-                                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                                formErrors.collected_by_email ? "border-red-500" : "border-gray-300"
-                              )}
-                              placeholder="Enter email address"
-                            />
-                            {formErrors.collected_by_email && (
-                              <p className="mt-1 text-sm text-red-600">{formErrors.collected_by_email}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">GST Number (Optional)</label>
-                            <input
-                              type="text"
-                              value={formData.collected_by_gst_number}
-                              onChange={(e) => setFormData(prev => ({ ...prev, collected_by_gst_number: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter GST Number"
-                            />
-                          </div>
+                        <button
+                          type="button"
+                          onClick={autoFillSocietyDetails}
+                          className="px-4 py-2 bg-blue-50 text-[#004ac6] rounded-lg font-bold text-[12px] hover:bg-blue-100 transition-all flex items-center gap-2"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Auto-fill Society
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Recipient Name</label>
+                          <input
+                            type="text"
+                            value={formData.collected_by_name}
+                            onChange={(e) => setFormData(prev => ({ ...prev, collected_by_name: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
+                            placeholder="Full name or company name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">GST Number</label>
+                          <input
+                            type="text"
+                            value={formData.collected_by_gst_number}
+                            onChange={(e) => setFormData(prev => ({ ...prev, collected_by_gst_number: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
+                            placeholder="GSTIN (Optional)"
+                          />
                         </div>
                       </div>
+                    </div>
 
-                      {/* Paid By */}
-                      <div className="md:col-span-2">
-                        <h4 className="text-lg font-medium text-gray-900 mb-4">Paid By</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                            <input
-                              type="text"
-                              value={formData.paid_by_name}
-                              onChange={(e) => setFormData(prev => ({ ...prev, paid_by_name: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter name"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Phone (Optional)</label>
-                            <input
-                              type="tel"
-                              value={formData.paid_by_phone}
-                              onChange={(e) => setFormData(prev => ({ ...prev, paid_by_phone: e.target.value }))}
-                              className={clsx(
-                                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                                formErrors.paid_by_phone ? "border-red-500" : "border-gray-300"
-                              )}
-                              placeholder="Enter 10-digit phone number"
-                            />
-                            {formErrors.paid_by_phone && (
-                              <p className="mt-1 text-sm text-red-600">{formErrors.paid_by_phone}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Email (Optional)</label>
-                            <input
-                              type="email"
-                              value={formData.paid_by_email}
-                              onChange={(e) => setFormData(prev => ({ ...prev, paid_by_email: e.target.value }))}
-                              className={clsx(
-                                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-                                formErrors.paid_by_email ? "border-red-500" : "border-gray-300"
-                              )}
-                              placeholder="Enter email address"
-                            />
-                            {formErrors.paid_by_email && (
-                              <p className="mt-1 text-sm text-red-600">{formErrors.paid_by_email}</p>
-                            )}
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">GST Number (Optional)</label>
-                            <input
-                              type="text"
-                              value={formData.paid_by_gst_number}
-                              onChange={(e) => setFormData(prev => ({ ...prev, paid_by_gst_number: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              placeholder="Enter GST Number"
-                            />
-                          </div>
+                    {/* Paid By */}
+                    <div className="space-y-6 pt-4">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                          <h4 className="text-[16px] font-bold text-[#0b1c30]">Payer Details</h4>
+                          <p className="text-[12px] font-medium text-slate-400">Information about who made the payment</p>
                         </div>
                       </div>
-
-                      {/* Transaction ID (moved to Payment Method section) */}
-
-                      {/* Receipt No */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Receipt No
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.receipt_no}
-                          onChange={(e) => setFormData(prev => ({ ...prev, receipt_no: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter receipt number"
-                        />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Payer Name</label>
+                          <input
+                            type="text"
+                            value={formData.paid_by_name}
+                            onChange={(e) => setFormData(prev => ({ ...prev, paid_by_name: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
+                            placeholder="Society admin or person name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Receipt #</label>
+                          <input
+                            type="text"
+                            value={formData.receipt_no}
+                            onChange={(e) => setFormData(prev => ({ ...prev, receipt_no: e.target.value }))}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all"
+                            placeholder="REC-001"
+                          />
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Notes & Attachments */}
+                    <div className="space-y-6 pt-4">
+                      <div className="border-b border-slate-100 pb-4">
+                        <h4 className="text-[16px] font-bold text-[#0b1c30]">Verification Documents</h4>
+                        <p className="text-[12px] font-medium text-slate-400">Upload invoices, receipts, or notes</p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Internal Notes</label>
+                          <textarea
+                            value={formData.notes}
+                            onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl text-[14px] font-medium outline-none focus:bg-white focus:ring-4 focus:ring-blue-600/10 focus:border-blue-600 transition-all min-h-[100px]"
+                            placeholder="Add any internal comments or explanations..."
+                          />
+                        </div>
 
                       {/* Description */}
                       <div className="md:col-span-2">
@@ -2066,222 +1850,165 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                         />
                       </div>
 
-                      {/* Attachments */}
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Attachments (Optional)
-                        </label>
-                        <div 
-                          className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
-                          onClick={() => {
-                            const fileInput = document.querySelector('input[type="file"][multiple]') as HTMLInputElement;
-                            fileInput?.click();
-                          }}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
-                          }}
-                          onDragLeave={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
-                            const files = Array.from(e.dataTransfer.files);
-                            const validFiles = files.filter(file => {
-                              const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-                              const maxSize = 10 * 1024 * 1024; // 10MB
-                              return validTypes.includes(file.type) && file.size <= maxSize;
-                            });
-                            // Add new files to existing ones instead of replacing
-                            setFormData(prev => ({ 
-                              ...prev, 
-                              attachments: [...prev.attachments, ...validFiles]
-                            }));
-                          }}
-                        >
-                          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          <p className="text-sm text-gray-600 mb-2">Click to upload or drag and drop multiple files</p>
-                          <p className="text-xs text-gray-500">PDF, JPG, PNG up to 10MB each • Multiple files supported</p>
-                          <input
-                            type="file"
-                            multiple
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            className="hidden"
-                            onChange={(e) => {
-                              const files = Array.from(e.target.files || []);
-                              const validFiles = files.filter(file => {
-                                const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-                                const maxSize = 10 * 1024 * 1024; // 10MB
-                                return validTypes.includes(file.type) && file.size <= maxSize;
-                              });
-                              // Add new files to existing ones instead of replacing
-                              setFormData(prev => ({ 
-                                ...prev, 
-                                attachments: [...prev.attachments, ...validFiles]
-                              }));
-                              // Reset the input to allow selecting the same files again
-                              e.target.value = '';
+                        <div className="space-y-2">
+                          <label className="text-[13px] font-bold text-[#565e74] uppercase tracking-wide">Documentation (Max 10MB)</label>
+                          <div 
+                            className="border-2 border-dashed border-slate-200 bg-slate-50/50 rounded-2xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group"
+                            onClick={() => {
+                              const fileInput = document.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+                              fileInput?.click();
                             }}
-                          />
-                        </div>
-                        {formData.attachments.length > 0 && (
-                          <div className="mt-2">
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="text-sm text-gray-600">{formData.attachments.length} file(s) selected</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setFormData(prev => ({ ...prev, attachments: [] }));
-                                }}
-                                className="text-xs text-red-500 hover:text-red-700 underline"
-                              >
-                                Clear all
-                              </button>
+                          >
+                            <div className="flex flex-col items-center gap-3">
+                              <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                                <Upload className="w-6 h-6 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="text-[14px] font-bold text-[#0b1c30]">Drop files here or click to upload</p>
+                                <p className="text-[12px] font-medium text-slate-400">PDF, JPG, PNG are supported</p>
+                              </div>
                             </div>
-                            <div className="space-y-1 max-h-32 overflow-y-auto">
-                              {formData.attachments.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 p-2 rounded">
-                                  <div className="flex-1 min-w-0">
-                                    <span className="truncate block">{file.name}</span>
-                                    <span className="text-gray-400">({(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                            <input
+                              type="file"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                const validFiles = files.filter(file => {
+                                  const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+                                  const maxSize = 10 * 1024 * 1024;
+                                  return validTypes.includes(file.type) && file.size <= maxSize;
+                                });
+                                setFormData(prev => ({ 
+                                  ...prev, 
+                                  attachments: [...(prev.attachments || []), ...validFiles] 
+                                }));
+                              }}
+                            />
+                          </div>
+
+                          {/* File Preview */}
+                          {formData.attachments && formData.attachments.length > 0 && (
+                            <div className="grid grid-cols-2 gap-4 mt-4">
+                              {formData.attachments.map((file, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <FileText className="w-4 h-4 text-blue-600 shrink-0" />
+                                    <span className="text-[12px] font-bold text-slate-600 truncate">{file instanceof File ? file.name : (file as any).name}</span>
                                   </div>
                                   <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setFormData(prev => ({
                                         ...prev,
-                                        attachments: prev.attachments.filter((_, i) => i !== index)
+                                        attachments: prev.attachments?.filter((_, i) => i !== idx)
                                       }));
                                     }}
-                                    className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                                    className="p-1 hover:bg-red-50 text-red-400 rounded-lg transition-all"
                                   >
-                                    <X className="w-4 h-4" />
+                                    <X className="w-3.5 h-3.5" />
                                   </button>
                                 </div>
                               ))}
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Step 3 Navigation */}
-                    <div className="flex justify-between pt-6 border-t">
+                    <div className="flex justify-between pt-10 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => setCurrentStep(2)}
-                        className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500"
+                        className="px-8 py-3 bg-white border border-slate-200 text-slate-500 rounded-xl font-bold text-[14px] hover:bg-slate-50 transition-all flex items-center gap-2"
                       >
-                        Previous
+                        <ArrowLeft className="w-4 h-4" /> Previous
                       </button>
                       <button
                         type="button"
                         onClick={() => navigateToStep(4)}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+                        className="px-8 py-3 bg-[#004ac6] text-white rounded-xl font-bold text-[14px] hover:bg-[#003da3] shadow-lg shadow-blue-200 transition-all flex items-center gap-2"
                       >
-                        Next: Review
+                        Next: Final Review <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 )}
-
-                {/* Step 4: Review & Submit */}
+                {/* Step 4: Final Review */}
                 {currentStep === 4 && (
-                  <div className="space-y-6">
-                    <div className="bg-gray-50 rounded-lg p-6">
-                      <h4 className="text-lg font-medium text-gray-900 mb-4">Review Your Expense</h4>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <h5 className="font-medium text-gray-700 mb-2">Basic Information</h5>
-                          <div className="space-y-2 text-sm">
-                            <p><span className="font-medium">Invoice Name:</span> {formData.invoice_name}</p>
-                            <p><span className="font-medium">Invoice ID:</span> {formData.invoice_id}</p>
-                            <p><span className="font-medium">Category:</span> {formData.category}</p>
-                            <p><span className="font-medium">Subcategory:</span> {formData.subcategory}</p>
-                            <p><span className="font-medium">Type:</span> {formData.type}</p>
-                            <p><span className="font-medium">Credit/Debit:</span> {formData.credit_debit}</p>
-                            {formData.wing_id && (
-                              <p><span className="font-medium">Wing:</span> {wings.find(w => w.id === formData.wing_id)?.name || formData.wing_id}</p>
-                            )}
-                            {formData.floor_id && (
-                              <p><span className="font-medium">Floor:</span> {floors.find(f => f.id === formData.floor_id)?.name || formData.floor_id}</p>
-                            )}
-                            {formData.flat_id && (
-                              <p><span className="font-medium">Flat:</span> {flats.find(fl => fl.id === formData.flat_id)?.name || formData.flat_id}</p>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h5 className="font-medium text-gray-700 mb-2">Financial Details</h5>
-                          <div className="space-y-2 text-sm">
-                            <p><span className="font-medium">Gross Amount:</span> {formatCurrency(parseFloat(formData.gross_amount || '0'))}</p>
-                            {formData.fees && <p><span className="font-medium">Fees:</span> {formatCurrency(parseFloat(formData.fees || '0'))}</p>}
-                            {formData.tax_percentage && <p><span className="font-medium">Tax:</span> {formData.tax_percentage}% ({formatCurrency(parseFloat(formData.tax_amount || '0'))})</p>}
-                            <p><span className="font-medium">GST:</span> {formData.gst_percentage}% ({formatCurrency(parseFloat(formData.gst_amount || '0'))})</p>
-                            <p><span className="font-medium">Net Amount:</span> {formatCurrency(parseFloat(formData.net_amount || '0'))}</p>
-                            <p><span className="font-medium">Payment Method:</span> {formData.payment_method}</p>
-                            <p><span className="font-medium">Transaction Date:</span> {formData.transaction_date}</p>
-                            {formData.clearing_date && <p><span className="font-medium">Clearing Date:</span> {formData.clearing_date}</p>}
-                          </div>
-                        </div>
-                        
-                        {(formData.payment_details_specific || formData.receipt_no || formData.transaction_id || formData.cheque_number || formData.bank_name) && (
-                          <div className="md:col-span-2">
-                            <h5 className="font-medium text-gray-700 mb-2">Payment Details</h5>
-                            <div className="space-y-2 text-sm">
-                              {formData.payment_details_specific && <p><span className="font-medium">Payment Details:</span> {formData.payment_details_specific}</p>}
-                              {formData.receipt_no && <p><span className="font-medium">Receipt Number:</span> {formData.receipt_no}</p>}
-                              {formData.transaction_id && <p><span className="font-medium">Transaction ID:</span> {formData.transaction_id}</p>}
-                              {formData.cheque_number && <p><span className="font-medium">Cheque Number:</span> {formData.cheque_number}</p>}
-                              {formData.bank_name && <p><span className="font-medium">Bank Name:</span> {formData.bank_name}</p>}
+                  <div className="p-8 space-y-8 max-h-[60vh] overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {/* Basic & Financial Summary */}
+                      <div className="space-y-6">
+                        <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100">
+                          <h5 className="text-[14px] font-bold text-[#0b1c30] uppercase tracking-wider mb-4 pb-2 border-b border-slate-200/50">Core Information</h5>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-slate-400 uppercase">Description</span>
+                              <span className="text-[13px] font-bold text-[#0b1c30]">{formData.invoice_name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-slate-400 uppercase">Category</span>
+                              <span className="text-[13px] font-bold text-[#0b1c30]">{formData.category}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-slate-400 uppercase">Method</span>
+                              <span className="text-[13px] font-bold text-[#0b1c30]">{formData.payment_method}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-slate-400 uppercase">Date</span>
+                              <span className="text-[13px] font-bold text-[#0b1c30]">{formData.transaction_date}</span>
                             </div>
                           </div>
-                        )}
-                        
+                        </div>
+
+                        <div className="bg-blue-600 rounded-2xl p-6 text-white shadow-xl shadow-blue-100">
+                          <h5 className="text-[14px] font-bold uppercase tracking-wider mb-4 pb-2 border-b border-blue-400/30">Financial Summary</h5>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-blue-200 uppercase">Gross Amount</span>
+                              <span className="text-[15px] font-bold font-mono">{formatCurrency(parseFloat(formData.gross_amount || '0'))}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-blue-200 uppercase">Taxes (GST)</span>
+                              <span className="text-[15px] font-bold font-mono">{formatCurrency(parseFloat(formData.gst_amount || '0'))}</span>
+                            </div>
+                            <div className="pt-2 mt-2 border-t border-blue-400/30 flex justify-between items-center">
+                              <span className="text-[13px] font-bold uppercase">Net Payable</span>
+                              <span className="text-[20px] font-bold font-mono">{formatCurrency(parseFloat(formData.net_amount || '0'))}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Recipient & Additional Summary */}
+                      <div className="space-y-6">
+                        <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100">
+                          <h5 className="text-[14px] font-bold text-[#0b1c30] uppercase tracking-wider mb-4 pb-2 border-b border-slate-200/50">Recipient Details</h5>
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-slate-400 uppercase">Name</span>
+                              <span className="text-[13px] font-bold text-[#0b1c30]">{formData.collected_by_name || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-[12px] font-bold text-slate-400 uppercase">Receipt #</span>
+                              <span className="text-[13px] font-bold text-[#0b1c30]">{formData.receipt_no || 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
                         {formData.charges.length > 0 && (
-                          <div className="md:col-span-2">
-                            <h5 className="font-medium text-gray-700 mb-2">Item-wise Charges</h5>
-                            <div className="space-y-2 text-sm">
-                              {formData.charges.map((charge, index) => (
-                                <div key={index} className="flex items-center justify-between">
-                                  <div>
-                                    <span className="font-medium">{charge.charge_name}</span>: {charge.quantity} × {formatCurrency(charge.rate)} = {formatCurrency(charge.total)}
-                                    {typeof charge.tax_percentage === 'number' && charge.tax_percentage > 0 && (
-                                      <span className="text-gray-500"> • Tax: {charge.tax_percentage}%{typeof charge.tax_amount === 'number' ? ` (${formatCurrency(charge.tax_amount)})` : ''}</span>
-                                    )}
-                                  </div>
+                          <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100">
+                            <h5 className="text-[14px] font-bold text-[#0b1c30] uppercase tracking-wider mb-4 pb-2 border-b border-slate-200/50">Itemized Breakdown</h5>
+                            <div className="space-y-3">
+                              {formData.charges.map((charge, idx) => (
+                                <div key={idx} className="flex justify-between text-[12px]">
+                                  <span className="font-medium text-slate-500">{charge.charge_name} (x{charge.quantity})</span>
+                                  <span className="font-bold text-[#0b1c30]">{formatCurrency(charge.total)}</span>
                                 </div>
                               ))}
-                            </div>
-                            <div className="mt-3 pt-3 border-t border-gray-300">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm font-medium text-gray-900">Total Charges:</span>
-                                <span className="text-sm font-bold text-gray-900">
-                                  {formatCurrency(formData.charges.reduce((sum, c) => sum + (c.total || 0), 0))}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {(formData.collected_by_name || formData.collected_by_phone || formData.collected_by_email || formData.collected_by_gst_number || formData.paid_by_name || formData.paid_by_phone || formData.paid_by_email || formData.paid_by_gst_number || formData.description || formData.notes) && (
-                          <div className="md:col-span-2">
-                            <h5 className="font-medium text-gray-700 mb-2">Additional Information</h5>
-                            <div className="space-y-2 text-sm">
-                              {formData.collected_by_name && <p><span className="font-medium">Collected By:</span> {formData.collected_by_name}</p>}
-                              {formData.collected_by_phone && <p><span className="font-medium">Collected By Phone:</span> {formData.collected_by_phone}</p>}
-                              {formData.collected_by_email && <p><span className="font-medium">Collected By Email:</span> {formData.collected_by_email}</p>}
-                              {formData.collected_by_gst_number && <p><span className="font-medium">Collected By GST Number:</span> {formData.collected_by_gst_number}</p>}
-                              {formData.paid_by_name && <p><span className="font-medium">Paid By:</span> {formData.paid_by_name}</p>}
-                              {formData.paid_by_phone && <p><span className="font-medium">Paid By Phone:</span> {formData.paid_by_phone}</p>}
-                              {formData.paid_by_email && <p><span className="font-medium">Paid By Email:</span> {formData.paid_by_email}</p>}
-                              {formData.paid_by_gst_number && <p><span className="font-medium">Paid By GST Number:</span> {formData.paid_by_gst_number}</p>}
-                              {formData.description && <p><span className="font-medium">Description:</span> {formData.description}</p>}
-                              {formData.notes && <p><span className="font-medium">Notes:</span> {formData.notes}</p>}
                             </div>
                           </div>
                         )}
@@ -2289,30 +2016,35 @@ const ExpenseManagement: React.FC<ExpenseManagementProps> = ({ societyId, user }
                     </div>
 
                     {/* Step 4 Navigation */}
-                    <div className="flex justify-between pt-6 border-t">
+                    <div className="flex justify-between pt-10 border-t border-slate-100">
                       <button
                         type="button"
                         onClick={() => setCurrentStep(3)}
-                        className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:ring-2 focus:ring-gray-500"
+                        className="px-8 py-3 bg-white border border-slate-200 text-slate-500 rounded-xl font-bold text-[14px] hover:bg-slate-50 transition-all flex items-center gap-2"
                       >
-                        Previous
+                        <ArrowLeft className="w-4 h-4" /> Previous
                       </button>
                       <button
                         type="submit"
-                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+                        className="px-10 py-3 bg-[#00c853] text-white rounded-xl font-bold text-[15px] hover:bg-[#00a844] shadow-lg shadow-green-100 transition-all flex items-center gap-2"
                         disabled={modalLoading}
                       >
-                        {modalLoading && <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />}
-                        {editingExpense ? 'Update Expense' : 'Create Expense'}
+                        {modalLoading ? (
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <>
+                            <Check className="w-5 h-5" /> 
+                            {editingExpense ? 'Update Expense Record' : 'Confirm & Save Expense'}
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
                 )}
               </form>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
 
       {/* View Expense Modal */}
       {viewModalOpen && viewingExpense && (

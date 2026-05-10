@@ -38,7 +38,7 @@ export default function WingsManagement({ societyId }: WingsManagementProps) {
     setError(null);
     try {
       const data = await getWings();
-      setWings(data);
+      if (data.success && data.data) setWings(data.data);
     } catch (err: any) {
       setError(err.message || 'Failed to load wings');
     } finally {

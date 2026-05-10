@@ -22,11 +22,9 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
     let isMounted = true;
     (async () => {
       try {
-        // console.log('Fetching wings for societyId:', societyId);
-        const data = await getWings();
-        // console.log('Fetched wings:', data);
-        if (isMounted) {
-          setWings(data);
+        const response = await getWings();
+        if (isMounted && response.success && response.data) {
+          setWings(response.data);
           setLoading(false);
         }
       } catch (err: any) {
@@ -49,11 +47,13 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
     } else {
       newSet.add(wingId);
       try {
-        const floors = await getFloors(wingId);
-        // console.log('Setting floors for wing:', wingId, floors);
-        setWings((prev) =>
-          prev.map((w) => (w.id === wingId ? { ...w, floors } : w))
-        );
+        const response = await getFloors(wingId);
+        if (response.success && response.data) {
+          const floors = response.data;
+          setWings((prev) =>
+            prev.map((w) => (w.id === wingId ? { ...w, floors } : w))
+          );
+        }
       } catch (err: any) {
         console.error(`Failed to fetch floors for wing ${wingId}:`, err.message);
         setError(err.message || 'Failed to load floors');
@@ -70,20 +70,22 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
     } else {
       newSet.add(floorId);
       try {
-        const flats = await getFlats(wingId, floorId);
-        // console.log('Setting flats for floor:', floorId, flats);
-        setWings((prev) =>
-          prev.map((w) =>
-            w.id === wingId && w.floors
-              ? {
-                  ...w,
-                  floors: w.floors.map((f) =>
-                    f.floor_id === floorId ? { ...f, flats } : f
-                  ),
-                }
-              : w
-          )
-        );
+        const response = await getFlats(wingId, floorId);
+        if (response.success && response.data) {
+          const flats = response.data;
+          setWings((prev) =>
+            prev.map((w) =>
+              w.id === wingId && w.floors
+                ? {
+                    ...w,
+                    floors: w.floors.map((f) =>
+                      f.floor_id === floorId ? { ...f, flats } : f
+                    ),
+                  }
+                : w
+            )
+          );
+        }
       } catch (err: any) {
         console.error(`Failed to fetch flats for floor ${floorId}:`, err.message);
         setError(err.message || 'Failed to load flats');
@@ -134,9 +136,10 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
     setError(null);
     try {
       // console.log('Fetching wings for societyId:', societyId);
-      const data = await getWings();
-      // console.log('Fetched wings:', data);
-      setWings(data);
+      const response = await getWings();
+      if (response.success && response.data) {
+        setWings(response.data);
+      }
       setExpandedWings(new Set());
       setExpandedFloors(new Set());
       setExpandedFlats(new Set());
@@ -150,10 +153,10 @@ export default function HousingStructure({ societyId }: HousingStructureProps) {
 
   const filteredMembers = (members: SocietyMember[]) => {
     return members.filter(member => {
-      const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = (member.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                            member.email.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter = filterStatus === 'all' || 
-                           member.status.toLowerCase() === filterStatus;
+                           member.status?.toLowerCase() === filterStatus;
       return matchesSearch && matchesFilter;
     });
   };

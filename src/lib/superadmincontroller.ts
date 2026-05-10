@@ -31,6 +31,7 @@ export async function verifyOtp(mobile: string, otp: string) {
 export async function checkSession() {
   return await apiClient('/auth/session', {
     method: 'GET',
+    withAuth: true,
     headers: {
       'Content-Type': 'application/json',
     },
@@ -98,4 +99,62 @@ export async function deleteSociety(id: number) {
     console.error('Error deleting society:', error);
     throw error;
   }
+}
+
+export async function updateMerchantMapper(data: { 
+  societyId: number; 
+  easebuzz_key: string; 
+  easebuzz_salt: string;
+  preferred_gateway?: string;
+}) {
+  try {
+    const response = await apiClient('/superadmin/merchant-mapper', {
+      method: 'POST',
+      body: data,
+    });
+    return response;
+  } catch (error) {
+    console.error('Error updating merchant mapper:', error);
+    throw error;
+  }
+}
+export async function getAppVersions() {
+  return await apiClient('/superadmin/app-versions', {
+    method: 'GET',
+    withAuth: true
+  });
+}
+
+export async function createAppVersion(data: {
+  version: string;
+  source_platform: 'mobile' | 'web';
+  is_force_update: boolean;
+  release_notes: string;
+}) {
+  return await apiClient('/superadmin/app-versions', {
+    method: 'POST',
+    body: data,
+    withAuth: true
+  });
+}
+
+export async function updateAppVersion(id: number, data: {
+  version?: string;
+  source_platform?: 'mobile' | 'web';
+  is_force_update?: boolean;
+  release_notes?: string;
+  is_active?: boolean;
+}) {
+  return await apiClient(`/superadmin/app-versions/${id}`, {
+    method: 'PUT',
+    body: data,
+    withAuth: true
+  });
+}
+
+export async function deleteAppVersion(id: number) {
+  return await apiClient(`/superadmin/app-versions/${id}`, {
+    method: 'DELETE',
+    withAuth: true
+  });
 }

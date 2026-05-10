@@ -6,6 +6,7 @@ export interface User {
   role: string;
   email: string;
   name: string;
+  token?: string;
   societyId?: string;
   societyName?: string;
   avatar?: string;
@@ -17,6 +18,8 @@ interface UserState {
   clearUser: () => void;
 }
 
+import { createJSONStorage } from 'zustand/middleware';
+
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
@@ -26,6 +29,11 @@ export const useUserStore = create<UserState>()(
     }),
     {
       name: 'user-storage', // localStorage key
+      storage: createJSONStorage(() => (typeof window !== 'undefined' ? localStorage : {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      }) as any),
     }
   )
 );

@@ -253,7 +253,9 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
       paid: 'bg-green-100 text-green-800',
       pending: 'bg-yellow-100 text-yellow-800',
       overdue: 'bg-red-100 text-red-800',
-      cancelled: 'bg-gray-100 text-gray-800'
+      cancelled: 'bg-gray-100 text-gray-800',
+      refunded: 'bg-purple-100 text-purple-800',
+      refunded_partially: 'bg-indigo-100 text-indigo-800'
     };
 
       return (
@@ -269,6 +271,9 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
 
   const getCategoryIcon = (category: string, entryType: 'credit' | 'debit') => {
     if (entryType === 'credit') {
+      if (category === 'Asset Booking') {
+        return <ArrowUpCircle className="h-4 w-4 text-blue-600" />;
+      }
       return <CreditCard className="h-4 w-4 text-green-600" />;
     } else {
       return <Receipt className="h-4 w-4 text-red-600" />;
@@ -440,6 +445,9 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -462,9 +470,11 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
                     <td className="px-6 py-4">
                       <div className="flex items-start space-x-3">
                         <div className={`mt-1 h-8 w-8 rounded-lg flex items-center justify-center ${
-                          entry.entry_type === 'credit' 
-                            ? 'bg-green-100 text-green-600' 
-                            : 'bg-red-100 text-red-600'
+                          entry.category === 'Asset Booking'
+                            ? 'bg-blue-100 text-blue-600'
+                            : entry.entry_type === 'credit' 
+                              ? 'bg-green-100 text-green-600' 
+                              : 'bg-red-100 text-red-600'
                         }`}>
                           {getCategoryIcon(entry.category, entry.entry_type)}
                         </div>
@@ -523,6 +533,9 @@ const PassbookManagement: React.FC<PassbookManagementProps> = ({ societyId }) =>
                     
                     <td className="px-6 py-4">
                       <span className="text-sm text-gray-900">{formatDate(entry.created_at)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {getStatusBadge(entry.status)}
                     </td>
                   </motion.tr>
                 ))

@@ -244,53 +244,53 @@ export default function StaffOnboarding() {
   };
 
   const onSubmit = async (formData: OnboardingFormData) => {
-  if (!isValid) {
-    toast.error('Please fix the form errors', { autoClose: 3000 });
-    return;
-  }
-
-  if (!checkPasswordsMatch()) {
-    toast.error('Passwords do not match', { autoClose: 3000 });
-    return;
-  }
-
-  if (selectedFiles.length === 0) {
-    toast.error('Please upload at least one document', { autoClose: 3000 });
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const documentUrls: { url: string; name: string }[] = [];
-
-    for (const file of selectedFiles) {
-      try {
-        const result = await uploadFile(token as string, file);
-        documentUrls.push(result);
-      } catch (error: any) {
-        toast.error(`Failed to upload ${file.name}: ${error.message}`, { autoClose: 5000 });
-        throw error; // Stop the submission
-      }
+    if (!isValid) {
+      toast.error('Please fix the form errors', { autoClose: 3000 });
+      return;
     }
 
-    const payload = {
-      token: token as string,
-      password: formData.password,
-      documentUrls,
-    };
+    if (!checkPasswordsMatch()) {
+      toast.error('Passwords do not match', { autoClose: 3000 });
+      return;
+    }
 
-    const result = await completeStaffOnboarding(payload);
+    if (selectedFiles.length === 0) {
+      toast.error('Please upload at least one document', { autoClose: 3000 });
+      return;
+    }
 
-    toast.success(result.message || 'Onboarding completed successfully!', { autoClose: 3000 });
-    setIsSubmitted(true);
+    setLoading(true);
+    try {
+      const documentUrls: { url: string; name: string }[] = [];
 
-  } catch (error: any) {
-    console.error('Onboarding error:', error);
-    toast.error(error.message || 'Error processing request. Please try again.', { autoClose: 5000 });
-  } finally {
-    setLoading(false);
-  }
-};
+      for (const file of selectedFiles) {
+        try {
+          const result = await uploadFile(token as string, file);
+          documentUrls.push(result);
+        } catch (error: any) {
+          toast.error(`Failed to upload ${file.name}: ${error.message}`, { autoClose: 5000 });
+          throw error; // Stop the submission
+        }
+      }
+
+      const payload = {
+        token: token as string,
+        password: formData.password,
+        documentUrls,
+      };
+
+      const result = await completeStaffOnboarding(payload);
+
+      toast.success(result.message || 'Onboarding completed successfully!', { autoClose: 3000 });
+      setIsSubmitted(true);
+
+    } catch (error: any) {
+      console.error('Onboarding error:', error);
+      toast.error(error.message || 'Error processing request. Please try again.', { autoClose: 5000 });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -539,9 +539,8 @@ export default function StaffOnboarding() {
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                  isDragging ? 'border-blue-500 bg-blue-50' : ''
-                }`}
+                className={`border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer transition-colors ${isDragging ? 'border-blue-500 bg-blue-50' : ''
+                  }`}
               >
                 <input
                   type="file"

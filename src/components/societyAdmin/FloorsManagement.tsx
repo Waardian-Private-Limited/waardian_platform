@@ -33,9 +33,12 @@ export default function FloorsManagement({ societyId }: FloorsManagementProps) {
     setLoading(true);
     setError(null);
     try {
-      const data = await getWings();
-      setWings(data);
-      if (data.length > 0 && !selectedWingId) setSelectedWingId(data[0].id);
+      const response = await getWings();
+      if (response.success && response.data) {
+        const data = response.data;
+        setWings(data);
+        if (data.length > 0 && !selectedWingId) setSelectedWingId(data[0].id);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load wings');
     } finally {
@@ -47,8 +50,10 @@ export default function FloorsManagement({ societyId }: FloorsManagementProps) {
     setLoading(true);
     setError(null);
     try {
-      const data = await getFloors(wingId);
-      setFloors(data);
+      const response = await getFloors(wingId);
+      if (response.success && response.data) {
+        setFloors(response.data);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load floors');
     } finally {

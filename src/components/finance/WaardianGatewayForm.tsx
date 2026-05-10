@@ -40,7 +40,9 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
     ifsc: '',
     email: '',
     phone: '',
-    // panNumber removed
+    panNumber: '',
+    gstNumber: '',
+    bankAccountType: 'Saving',
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -122,23 +124,19 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
     if (!formData.ifsc) newErrors.ifsc = 'IFSC code is required';
     if (!formData.email) newErrors.email = 'Email is required';
     if (!formData.phone) newErrors.phone = 'Phone number is required';
+    if (!formData.panNumber) newErrors.panNumber = 'PAN number is required';
+    if (!formData.bankAccountType) newErrors.bankAccountType = 'Account type is required';
     
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (formData.email && !emailRegex.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    // PAN validation
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    if (formData.panNumber && !panRegex.test(formData.panNumber)) {
+      newErrors.panNumber = 'Please enter a valid PAN number';
     }
-    
-    // Phone validation
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (formData.phone && !phoneRegex.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid 10-digit phone number';
-    }
-    
-    // IFSC validation
-    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-    if (formData.ifsc && !ifscRegex.test(formData.ifsc)) {
-      newErrors.ifsc = 'Please enter a valid IFSC code';
+
+    // GST validation (optional)
+    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if (formData.gstNumber && !gstRegex.test(formData.gstNumber)) {
+      newErrors.gstNumber = 'Please enter a valid GST number';
     }
     
     setErrors(newErrors);
@@ -175,6 +173,11 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
           state: formData.state,
           postal_code: formData.postalCode,
           country: formData.country,
+          pan_number: formData.panNumber,
+          gst_number: formData.gstNumber,
+          bank_account_type: formData.bankAccountType,
+          bank_name: bankDetails?.name || '',
+          branch_name: bankDetails?.BRANCH || '',
         },
         withAuth: true
       });
@@ -196,10 +199,10 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Building2 className="h-5 w-5 text-blue-600" />
-          Register with Waardian Gateway
+          Register with Waardian Gateway (Easebuzz)
         </CardTitle>
         <CardDescription>
-          Complete your society registration to use Waardian's secure payment gateway.
+          Complete your society registration to use Waardian's secure payment gateway powered by Easebuzz.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -442,6 +445,25 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
                 />
                 {errors.accountHolderName && <p className="text-sm text-red-600">{errors.accountHolderName}</p>}
               </div>
+
+              <div className="space-y-2">
+                <label htmlFor="bankAccountType" className="text-sm font-medium text-gray-700">
+                  Bank Account Type *
+                </label>
+                <select
+                  id="bankAccountType"
+                  name="bankAccountType"
+                  value={formData.bankAccountType}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.bankAccountType ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="Saving">Saving</option>
+                  <option value="Current">Current</option>
+                </select>
+                {errors.bankAccountType && <p className="text-sm text-red-600">{errors.bankAccountType}</p>}
+              </div>
               
               <div className="space-y-2">
                 <label htmlFor="accountNumber" className="text-sm font-medium text-gray-700">
@@ -525,6 +547,50 @@ export default function WaardianGatewayForm({ onSuccess, onCancel }: WaardianGat
                     {bankDetails.CITY && <p className="text-green-700">{bankDetails.CITY}</p>}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+
+
+          {/* Identity & Tax Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900">Identity & Tax Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="panNumber" className="text-sm font-medium text-gray-700">
+                  PAN Number *
+                </label>
+                <input
+                  type="text"
+                  id="panNumber"
+                  name="panNumber"
+                  value={formData.panNumber}
+                  onChange={handleInputChange}
+                  placeholder="ABCDE1234F"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase ${
+                    errors.panNumber ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.panNumber && <p className="text-sm text-red-600">{errors.panNumber}</p>}
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="gstNumber" className="text-sm font-medium text-gray-700">
+                  GST Number (Optional)
+                </label>
+                <input
+                  type="text"
+                  id="gstNumber"
+                  name="gstNumber"
+                  value={formData.gstNumber}
+                  onChange={handleInputChange}
+                  placeholder="22AAAAA0000A1Z5"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase ${
+                    errors.gstNumber ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.gstNumber && <p className="text-sm text-red-600">{errors.gstNumber}</p>}
               </div>
             </div>
           </div>

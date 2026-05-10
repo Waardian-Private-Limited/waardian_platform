@@ -9,6 +9,7 @@ interface User {
   name?: string;
   societyName?: string;
   avatar?: string;
+  token?: string; // JWT token from backend
 }
 
 export interface AuthResponse {
@@ -17,6 +18,7 @@ export interface AuthResponse {
   detail?: string;
   role?: string;
   user?: User;
+  token?: string; // Token might be at top level
 }
 
 // 🧠 Helper to decrypt response safely

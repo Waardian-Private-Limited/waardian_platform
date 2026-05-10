@@ -1,15 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'react-hot-toast';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
@@ -29,23 +24,23 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-  icon: [
-    { url: '/favicon.ico' },
-  ],
-  shortcut: [
-    { url: '/favicon.ico' },
-  ],
-  apple: [
-    { url: '/apple-icon.png' },
-  ],
-  other: [
-    {
-      rel: 'mask-icon',
-      url: '/safari-pinned-tab.svg',
-      color: '#000000',
-    },
-  ],
-},
+    icon: [
+      { url: '/favicon.ico' },
+    ],
+    shortcut: [
+      { url: '/favicon.ico' },
+    ],
+    apple: [
+      { url: '/apple-icon.png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/safari-pinned-tab.svg',
+        color: '#000000',
+      },
+    ],
+  },
 
   openGraph: {
     type: 'website',
@@ -81,6 +76,18 @@ export const metadata: Metadata = {
   },
 };
 
+// 🛡️ Final SSR Defense - Polyfill global localStorage to prevent crashes from shared utilities
+if (typeof window === 'undefined') {
+  (global as any).localStorage = {
+    getItem: () => null,
+    setItem: () => { },
+    removeItem: () => { },
+    clear: () => { },
+    key: () => null,
+    length: 0,
+  };
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -89,7 +96,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${outfit.variable} antialiased font-sans`}
       >
         <Toaster position="top-right" />
         {children}

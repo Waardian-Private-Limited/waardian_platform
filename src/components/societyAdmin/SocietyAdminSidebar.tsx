@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Home,
   Users,
@@ -37,6 +37,8 @@ import {
   Gift,
   Crown,
   AlertTriangle,
+  Paintbrush,
+  Wrench,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -66,86 +68,48 @@ interface SocietyAdminSidebarProps {
 
 const navigationItems: NavigationItem[] = [
     {
-      id: 'dashboard',
+      id: 'societyadmin',
       label: 'Dashboard',
       icon: Home,
       href: '/societyadmin',
     },
     {
-      id: 'management',
-      label: 'Management',
+      id: 'residency-management',
+      label: 'Residency',
       icon: Users,
       isCategory: true,
       children: [
         {
           id: 'members',
-          label: 'Member Management',
+          label: 'Member Registry',
           icon: Users,
           href: '/societyadmin/members',
         },
         {
-          id: 'staff',
-          label: 'Staff Management',
-          icon: UserCog,
-          href: '/societyadmin/staff',
-        },
-        {
-          id: 'visitors',
-          label: 'Visitor Management',
+          id: 'visitor-management',
+          label: 'Visitor Protocols',
           icon: UserCheck,
           href: '/societyadmin/visitor-management',
         },
         {
-          id: 'amenity-management',
-          label: 'Amenity Management',
-          icon: Waves,
-          href: '/societyadmin/amenity-management',
+          id: 'move-management',
+          label: 'Move Logs',
+          icon: Truck,
+          href: '/societyadmin/move-management',
         },
-        {
-          id: 'building-structure',
-          label: 'Building Structure',
-          icon: Building2,
-          isCategory: true,
-          children: [
-            {
-              id: 'wings',
-              label: 'Wings',
-              icon: Folder,
-              href: '/societyadmin/wings',
-            },
-            {
-              id: 'floors',
-              label: 'Floors',
-              icon: Folder,
-              href: '/societyadmin/floors',
-            },
-            {
-              id: 'flats',
-              label: 'Flats',
-              icon: Folder,
-              href: '/societyadmin/flats',
-            },
-          ],
-        },
+      ],
+    },
+    {
+      id: 'comm-ops',
+      label: 'Community & Ops',
+      icon: Megaphone,
+      isCategory: true,
+      children: [
         {
           id: 'notices',
-          label: 'Notices & Alerts',
+          label: 'Notice Hub',
           icon: Bell,
-          isCategory: true,
-          children: [
-            {
-              id: 'notices-dashboard',
-              label: 'Notice Dashboard',
-              icon: BarChart3,
-              href: '/societyadmin/notices-dashboard',
-            },
-            {
-              id: 'notices-management',
-              label: 'Notice Management',
-              icon: Megaphone,
-              href: '/societyadmin/notices-management',
-            },
-          ],
+          href: '/societyadmin/notices',
         },
         {
           id: 'polls',
@@ -154,18 +118,77 @@ const navigationItems: NavigationItem[] = [
           href: '/societyadmin/polls',
         },
         {
-          id: 'tasks',
-          label: 'Task Scheduling',
-          icon: Calendar,
-          href: '/societyadmin/tasks',
+          id: 'amenity-management',
+          label: 'Amenity Management',
+          icon: Waves,
+          href: '/societyadmin/amenity-management',
         },
         {
-          id: 'complaints',
-          label: 'Complaint Resolution',
-          icon: Headphones,
-          href: '/societyadmin/complaints',
+          id: 'staff',
+          label: 'Staff Management',
+          icon: UserCog,
+          href: '/societyadmin/staff',
         },
-
+      ],
+    },
+    {
+      id: 'service-hub',
+      label: 'Service Hub',
+      icon: Headphones,
+      isCategory: true,
+      children: [
+        {
+          id: 'document-requests',
+          label: 'Document Requests',
+          icon: FileText,
+          href: '/societyadmin/document-requests',
+        },
+      ],
+    },
+    {
+      id: 'building-structure',
+      label: 'Infrastructure',
+      icon: Building2,
+      isCategory: true,
+      children: [
+        {
+          id: 'wings',
+          label: 'Wings',
+          icon: Folder,
+          href: '/societyadmin/wings',
+        },
+        {
+          id: 'floors',
+          label: 'Floors',
+          icon: Folder,
+          href: '/societyadmin/floors',
+        },
+        {
+          id: 'flats',
+          label: 'Flats',
+          icon: Folder,
+          href: '/societyadmin/flats',
+        },
+      ],
+    },
+    {
+      id: 'work-management',
+      label: 'Work Management',
+      icon: Wrench,
+      isCategory: true,
+      children: [
+        {
+          id: 'renovations',
+          label: 'Renovation Requests',
+          icon: Paintbrush,
+          href: '/societyadmin/renovations',
+        },
+        {
+          id: 'maintenance-requests',
+          label: 'Maintenance Requests',
+          icon: Wrench,
+          href: '/societyadmin/maintenance-requests',
+        },
       ],
     },
     {
@@ -235,11 +258,67 @@ const navigationItems: NavigationItem[] = [
             },
           ],
         },
+      ],
+    },
+    {
+      id: 'asset-management',
+      label: 'Asset Management',
+      icon: Package,
+      isCategory: true,
+      children: [
         {
-          id: 'payment-gateway',
-          label: 'Payment Gateway',
-          icon: CreditCard,
-          href: '/societyadmin/payment-gateway',
+          id: 'asset-dashboard',
+          label: 'Assets Dashboard',
+          icon: BarChart3,
+          href: '/societyadmin/asset-dashboard',
+        },
+        {
+          id: 'asset-list',
+          label: 'Asset List',
+          icon: Package,
+          href: '/societyadmin/asset-list',
+        },
+        {
+          id: 'asset-booking',
+          label: 'Asset Booking',
+          icon: Calendar,
+          href: '/societyadmin/asset-booking',
+        },
+        {
+          id: 'asset-movement',
+          label: 'Asset Movement',
+          icon: Truck,
+          href: '/societyadmin/asset-movement',
+        },
+        {
+          id: 'asset-maintenance',
+          label: 'Maintenance',
+          icon: Settings,
+          href: '/societyadmin/asset-maintenance',
+        },
+        {
+          id: 'asset-amc',
+          label: 'AMC Contracts',
+          icon: FileSignature,
+          href: '/societyadmin/asset-amc',
+        },
+        {
+          id: 'asset-inventory',
+          label: 'Inventory / Spares',
+          icon: CheckSquare,
+          href: '/societyadmin/asset-inventory',
+        },
+        {
+          id: 'asset-vendors',
+          label: 'Vendors',
+          icon: Users,
+          href: '/societyadmin/asset-vendors',
+        },
+        {
+          id: 'asset-reports',
+          label: 'Reports & Analytics',
+          icon: BarChart3,
+          href: '/societyadmin/asset-reports',
         },
       ],
     },
@@ -258,7 +337,7 @@ const navigationItems: NavigationItem[] = [
       ],
     },
     {
-      id: 'subscription',
+      id: 'billing',
       label: 'Subscription',
       icon: Crown,
       href: '/societyadmin/billing',
@@ -280,19 +359,50 @@ export default function SocietyAdminSidebar({
   user,
 }: SocietyAdminSidebarProps) {
   const [mounted, setMounted] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>([
-    'management',
-    'finance',
-    'community', // Added to expand the new Community subcategory by default
-    'invoices-collections',
-    'expenses',
-    'ledger',
-    'society',
-  ]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Helper to find all parent IDs of a target ID
+  const findParentIds = (items: NavigationItem[], targetId: string, parents: string[] = []): string[] | null => {
+    for (const item of items) {
+      if (item.id === targetId) return parents;
+      if (item.children) {
+        const result = findParentIds(item.children, targetId, [...parents, item.id]);
+        if (result) return result;
+      }
+    }
+    return null;
+  };
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Update expanded categories when activeTab changes
+  useEffect(() => {
+    if (activeTab) {
+      const parents = findParentIds(navigationItems, activeTab);
+      if (parents) {
+        setExpandedCategories(parents);
+      }
+    }
+  }, [activeTab]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (mounted && activeTab && scrollContainerRef.current) {
+      setTimeout(() => {
+        const activeElement = scrollContainerRef.current?.querySelector(`[data-active="true"]`);
+        if (activeElement) {
+          activeElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest',
+          });
+        }
+      }, 300); // Wait for expansion animation
+    }
+  }, [activeTab, expandedCategories, mounted]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories((prev) =>
@@ -340,7 +450,10 @@ export default function SocietyAdminSidebar({
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1">
+      <nav 
+        ref={scrollContainerRef}
+        className="flex-1 p-3 space-y-1 overflow-y-auto no-scrollbar"
+      >
         {navigationItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -348,7 +461,11 @@ export default function SocietyAdminSidebar({
 
           if (item.isCategory) {
             return (
-              <div key={item.id} className="space-y-1">
+              <div 
+                key={item.id} 
+                className="space-y-1"
+                data-active={isActive || isExpanded}
+              >
                 <button
                   onClick={() => !isCollapsed && toggleCategory(item.id)}
                   className={`w-full flex items-center px-3 py-2.5 rounded-lg text-left transition-all duration-200 text-gray-700 hover:bg-gray-50 ${
@@ -373,7 +490,6 @@ export default function SocietyAdminSidebar({
                 {!isCollapsed && isExpanded && item.children && (
                   <div className="ml-4 space-y-1">
                     {item.children
-                      .filter((child) => child.id !== 'tasks' && child.id !== 'complaints')
                       .map((child) => {
                         const ChildIcon = child.icon;
                         const isChildActive = activeTab === child.id;
@@ -382,7 +498,11 @@ export default function SocietyAdminSidebar({
 
                         if (isChildCategory) {
                           return (
-                            <div key={child.id} className="space-y-1">
+                            <div 
+                              key={child.id} 
+                              className="space-y-1"
+                              data-active={isChildActive || isChildExpanded}
+                            >
                               <button
                                 onClick={() => toggleCategory(child.id)}
                                 className="w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 text-gray-600 hover:bg-gray-50"
@@ -406,6 +526,7 @@ export default function SocietyAdminSidebar({
                                     return (
                                       <button
                                         key={subChild.id}
+                                        data-active={isSubChildActive}
                                         onClick={() => setActiveTab(subChild.href?.split('/').pop() || subChild.id)}
                                         className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
                                           isSubChildActive
@@ -431,6 +552,7 @@ export default function SocietyAdminSidebar({
                         return (
                           <button
                             key={child.id}
+                            data-active={isChildActive}
                             onClick={() => setActiveTab(child.href?.split('/').pop() || child.id)}
                             className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-all duration-200 ${
                               isChildActive
@@ -452,6 +574,7 @@ export default function SocietyAdminSidebar({
           return (
             <button
               key={item.id}
+              data-active={isActive}
               onClick={() => setActiveTab(item.href?.split('/').pop() || item.id)}
               className={`w-full flex items-center px-3 py-2.5 rounded-lg text-left transition-all duration-200 ${
                 isActive

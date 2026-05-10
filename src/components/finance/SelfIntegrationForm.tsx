@@ -38,39 +38,39 @@ export default function SelfIntegrationForm({ onSuccess }: SelfIntegrationFormPr
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.api_key.trim()) {
       newErrors.api_key = 'API Key is required';
     }
-    
+
     if (!formData.secret_key.trim()) {
       newErrors.secret_key = 'Secret Key is required';
     }
-    
+
     if (!formData.webhook_secret.trim()) {
       newErrors.webhook_secret = 'Webhook Secret is required';
     }
-    
+
     if (formData.gateway_provider === 'razorpay') {
       if (!formData.api_key.startsWith('rzp_')) {
         newErrors.api_key = 'Razorpay API Key should start with "rzp_"';
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
-      
+
       const response = await apiClient('/gateway/configure_gateway', {
         method: 'POST',
         body: formData,
@@ -130,9 +130,8 @@ export default function SelfIntegrationForm({ onSuccess }: SelfIntegrationFormPr
               value={formData.api_key}
               onChange={handleInputChange}
               placeholder={formData.gateway_provider === 'razorpay' ? 'rzp_test_...' : 'Enter your API key'}
-              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                errors.api_key ? 'border-red-500' : 'border-gray-300'
-              }`}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.api_key ? 'border-red-500' : 'border-gray-300'
+                }`}
             />
             {errors.api_key && (
               <p className="text-sm text-red-600 flex items-center gap-1">
@@ -155,9 +154,8 @@ export default function SelfIntegrationForm({ onSuccess }: SelfIntegrationFormPr
                 value={formData.secret_key}
                 onChange={handleInputChange}
                 placeholder="Enter your secret key"
-                className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.secret_key ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.secret_key ? 'border-red-500' : 'border-gray-300'
+                  }`}
               />
               <button
                 type="button"
@@ -188,9 +186,8 @@ export default function SelfIntegrationForm({ onSuccess }: SelfIntegrationFormPr
                 value={formData.webhook_secret}
                 onChange={handleInputChange}
                 placeholder="Enter webhook secret for enhanced security"
-                className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.webhook_secret ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 pr-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.webhook_secret ? 'border-red-500' : 'border-gray-300'
+                  }`}
               />
               <button
                 type="button"

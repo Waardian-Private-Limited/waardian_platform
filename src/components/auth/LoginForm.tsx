@@ -45,6 +45,7 @@ export default function LoginFormTabs() {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 Finalizing Email Submission for:', email);
     setError('');
     setIsLoading(true);
 
@@ -75,6 +76,7 @@ export default function LoginFormTabs() {
           setStep('accounts');
         }
       } else if (response.account) {
+        console.log('📦 Account(s) found:', response.account);
         setSelectedAccount(response.account);
         setStep(tab === 'password' ? 'password' : 'otp');
         setMobile(response.account.phone || response.account.email);
@@ -82,6 +84,7 @@ export default function LoginFormTabs() {
         setError('No valid accounts found');
       }
     } catch (err: any) {
+      console.error('❌ Login Error:', err);
       setError(err.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -110,13 +113,17 @@ export default function LoginFormTabs() {
 
       const response = await login({ type: 'password', email, password });
 
-      if (response.success && response.user) {
+      if (response.success && (response.user || response.token)) {
+        const token = response.token || response.user?.token;
         const user = {
-          ...response.user,
-          role: response.role || '',
-          name: response.user.name || email,
+          id: response.user?.id || 'superadmin-1',
+          email: response.user?.email || email,
+          role: response.role || 'superadmin',
+          name: response.user?.name || email,
+          token: token,
         };
-        setUser(user);
+        console.log('📦 COMMITING SUPERADMIN TO STORE:', { ...user, token: !!token });
+        setUser(user as any);
 
         const roleRoutes: { [key: string]: string } = {
           superadmin: '/superadmin',
@@ -145,14 +152,19 @@ export default function LoginFormTabs() {
 
       const response = await loginWithAccount(selectedAccount.id, password);
 
-      if (response.success && response.user) {
+      if (response.success && (response.user || response.token)) {
+        const token = response.token || response.user?.token;
         const user = {
-          ...response.user,
-          role: response.role || '',
-          name: response.user.name || selectedAccount.username,
-          societyName: selectedAccount.societyName || '',
+          id: response.user?.id || selectedAccount.id,
+          email: response.user?.email || selectedAccount.email,
+          role: response.role || selectedAccount.userType || 'societyAdmin',
+          name: response.user?.name || selectedAccount.username,
+          societyId: response.user?.societyId || selectedAccount.societyId,
+          societyName: selectedAccount.societyName || response.user?.societyName || '',
+          token: token,
         };
-        setUser(user);
+        console.log('📦 COMMITING USER TO STORE:', { ...user, token: !!token });
+        setUser(user as any);
 
         const roleRoutes: { [key: string]: string } = {
           superadmin: '/superadmin',
@@ -224,13 +236,17 @@ export default function LoginFormTabs() {
 
       const response = await verifyOtp(mobile, otp, selectedAccount?.id);
 
-      if (response.success && response.user) {
+      if (response.success && (response.user || response.token)) {
+        const token = response.token || response.user?.token;
         const user = {
-          ...response.user,
-          role: response.role || '',
-          name: response.user.name || selectedAccount?.username || '',
+          id: response.user?.id || selectedAccount?.id || 'user-1',
+          email: response.user?.email || mobile,
+          role: response.role || selectedAccount?.userType || 'member',
+          name: response.user?.name || selectedAccount?.username || '',
+          token: token,
         };
-        setUser(user);
+        console.log('📦 COMMITING OTP USER TO STORE:', { ...user, token: !!token });
+        setUser(user as any);
 
         const roleRoutes: { [key: string]: string } = {
           superadmin: '/superadmin',

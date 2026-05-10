@@ -1,20 +1,27 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Search, Users, UserX, CheckCircle, AlertTriangle, Eye, X } from "lucide-react";
+import { 
+  Search, 
+  Users, 
+  UserX, 
+  CheckCircle, 
+  AlertTriangle, 
+  Eye, 
+  X, 
+  ChevronLeft, 
+  ChevronRight,
+  Filter,
+  ArrowUpRight,
+  Calendar,
+  Activity,
+  RefreshCcw,
+  Copy,
+  Check
+} from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-} from "recharts";
+import { motion, AnimatePresence } from 'framer-motion';
+import clsx from 'clsx';
 
 interface StaffDashboardProps {
   societyId: string;
@@ -44,22 +51,6 @@ interface StaffItem {
   raw?: any;
 }
 
-interface StaffResponse {
-  success: boolean;
-  data: StaffItem[];
-  total: number;
-  message?: string;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  Present: "#10b981",
-  Absent: "#ef4444",
-  "On Leave": "#f59e0b",
-  "Week Off": "#6366f1",
-  marked: "#10b981",
-  not_marked: "#ef4444",
-};
-
 export default function StaffDashboard({ societyId }: StaffDashboardProps) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +63,29 @@ export default function StaffDashboard({ societyId }: StaffDashboardProps) {
   const [societyOnly, setSocietyOnly] = useState<boolean>(true);
   const [detailsOpen, setDetailsOpen] = useState<boolean>(false);
   const [selected, setSelected] = useState<StaffItem | null>(null);
+  const [regenerating, setRegenerating] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
+
+  const handleRegenerateOnboarding = async (staffId: number, phone: string) => {
+    setRegenerating(true);
+    try {
+      const res = await apiClient<any>("/staff/regenerate-onboarding", {
+        method: "POST",
+        body: { staffId, phone },
+        withAuth: true
+      });
+      
+      if (res.success && res.data?.onboardingLink) {
+        await navigator.clipboard.writeText(res.data.onboardingLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      }
+    } catch (e) {
+      console.error("Failed to regenerate onboarding:", e);
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const fetchStaff = async () => {
     setLoading(true);
@@ -128,366 +142,406 @@ export default function StaffDashboard({ societyId }: StaffDashboardProps) {
     const leaveCount = staff.filter((s) => (s.status || "").toLowerCase() === "on leave").length;
     const weekOffCount = staff.filter((s) => (s.status || "").toLowerCase() === "week off").length;
 
-    const byDesignation: Record<string, number> = {};
-    staff.forEach((s) => {
-      const key = s.designation || "Unknown";
-      byDesignation[key] = (byDesignation[key] || 0) + 1;
-    });
-
-    const statusBuckets: Record<string, number> = {};
-    staff.forEach((s) => {
-      const key = s.status || (s.isCheckedIn ? "Present" : "Absent");
-      statusBuckets[key] = (statusBuckets[key] || 0) + 1;
-    });
-
     return {
       totalCount,
       checkedInCount,
       absentCount,
       leaveCount,
       weekOffCount,
-      byDesignation,
-      statusBuckets,
     };
   }, [staff]);
 
-  const statusPieData = useMemo(() => {
-    return Object.entries(stats.statusBuckets).map(([name, value]) => ({ name, value }));
-  }, [stats.statusBuckets]);
-
-  const designationBarData = useMemo(() => {
-    return Object.entries(stats.byDesignation).map(([name, count]) => ({ name, count }));
-  }, [stats.byDesignation]);
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-800">Staff Dashboard</h1>
-      </div>
-
-      {/* Filters */}
-      <form onSubmit={onSearchSubmit} className="bg-white p-4 rounded-lg shadow border border-gray-200">
-        <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-3 md:space-y-0">
-          <div className="flex items-center w-full md:w-1/2">
-            <Search className="w-5 h-5 text-gray-400 mr-2" />
-            <input
-              type="text"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Search by name, phone, wing, flat"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+    <main className="flex-1 bg-white text-[#0b1c30] antialiased p-8 font-['Manrope',_sans-serif]">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="flex justify-between items-end">
+          <div>
+            <nav className="flex gap-2 text-[12px] font-bold text-[#565e74] mb-2 uppercase tracking-wide">
+              <span>Management</span>
+              <span>/</span>
+              <span className="text-[#004ac6]">Staff Attendance</span>
+            </nav>
+            <h2 className="text-[32px] font-bold leading-tight tracking-tight text-[#0b1c30]">Attendance Insights</h2>
           </div>
-          <div className="flex items-center space-x-2">
-            <label className="inline-flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={societyOnly}
-                onChange={(e) => setSocietyOnly(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm text-gray-700">Society staff only</span>
-            </label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <select
-              value={size}
-              onChange={(e) => setSize(Number(e.target.value))}
-              className="border border-gray-300 rounded-lg px-3 py-2"
+          <div className="flex gap-3">
+            <button 
+              onClick={() => fetchStaff()}
+              className="bg-white border border-slate-200 text-[#565e74] px-5 py-2 rounded-lg flex items-center gap-2 transition-all font-bold text-[14px] hover:bg-slate-50"
             >
-              {[10, 20, 50, 100].map((n) => (
-                <option key={n} value={n}>{n} / page</option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Apply
+              <Activity className="w-4 h-4" />
+              Refresh Data
             </button>
           </div>
         </div>
-      </form>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Staff</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.totalCount}</p>
+        {/* Overview Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl border border-slate-100 p-6 transition-all hover:border-[#004ac6]/20">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Workforce</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-bold text-[#0b1c30]">{stats.totalCount}</h3>
+              <span className="text-[10px] font-bold text-slate-400">Members</span>
             </div>
-            <Users className="w-8 h-8 text-gray-400" />
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Checked In Now</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.checkedInCount}</p>
+            <div className="mt-4 h-1.5 bg-slate-50 rounded-full overflow-hidden">
+              <div className="h-full bg-slate-400 rounded-full" style={{ width: '100%' }}></div>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-500" />
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Absent</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.absentCount}</p>
-            </div>
-            <UserX className="w-8 h-8 text-red-500" />
-          </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500">On Leave / Week Off</p>
-              <p className="text-2xl font-semibold text-gray-800">{stats.leaveCount + stats.weekOffCount}</p>
-            </div>
-            <AlertTriangle className="w-8 h-8 text-amber-500" />
-          </div>
-        </div>
-      </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800">Attendance Status Distribution</h3>
-          <div className="h-64">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={statusPieData} dataKey="value" nameKey="name" outerRadius={100} label>
-                  {statusPieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || "#3b82f6"} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="bg-white rounded-xl border border-slate-100 p-6 transition-all hover:border-green-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Currently Present</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-bold text-green-600">{stats.checkedInCount}</h3>
+              <span className="text-[10px] font-bold text-green-400">On-Site</span>
+            </div>
+            <div className="mt-4 h-1.5 bg-green-50 rounded-full overflow-hidden">
+              <div className="h-full bg-green-500 rounded-full" style={{ width: `${stats.totalCount ? (stats.checkedInCount / stats.totalCount) * 100 : 0}%` }}></div>
+            </div>
           </div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border border-gray-200">
-          <h3 className="text-lg font-semibold mb-4 text-gray-800">Designation Breakdown</h3>
-          <div className="h-64">
-            <ResponsiveContainer>
-              <BarChart data={designationBarData}>
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="count" fill="#6366f1" name="Count" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
 
-      {/* Staff Table */}
-      <div className="bg-white rounded-lg shadow border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">Today's Attendance</h3>
+          <div className="bg-white rounded-xl border border-slate-100 p-6 transition-all hover:border-red-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Absenteeism</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-bold text-red-600">{stats.absentCount}</h3>
+              <span className="text-[10px] font-bold text-red-400">Off-Duty</span>
+            </div>
+            <div className="mt-4 h-1.5 bg-red-50 rounded-full overflow-hidden">
+              <div className="h-full bg-red-500 rounded-full" style={{ width: `${stats.totalCount ? (stats.absentCount / stats.totalCount) * 100 : 0}%` }}></div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-100 p-6 transition-all hover:border-amber-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Leave / Week Off</p>
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-2xl font-bold text-amber-600">{stats.leaveCount + stats.weekOffCount}</h3>
+              <span className="text-[10px] font-bold text-amber-400">Scheduled</span>
+            </div>
+            <div className="mt-4 h-1.5 bg-amber-50 rounded-full overflow-hidden">
+              <div className="h-full bg-amber-500 rounded-full" style={{ width: `${stats.totalCount ? ((stats.leaveCount + stats.weekOffCount) / stats.totalCount) * 100 : 0}%` }}></div>
+            </div>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="p-6 text-center text-gray-600">Loading staff...</div>
-        ) : error ? (
-          <div className="p-6 text-center text-red-600">{error}</div>
-        ) : (
+        {/* Filter Section */}
+        <div className="bg-white rounded-xl border border-slate-100 p-3 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <form onSubmit={onSearchSubmit} className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search staff, phone, or wing..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] outline-none focus:bg-white focus:ring-1 focus:ring-[#004ac6] transition-all"
+              />
+            </div>
+            
+            <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 rounded-lg px-4 py-2">
+              <input
+                type="checkbox"
+                id="society-only"
+                checked={societyOnly}
+                onChange={(e) => setSocietyOnly(e.target.checked)}
+                className="w-4 h-4 text-[#004ac6] border-slate-300 rounded focus:ring-[#004ac6]"
+              />
+              <label htmlFor="society-only" className="text-[13px] font-bold text-[#565e74] cursor-pointer">Society Staff Only</label>
+            </div>
+
+            <div className="flex gap-2">
+              <select
+                value={size}
+                onChange={(e) => setSize(Number(e.target.value))}
+                className="flex-grow px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-[13px] font-bold text-[#565e74] outline-none"
+              >
+                {[10, 20, 50].map((n) => <option key={n} value={n}>{n} Rows</option>)}
+              </select>
+              <button 
+                type="submit"
+                className="px-6 py-2 bg-[#0b1c30] text-white rounded-lg font-bold text-[13px] hover:bg-[#1a2d44] transition-all"
+              >
+                Apply
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Staff Table */}
+        <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-slate-50">
+              <thead className="bg-slate-50/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Designation</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-In</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Check-Out</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Staff Identity</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Department</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Assignment</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Shift Logs</th>
+                  <th className="px-6 py-4 text-right text-[11px] font-bold text-[#565e74] uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {staff.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-800 font-medium">{s.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.phone}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.designation || "-"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 capitalize">{s.staffType}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.attendanceFlatNames || s.flatNames || "Society"}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+              <tbody className="divide-y divide-slate-50">
+                {loading ? (
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td colSpan={6} className="px-6 py-8"></td>
+                    </tr>
+                  ))
+                ) : staff.length > 0 ? (
+                  staff.map((s) => (
+                    <tr key={s.id} className="hover:bg-slate-50/50 transition-all group">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-[#004ac6] font-bold text-xs">
+                            {s.name[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-[#0b1c30] text-[14px]">{s.name}</p>
+                            <p className="text-[12px] text-[#565e74] font-medium">{s.phone}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-[13px] text-[#0b1c30] font-bold">{s.designation || "Worker"}</div>
+                        <div className="text-[11px] text-[#565e74] capitalize">{s.staffType}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-[12px] text-[#565e74] font-medium max-w-[150px] truncate">
+                          {s.attendanceFlatNames || s.flatNames || "Society Premises"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={clsx(
+                          "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-bold text-[10px] uppercase tracking-tight",
                           (s.status || "").toLowerCase() === "absent" || s.status === "not_marked"
-                            ? "bg-red-100 text-red-700"
+                            ? "bg-red-50 text-red-700"
                             : (s.status || "").toLowerCase() === "on leave"
-                            ? "bg-amber-100 text-amber-700"
+                            ? "bg-amber-50 text-amber-700"
                             : (s.status || "").toLowerCase() === "week off"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {(s.status || (s.isCheckedIn ? "Present" : "Absent"))}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.checkInTime || "-"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700">{s.checkOutTime || "-"}</td>
-                    <td className="px-4 py-3 text-sm">
-                      <button
-                        onClick={() => { setSelected(s); setDetailsOpen(true); }}
-                        className="inline-flex items-center px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700"
-                        aria-label="View details"
-                      >
-                        <Eye className="w-4 h-4 mr-1" /> View
-                      </button>
-                    </td>
+                            ? "bg-indigo-50 text-indigo-700"
+                            : "bg-green-50 text-green-700"
+                        )}>
+                          <span className={clsx(
+                            "w-1 h-1 rounded-full",
+                            (s.status || "").toLowerCase() === "absent" || s.status === "not_marked" ? "bg-red-500" :
+                            (s.status || "").toLowerCase() === "on leave" ? "bg-amber-500" :
+                            (s.status || "").toLowerCase() === "week off" ? "bg-indigo-500" : "bg-green-500"
+                          )}></span>
+                          {s.status || (s.isCheckedIn ? "Present" : "Absent")}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-[12px] font-bold text-[#0b1c30]">
+                            <ArrowUpRight className="w-3 h-3 text-green-500" />
+                            {s.checkInTime || "--:--"}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] font-medium text-[#565e74]">
+                            <ArrowUpRight className="w-3 h-3 text-red-400 rotate-90" />
+                            {s.checkOutTime || "--:--"}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => { setSelected(s); setDetailsOpen(true); }}
+                          className="text-[12px] font-bold text-[#004ac6] hover:underline"
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-slate-400 font-medium">No workforce data available for the selected period.</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
-        )}
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between p-4 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            Showing <span className="font-semibold">{staff.length}</span> of <span className="font-semibold">{total}</span>
-          </p>
-          <div className="flex items-center space-x-2">
-            <button
-              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-50"
-              disabled={page === 0}
-              onClick={() => setPage(Math.max(0, page - 1))}
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-700">Page {page + 1}</span>
-            <button
-              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg disabled:opacity-50"
-              disabled={(page + 1) * size >= total}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </button>
+          {/* Pagination */}
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-[11px] text-[#565e74] font-bold uppercase tracking-wider">
+            <span>Showing {staff.length} of {total} Members</span>
+            <div className="flex gap-2">
+              <button
+                className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all disabled:opacity-30"
+                disabled={page === 0}
+                onClick={() => setPage(Math.max(0, page - 1))}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                className="p-1 hover:bg-white hover:shadow-sm rounded-md transition-all disabled:opacity-30"
+                disabled={(page + 1) * size >= total}
+                onClick={() => setPage(page + 1)}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {detailsOpen && selected && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white w-full max-w-2xl rounded-lg shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Staff Details</h3>
-              <button
-                className="p-2 rounded hover:bg-gray-100"
-                onClick={() => { setDetailsOpen(false); setSelected(null); }}
-                aria-label="Close"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Details Modal */}
+      <AnimatePresence>
+        {detailsOpen && selected && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-[#0b1c30]/10 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.98 }} 
+              className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]"
+            >
+              <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-white sticky top-0 z-10">
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-800 mb-2">Basic Info</h4>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Name:</span> {selected.name}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Phone:</span> {selected.phone}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Email:</span> {selected.raw?.email || "-"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Designation:</span> {selected.designation || "-"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Type:</span> {selected.staffType}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Category:</span> {selected.raw?.category || "-"}</p>
+                  <h3 className="text-[20px] font-bold text-[#0b1c30]">Staff Details</h3>
+                  <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">Complete employment profile</p>
                 </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-800 mb-2">Timing</h4>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Start:</span> {selected.raw?.start_time || "-"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">End:</span> {selected.raw?.end_time || "-"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Flexible Timing:</span> {selected.raw?.flexible_timing ? "Yes" : "No"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Attendance Method:</span> {selected.raw?.attendance_method || "-"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Joining Date:</span> {selected.raw?.joining_date ? new Date(selected.raw.joining_date).toLocaleDateString() : "-"}</p>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">Working Days</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-700">
-                  {Object.entries(selected.raw?.working_days || {}).map(([day, on]) => (
-                    <span key={day} className={`inline-flex items-center px-2 py-1 rounded-full border ${on ? "bg-green-50 border-green-200 text-green-700" : "bg-gray-50 border-gray-200 text-gray-600"}`}>
-                      {day}: {on ? "Yes" : "No"}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-800 mb-2">Today's Attendance</h4>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Status:</span> {selected.status || "-"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Check-In:</span> {selected.checkInTime || "-"}</p>
-                  <p className="text-sm text-gray-700"><span className="font-semibold">Check-Out:</span> {selected.checkOutTime || "-"}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-semibold text-gray-800 mb-2">Assigned</h4>
-                  <p className="text-sm text-gray-700">{selected.attendanceFlatNames || selected.flatNames || "Society"}</p>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleRegenerateOnboarding(selected.id, selected.phone)}
+                    disabled={regenerating}
+                    className={clsx(
+                      "flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold transition-all shadow-sm",
+                      copied 
+                        ? "bg-green-50 text-green-600 border border-green-200" 
+                        : "bg-white border border-slate-200 text-[#004ac6] hover:bg-slate-50"
+                    )}
+                  >
+                    {regenerating ? (
+                      <RefreshCcw className="w-3.5 h-3.5 animate-spin" />
+                    ) : copied ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <RefreshCcw className="w-3.5 h-3.5" />
+                    )}
+                    {copied ? "Link Copied" : "Regenerate Onboarding"}
+                  </button>
+                  <button 
+                    onClick={() => { setDetailsOpen(false); setSelected(null); }}
+                    className="p-2 hover:bg-slate-50 rounded-lg transition-all"
+                  >
+                    <X className="w-5 h-5 text-slate-300" />
+                  </button>
                 </div>
               </div>
 
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">Leave Info</h4>
-                <div className="space-y-1">
-                  {Object.entries(selected.raw?.leave_info || {}).map(([name, val]: any) => (
-                    <p key={name} className="text-sm text-gray-700"><span className="font-semibold">{name}:</span> days {val?.days ?? "-"}, balance {val?.balance ?? "-"}</p>
-                  ))}
+              <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+                {/* Profile Header */}
+                <div className="flex items-center gap-6 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="w-16 h-16 rounded-2xl bg-[#004ac6] flex items-center justify-center text-white text-2xl font-bold">
+                    {selected.name[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-[#0b1c30]">{selected.name}</h4>
+                    <p className="text-[13px] font-bold text-[#004ac6] uppercase tracking-tight">{selected.designation || "Staff Member"}</p>
+                    <div className="flex gap-4 mt-2">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#565e74] font-medium">
+                        <Users className="w-3.5 h-3.5" />
+                        {selected.staffType}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[12px] text-[#565e74] font-medium">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Joined {selected.raw?.joining_date ? new Date(selected.raw.joining_date).toLocaleDateString() : "N/A"}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Contact & Professional */}
+                  <section className="space-y-4">
+                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-[2px]">Contact & Roles</h5>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">Phone</span>
+                        <span className="text-[13px] font-bold text-[#0b1c30]">{selected.phone}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">Email</span>
+                        <span className="text-[13px] font-bold text-[#0b1c30]">{selected.raw?.email || "N/A"}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">Salary Base</span>
+                        <span className="text-[13px] font-bold text-green-600">₹{selected.raw?.salary || "0"}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">UPI ID</span>
+                        <span className="text-[13px] font-bold text-[#004ac6]">{selected.raw?.upi_id || "N/A"}</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Shift & Attendance */}
+                  <section className="space-y-4">
+                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-[2px]">Shift Parameters</h5>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">Work Hours</span>
+                        <span className="text-[13px] font-bold text-[#0b1c30]">{selected.raw?.start_time || "00:00"} - {selected.raw?.end_time || "00:00"}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">Flexible Shift</span>
+                        <span className={clsx("text-[11px] font-bold px-2 py-0.5 rounded", selected.raw?.flexible_timing ? "bg-blue-50 text-blue-600" : "bg-slate-50 text-slate-500")}>
+                          {selected.raw?.flexible_timing ? "ENABLED" : "DISABLED"}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">Method</span>
+                        <span className="text-[13px] font-bold text-[#0b1c30] uppercase tracking-tight">{selected.raw?.attendance_method || "MANUAL"}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-slate-50">
+                        <span className="text-[12px] font-bold text-slate-500 uppercase">Assigned To</span>
+                        <span className="text-[11px] font-bold text-[#565e74]">{selected.attendanceFlatNames || selected.flatNames || "SOCIETY"}</span>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+                {/* Working Days */}
+                <section className="space-y-4">
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-[2px]">Roster Schedule</h5>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(selected.raw?.working_days || {}).map(([day, on]) => (
+                      <div key={day} className={clsx(
+                        "px-4 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-tight transition-all",
+                        on ? "bg-white border-[#004ac6] text-[#004ac6] shadow-sm" : "bg-slate-50 border-slate-100 text-slate-300"
+                      )}>
+                        {day.substring(0, 3)}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Identity Verification */}
+                <section className="p-6 bg-[#0b1c30] rounded-2xl text-white">
+                  <h5 className="text-[10px] font-bold text-white/40 uppercase tracking-[2px] mb-4">Identity Verification</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-[10px] font-bold text-white/50 uppercase mb-1">ID Proof ({selected.raw?.documents?.id_proof_type || "N/A"})</p>
+                      <p className="text-[14px] font-bold tracking-widest">{selected.raw?.documents?.id_proof_number || "XXXXXXXXXXXX"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-white/50 uppercase mb-1">Residential Address</p>
+                      <p className="text-[12px] font-medium text-white/80 leading-relaxed">{selected.raw?.documents?.current_address || "No address provided"}</p>
+                    </div>
+                  </div>
+                </section>
               </div>
 
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">Leave Policy</h4>
-                <p className="text-sm text-gray-700"><span className="font-semibold">FY Cycle:</span> {selected.raw?.leavesPolicy?.financialYearCycle || "-"}</p>
-                <p className="text-sm text-gray-700"><span className="font-semibold">Total Leaves:</span> {selected.raw?.leavesPolicy?.totalLeaves ?? "-"}</p>
-                <p className="text-sm text-gray-700"><span className="font-semibold">Carry Forward:</span> {selected.raw?.leavesPolicy?.carryForwardLimit ?? "-"}</p>
-                <div className="space-y-1">
-                  {(selected.raw?.leavesPolicy?.leaveTypes || []).map((t: any, i: number) => (
-                    <p key={i} className="text-sm text-gray-700">{t?.name}: {t?.count}</p>
-                  ))}
-                </div>
+              <div className="p-8 border-t border-slate-50 flex gap-3 bg-white sticky bottom-0">
+                <button 
+                  onClick={() => { setDetailsOpen(false); setSelected(null); }}
+                  className="w-full py-3 bg-[#0b1c30] text-white rounded-xl font-bold text-[14px] hover:bg-[#1a2d44] transition-all"
+                >
+                  Close Details
+                </button>
               </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">Salary</h4>
-                <p className="text-sm text-gray-700"><span className="font-semibold">Base:</span> {selected.raw?.salary ?? "-"}</p>
-                <p className="text-sm text-gray-700"><span className="font-semibold">Salary Date:</span> {selected.raw?.salary_date ?? "-"}</p>
-                <p className="text-sm text-gray-700"><span className="font-semibold">UPI:</span> {selected.raw?.upi_id || "-"}</p>
-                <div className="space-y-1">
-                  {(selected.raw?.salaryBreakdowns || []).map((b: any, i: number) => (
-                    <p key={i} className="text-sm text-gray-700">
-                      <span className="font-semibold">{b?.type}:</span> {b?.amount} {b?.isAddition ? "(+)": "(-)"}
-                    </p>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">Documents</h4>
-                <p className="text-sm text-gray-700"><span className="font-semibold">ID Type:</span> {selected.raw?.documents?.id_proof_type || "-"}</p>
-                <p className="text-sm text-gray-700"><span className="font-semibold">ID Number:</span> {selected.raw?.documents?.id_proof_number || "-"}</p>
-                <p className="text-sm text-gray-700"><span className="font-semibold">Permanent Address:</span> {selected.raw?.documents?.permanent_address || "-"}</p>
-                <p className="text-sm text-gray-700"><span className="font-semibold">Current Address:</span> {selected.raw?.documents?.current_address || "-"}</p>
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end">
-              <button
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                onClick={() => { setDetailsOpen(false); setSelected(null); }}
-              >
-                Close
-              </button>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
-
-    </div>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }
