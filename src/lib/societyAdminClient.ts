@@ -64,6 +64,32 @@ export interface Wing {
 }
 
 
+// New: Admin permissions payload types for Society Admin
+export interface ModulePermission { read: boolean; write: boolean; }
+export interface AdminPermissions {
+  staff: ModulePermission;
+  notices: ModulePermission;
+  task: ModulePermission;
+  complaints: ModulePermission;
+  voting: ModulePermission;
+  memberManagement: ModulePermission;
+  amenity: ModulePermission;
+  billing: ModulePermission;
+  canAssignAdmins?: boolean;
+}
+
+export interface AdminWingAccess {
+  all: boolean;
+  wingIds: string[];
+}
+
+export interface AddMemberPayload extends Omit<SocietyMember, 'id' | 'createdAt'> {
+  adminAccess?: {
+    wingAccess: AdminWingAccess;
+    permissions: AdminPermissions;
+  };
+}
+
 interface RawWing {
   wing_id: number;
   wing_name: string;
@@ -145,7 +171,7 @@ export const getSocietyMembers = async (params: {
   return response;
 };
 
-export const addSocietyMember = async (member: Omit<SocietyMember, 'id' | 'createdAt'>): Promise<ApiResponse<SocietyMember>> => {
+export const addSocietyMember = async (member: AddMemberPayload): Promise<ApiResponse<SocietyMember>> => {
   const response = await apiClient('/society-admin/members/add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -155,7 +181,7 @@ export const addSocietyMember = async (member: Omit<SocietyMember, 'id' | 'creat
   return response;
 };
 
-export const updateSocietyMember = async (id: number, member: Omit<SocietyMember, 'id' | 'createdAt'>): Promise<ApiResponse<SocietyMember>> => {
+export const updateSocietyMember = async (id: number, member: AddMemberPayload): Promise<ApiResponse<SocietyMember>> => {
   const response = await apiClient(`/society-admin/members/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
