@@ -512,7 +512,7 @@ function CreateWorkPermissionModal({ onClose, onSuccess }: CreateWorkPermissionM
 
     setIsSubmitting(true);
     try {
-      const res = await apiClient('/work/maintenance', {
+      const res = await apiClient('/work/maintenance/create', {
         method: 'POST',
         body: formData,
         withAuth: true

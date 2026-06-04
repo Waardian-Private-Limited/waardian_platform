@@ -73,7 +73,11 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
    const [isLoading, setIsLoading] = useState(false);
    const [uploadState, setUploadState] = useState({ invoice: false, image: false });
    const [vendors, setVendors] = useState<{ id: number; business_name: string }[]>([]);
-   const [structure, setStructure] = useState<{ wings: { id: number; name: string }[], floors: string[], amenities: { id: number; name: string }[] }>({ wings: [], floors: [], amenities: [] });
+   const [structure, setStructure] = useState<{ 
+      wings: { id: number; name: string }[]; 
+      floors: any[]; 
+      amenities: { id: number; name: string }[]; 
+   }>({ wings: [], floors: [], amenities: [] });
 
    const [isOtherWing, setIsOtherWing] = useState(false);
    const [isOtherFloor, setIsOtherFloor] = useState(false);
@@ -143,6 +147,23 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                      useful_life_years: asset.useful_life_years?.toString() || '10',
                      scrap_value: asset.scrap_value?.toString() || '0'
                   }));
+
+                  const wings = sRes.data?.wings || [];
+                  const floors = sRes.data?.floors || [];
+                  
+                  if (asset.block_wing && !wings.some((w: any) => w.name === asset.block_wing)) {
+                     setIsOtherWing(true);
+                  }
+                  if (asset.floor) {
+                     const floorVal = asset.floor.toString();
+                     const floorExists = floors.some((f: any) => {
+                        const levelStr = typeof f === 'string' ? f : f.level?.toString() || '';
+                        return levelStr === floorVal;
+                     });
+                     if (!floorExists) {
+                        setIsOtherFloor(true);
+                     }
+                  }
                }
             }
          } catch {
@@ -318,7 +339,25 @@ export default function AssetAddModal({ assetId, onClose, onSuccess }: AssetAddM
                                           }}
                                        >
                                           <option value="">Select Floor...</option>
-                                          {structure.floors.map(f => <option key={f} value={f}>{f}</option>)}
+                                          {(() => {
+                                             const selectedWing = structure.wings.find(w => w.name === formData.block_wing);
+                                             const filteredFloors = (structure.floors || []).filter((f: any) => {
+                                                if (typeof f === 'string') return true;
+                                                if (selectedWing) {
+                                                   return f.wing_id === selectedWing.id;
+                                                }
+                                                return true;
+                                              });
+                                             const uniqueFloors = Array.from(
+                                                new Set(filteredFloors.map((f: any) => typeof f === 'string' ? f : f.level?.toString() || ''))
+                                             ).filter(Boolean);
+
+                                             return uniqueFloors.map(f => (
+                                                <option key={f} value={f}>
+                                                   {f}
+                                                </option>
+                                             ));
+                                          })()}
                                           <option value="other">OTHER</option>
                                        </select>
                                        {isOtherFloor && <input className="w-full px-4 py-3 bg-white border border-blue-200 rounded-none text-xs font-bold text-slate-900 outline-none mt-2 uppercase" placeholder="ENTER FLOOR..." value={formData.floor} onChange={e => setFormData({ ...formData, floor: e.target.value })} />}
