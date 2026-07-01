@@ -117,14 +117,18 @@ export default function AssetVendors() {
          {/* Header Section */}
          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2">
             <div className="flex items-center gap-3">
-
                <div>
                   <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">Partner Ecosystem</h1>
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">Vendor & Service Network Management</p>
                </div>
             </div>
-
-
+            <button
+               onClick={() => setIsModalOpen(true)}
+               className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-blue-600 text-white px-6 py-2.5 rounded-none transition-all shadow-lg active:scale-95 font-bold text-[10px] uppercase tracking-widest"
+            >
+               <Plus size={14} />
+               <span>Onboard Partner</span>
+            </button>
          </div>
 
          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

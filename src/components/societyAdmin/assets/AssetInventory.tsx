@@ -154,14 +154,18 @@ export default function AssetInventory() {
          {/* Header Area */}
          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-2">
             <div className="flex items-center gap-3">
-
                <div>
                   <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none mb-1">Asset Inventory</h1>
                   <p className="text-xs font-medium text-slate-500 uppercase tracking-widest">Resource Logistics & Provisioning</p>
                </div>
             </div>
-
-
+            <button
+               onClick={() => setIsAddModalOpen(true)}
+               className="flex items-center justify-center gap-2 bg-slate-900 hover:bg-blue-600 text-white px-6 py-2.5 rounded-none transition-all shadow-lg active:scale-95 font-bold text-[10px] uppercase tracking-widest"
+            >
+               <Plus size={14} />
+               <span>Provision Resource</span>
+            </button>
          </div>
 
          {/* KPI Section */}

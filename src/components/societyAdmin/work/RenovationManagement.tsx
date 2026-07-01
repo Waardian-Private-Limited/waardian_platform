@@ -447,7 +447,7 @@ function CreateRenovationModal({ onClose, onSuccess }: CreateRenovationModalProp
 
     setIsSubmitting(true);
     try {
-      const res = await apiClient('/work/renovation', {
+      const res = await apiClient('/work/renovation/create', {
         method: 'POST',
         body: formData,
         withAuth: true
