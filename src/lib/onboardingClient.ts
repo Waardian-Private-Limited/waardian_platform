@@ -89,10 +89,7 @@ export async function validatePromoCode(code: string, email: string) {
   try {
     const response = await apiClient('/onboarding/validate-promo', {
       method: 'POST',
-      body: JSON.stringify({ code, email }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      body: { code, email },
     });
     // console.log('Promo code validation response:', response);
     return response.data; // { valid: boolean, discount: number, message?: string }
