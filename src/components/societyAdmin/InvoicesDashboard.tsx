@@ -182,7 +182,7 @@ const InvoicesDashboard: React.FC<{ societyId: string }> = ({ societyId }) => {
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#64748b' }} />
                     <Tooltip 
                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                      formatter={(v: number) => [formatCurrency(v), 'Collected']}
+                      formatter={(v) => [formatCurrency(Number(v) || 0), 'Collected']}
                     />
                     <Area type="monotone" dataKey="amount" stroke="#004ac6" strokeWidth={3} fillOpacity={1} fill="url(#colorAmount)" />
                   </AreaChart>
@@ -209,7 +209,7 @@ const InvoicesDashboard: React.FC<{ societyId: string }> = ({ societyId }) => {
                     >
                       { [0,1,2].map((_, i) => <Cell key={i} fill={['#10B981', '#3B82F6', '#EF4444'][i]} />) }
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                    <Tooltip formatter={(v) => formatCurrency(Number(v) || 0)} />
                     <Legend verticalAlign="bottom" height={36} formatter={(v) => <span className="text-[10px] font-bold uppercase text-slate-500">{v}</span>} />
                   </PieChart>
                 </ResponsiveContainer>
