@@ -82,6 +82,9 @@ const SocietyOnboarding = () => {
   const [promoCode, setPromoCode] = useState('');
   const [promoCodeError, setPromoCodeError] = useState('');
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [paymentSkipped, setPaymentSkipped] = useState(false);
   const [societyName, setSocietyName] = useState('');
   const [isFetchingPincode, setIsFetchingPincode] = useState(false);
   const [certificateFile, setCertificateFile] = useState<File | null>(null);
@@ -846,14 +849,28 @@ const SocietyOnboarding = () => {
       try {
         const response = await validatePromoCode(promoCode, societyForm.societyEmail);
         if (response.valid) {
+          const discount = Number(response.discount) || 0;
           setPromoCodeError('');
-          toast.success('Promo code applied successfully');
+          setPromoApplied(true);
+          setPromoDiscount(discount);
+          setPaymentSkipped(discount >= 100);
+          toast.success(
+            discount >= 100
+              ? 'Promo code applied. Payment will be skipped for this onboarding.'
+              : 'Promo code applied successfully'
+          );
           calculateSubscriptionAmount(selectedPlan);
         } else {
+          setPromoApplied(false);
+          setPromoDiscount(0);
+          setPaymentSkipped(false);
           setPromoCodeError(response.message || 'Invalid or used promo code');
           toast.error(response.message || 'Invalid or used promo code');
         }
       } catch (error) {
+        setPromoApplied(false);
+        setPromoDiscount(0);
+        setPaymentSkipped(false);
         setPromoCodeError('Error validating promo code');
         toast.error('Error validating promo code');
       } finally {
@@ -1076,7 +1093,7 @@ const SocietyOnboarding = () => {
         wings,
         subscription: {
           planId: selectedPlan!.id,
-          amount: isTrialMode ? 0 : subscriptionAmount,
+          amount: isTrialMode || paymentSkipped ? 0 : subscriptionAmount,
           pricePerFlat: selectedPlan!.pricePerFlat,
           totalFlats: calculateTotalFlats(),
           modules: selectedPlan!.modules,
@@ -1107,6 +1124,28 @@ const SocietyOnboarding = () => {
           toast.success('Trial onboarding completed successfully!');
           router.push('/login');
         }
+      } else if (paymentSkipped) {
+        // Promo code covers the full amount — payment was accepted manually, skip Razorpay entirely.
+        if (certificateFile) {
+          const reader = new FileReader();
+          reader.readAsDataURL(certificateFile);
+          reader.onload = async () => {
+            const base64File = reader.result?.toString().split(',')[1];
+            await completeOnboarding({ ...payload, certificateFile: base64File });
+            toast.success('Onboarding completed successfully! Payment skipped via promo code.');
+            router.push('/login');
+          };
+          reader.onerror = (error) => {
+            console.error('Certificate file read error:', error);
+            setErrorMessage('Failed to read certificate file. Please try again.');
+            setIsSubmitting(false);
+            toast.error('Failed to read certificate file');
+          };
+        } else {
+          await completeOnboarding(payload);
+          toast.success('Onboarding completed successfully! Payment skipped via promo code.');
+          router.push('/login');
+        }
       } else {
         const order = await createRazorpayOrder(payload);
         if (order.error) {
@@ -1123,7 +1162,7 @@ const SocietyOnboarding = () => {
       setIsSubmitting(false);
       toast.error(error.message || 'Failed to initiate onboarding');
     }
-  }, [societyForm, selectedPlan, subscriptionAmount, token, promoCode, validateSocietyForm, isStepInvalid, calculateTotalFlats, initiateRazorpayPayment, paymentType, certificateFile, router, isTrialMode]);
+  }, [societyForm, selectedPlan, subscriptionAmount, token, promoCode, paymentSkipped, validateSocietyForm, isStepInvalid, calculateTotalFlats, initiateRazorpayPayment, paymentType, certificateFile, router, isTrialMode]);
 
   const nextStep = useCallback(() => {
     if (currentStep === 1) {
@@ -1172,6 +1211,9 @@ const SocietyOnboarding = () => {
       const upperValue = value.toUpperCase();
       setPromoCode(upperValue);
       setPromoCodeError(upperValue ? (/^[A-Z0-9-]{4,20}$/.test(upperValue) ? '' : 'Invalid promo code format') : '');
+      setPromoApplied(false);
+      setPromoDiscount(0);
+      setPaymentSkipped(false);
     },
     []
   );
@@ -1728,33 +1770,52 @@ const SocietyOnboarding = () => {
               </div>
             </div>
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Apply Promo Code</h3>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={promoCode}
-                  onChange={(e) => handlePromoCodeChange(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
-                  placeholder="Enter promo code"
-                  aria-invalid={!!promoCodeError}
-                />
-                <button
-                  type="button"
-                  onClick={handlePromoCode}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                  disabled={isValidatingPromo}
-                >
-                  {isValidatingPromo ? (
-                    <>
-                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                      Validating...
-                    </>
-                  ) : (
-                    'Apply'
-                  )}
-                </button>
-              </div>
-              {promoCodeError && <p className="text-red-500 text-xs mt-1">{promoCodeError}</p>}
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Apply Promo Code</h3>
+              <p className="text-sm text-gray-500 mb-4">If payment was accepted manually, apply the promo code to skip online payment.</p>
+              {!promoApplied ? (
+                <>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => handlePromoCodeChange(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 placeholder-gray-400"
+                      placeholder="Enter promo code"
+                      aria-invalid={!!promoCodeError}
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePromoCode}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                      disabled={isValidatingPromo}
+                    >
+                      {isValidatingPromo ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                          Validating...
+                        </>
+                      ) : (
+                        'Apply'
+                      )}
+                    </button>
+                  </div>
+                  {promoCodeError && <p className="text-red-500 text-xs mt-1">{promoCodeError}</p>}
+                </>
+              ) : (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                  <div className="text-green-700 text-sm">
+                    <span className="font-semibold">{promoCode}</span> —{' '}
+                    {paymentSkipped ? 'payment will be skipped for this onboarding.' : `${promoDiscount}% discount applied.`}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handlePromoCodeChange('')}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Order Summary</h3>
@@ -1779,9 +1840,19 @@ const SocietyOnboarding = () => {
                 )}
                 <div className="flex justify-between font-semibold text-gray-900">
                   <span>Total Amount:</span>
-                  <span>₹{(subscriptionAmount - discountPrice).toFixed(2)}</span>
+                  {paymentSkipped ? (
+                    <span className="text-green-600">₹0.00 (Payment Skipped)</span>
+                  ) : (
+                    <span>₹{(subscriptionAmount - discountPrice).toFixed(2)}</span>
+                  )}
                 </div>
               </div>
+              {paymentSkipped && (
+                <div className="mt-3 p-3 bg-green-50 rounded-lg text-green-700 text-sm flex items-center">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Payment skipped via promo code — society will be onboarded without online payment.
+                </div>
+              )}
             </div>
             <div className="mt-8 flex justify-between">
               <button
@@ -1806,7 +1877,7 @@ const SocietyOnboarding = () => {
                   </>
                 ) : (
                   <>
-                    Proceed to Payment
+                    {paymentSkipped ? 'Complete Onboarding (No Payment)' : 'Proceed to Payment'}
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </>
                 )}
